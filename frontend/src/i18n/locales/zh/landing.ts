@@ -15,12 +15,12 @@ export default {
     getStarted: '立即开始',
     goToDashboard: '进入控制台',
     // 新增：面向用户的价值主张
-    heroSubtitle: '一个密钥，畅用多个 AI 模型',
-    heroDescription: '无需管理多个订阅账号，一站式接入 Claude、GPT、Gemini 等主流 AI 服务',
+    heroSubtitle: '一个密钥，统一接入多模型 API',
+    heroDescription: '面向开发者的稳定中转服务，兼容 OpenAI、Claude、Gemini 等主流协议',
     tags: {
-      subscriptionToApi: '订阅转 API',
-      stickySession: '会话保持',
-      realtimeBilling: '按量计费'
+      subscriptionToApi: '统一 API 接入',
+      stickySession: '智能故障切换',
+      realtimeBilling: '透明用量计费'
     },
     // 用户痛点区块
     painPoints: {
@@ -51,11 +51,11 @@ export default {
     },
     features: {
       unifiedGateway: '一键接入',
-      unifiedGatewayDesc: '获取一个 API 密钥，即可调用所有已接入的 AI 模型，无需分别申请。',
+      unifiedGatewayDesc: '使用一枚 Key 接入多个模型，减少环境变量和供应商配置。',
       multiAccount: '稳定可靠',
-      multiAccountDesc: '智能调度多个上游账号，自动切换和负载均衡，告别频繁报错。',
+      multiAccountDesc: '根据渠道状态进行调度与回退，让关键请求更从容。',
       balanceQuota: '用多少付多少',
-      balanceQuotaDesc: '按实际使用量计费，支持设置配额上限，团队用量一目了然。'
+      balanceQuotaDesc: '按实际用量统计，支持额度、倍率和调用明细管理。'
     },
     // 优势对比
     comparison: {
@@ -94,8 +94,8 @@ export default {
       }
     },
     providers: {
-      title: '已支持的 AI 模型',
-      description: '一个 API，多种选择',
+      title: '主流模型，一站接入',
+      description: '兼容常见 SDK 与开发工具，替换 Base URL 即可开始调用',
       supported: '已支持',
       soon: '即将推出',
       claude: 'Claude',

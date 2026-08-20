@@ -15,12 +15,12 @@ export default {
     getStarted: 'Get Started',
     goToDashboard: 'Go to Dashboard',
     // User-focused value proposition
-    heroSubtitle: 'One Key, All AI Models',
-    heroDescription: 'No need to manage multiple subscriptions. Access Claude, GPT, Gemini and more with a single API key',
+    heroSubtitle: 'One key for multi-model API access',
+    heroDescription: 'A stable relay for developers, compatible with OpenAI, Claude, Gemini and other popular protocols.',
     tags: {
-      subscriptionToApi: 'Subscription to API',
-      stickySession: 'Session Persistence',
-      realtimeBilling: 'Pay As You Go'
+      subscriptionToApi: 'Unified API access',
+      stickySession: 'Smart failover',
+      realtimeBilling: 'Transparent usage billing'
     },
     // Pain points section
     painPoints: {
@@ -51,11 +51,11 @@ export default {
     },
     features: {
       unifiedGateway: 'One-Click Access',
-      unifiedGatewayDesc: 'Get a single API key to call all connected AI models. No separate applications needed.',
+      unifiedGatewayDesc: 'Use one key across multiple models and simplify provider configuration.',
       multiAccount: 'Always Reliable',
-      multiAccountDesc: 'Smart routing across multiple upstream accounts with automatic failover. Say goodbye to errors.',
+      multiAccountDesc: 'Route requests by channel health and recover gracefully when a route degrades.',
       balanceQuota: 'Pay What You Use',
-      balanceQuotaDesc: 'Usage-based billing with quota limits. Full visibility into team consumption.'
+      balanceQuotaDesc: 'Track real usage with configurable quotas, rates and request details.'
     },
     // Comparison section
     comparison: {
@@ -94,8 +94,8 @@ export default {
       }
     },
     providers: {
-      title: 'Supported AI Models',
-      description: 'One API, Multiple Choices',
+      title: 'Popular models, one gateway',
+      description: 'Compatible with common SDKs and developer tools. Replace the Base URL and go.',
       supported: 'Supported',
       soon: 'Soon',
       claude: 'Claude',
