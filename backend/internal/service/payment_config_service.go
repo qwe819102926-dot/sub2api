@@ -41,9 +41,9 @@ const (
 	SettingCancelWindowMode              = "CANCEL_RATE_LIMIT_WINDOW_MODE"
 	SettingAlipayForceQRCode             = "ALIPAY_FORCE_QRCODE"
 	SettingAlipayMobilePrecreateDeepLink = "ALIPAY_MOBILE_PRECREATE_DEEP_LINK"
-	SettingRechargeLotteryEnabled         = "RECHARGE_LOTTERY_ENABLED"
-	SettingRechargeLotteryThreshold       = "RECHARGE_LOTTERY_THRESHOLD"
-	SettingRechargeLotteryPrizes          = "RECHARGE_LOTTERY_PRIZES"
+	SettingRechargeLotteryEnabled        = "RECHARGE_LOTTERY_ENABLED"
+	SettingRechargeLotteryThreshold      = "RECHARGE_LOTTERY_THRESHOLD"
+	SettingRechargeLotteryPrizes         = "RECHARGE_LOTTERY_PRIZES"
 )
 
 // Default values for payment configuration settings.
@@ -83,7 +83,7 @@ type PaymentConfig struct {
 	// Force Alipay mobile users to use QR code instead of mobile redirect
 	AlipayForceQRCode bool `json:"alipay_force_qrcode"`
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
-	AlipayMobilePrecreateDeepLink bool `json:"alipay_mobile_precreate_deep_link"`
+	AlipayMobilePrecreateDeepLink bool                  `json:"alipay_mobile_precreate_deep_link"`
 	RechargeLottery               RechargeLotteryConfig `json:"recharge_lottery"`
 }
 
@@ -129,10 +129,10 @@ type UpdatePaymentConfigRequest struct {
 	// Force Alipay mobile users to use QR code instead of mobile redirect
 	AlipayForceQRCode *bool `json:"alipay_force_qrcode"`
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
-	AlipayMobilePrecreateDeepLink *bool `json:"alipay_mobile_precreate_deep_link"`
-	RechargeLotteryEnabled         *bool                   `json:"recharge_lottery_enabled"`
-	RechargeLotteryThreshold       *float64                `json:"recharge_lottery_threshold"`
-	RechargeLotteryPrizes          []RechargeLotteryPrize `json:"recharge_lottery_prizes"`
+	AlipayMobilePrecreateDeepLink *bool                  `json:"alipay_mobile_precreate_deep_link"`
+	RechargeLotteryEnabled        *bool                  `json:"recharge_lottery_enabled"`
+	RechargeLotteryThreshold      *float64               `json:"recharge_lottery_threshold"`
+	RechargeLotteryPrizes         []RechargeLotteryPrize `json:"recharge_lottery_prizes"`
 
 	VisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
 	VisibleMethodWxpaySource   *string `json:"payment_visible_method_wxpay_source"`
