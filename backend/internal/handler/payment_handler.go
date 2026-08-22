@@ -41,6 +41,38 @@ func (h *PaymentHandler) GetPaymentConfig(c *gin.Context) {
 	response.Success(c, cfg)
 }
 
+// GetRechargeLottery returns the current user's recharge lottery status.
+// GET /api/v1/payment/lottery
+func (h *PaymentHandler) GetRechargeLottery(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	status, err := h.paymentService.GetRechargeLotteryStatus(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
+// DrawRechargeLottery consumes one recharge lottery chance for the current user.
+// POST /api/v1/payment/lottery/draw
+func (h *PaymentHandler) DrawRechargeLottery(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	result, err := h.paymentService.DrawRechargeLottery(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {

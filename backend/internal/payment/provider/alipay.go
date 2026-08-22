@@ -18,6 +18,8 @@ const (
 	alipayProductCodePreCreate = "FACE_TO_FACE_PAYMENT"
 	alipayProductCodeWapPay    = "QUICK_WAP_WAY"
 	alipayProductCodePagePay   = "FAST_INSTANT_TRADE_PAY"
+	alipayProductionGateway    = "https://openapi.alipay.com/gateway.do"
+	alipaySandboxGateway       = "https://openapi-sandbox.dl.alipaydev.com/gateway.do"
 )
 
 // Alipay response constants.
@@ -56,6 +58,9 @@ func NewAlipay(instanceID string, config map[string]string) (*Alipay, error) {
 			return nil, fmt.Errorf("alipay config missing required key: %s", k)
 		}
 	}
+	if _, err := alipayProductionEnvironment(config["gateway"]); err != nil {
+		return nil, err
+	}
 	return &Alipay{
 		instanceID: instanceID,
 		config:     config,
@@ -68,7 +73,15 @@ func (a *Alipay) getClient() (*alipay.Client, error) {
 	if a.client != nil {
 		return a.client, nil
 	}
-	client, err := alipay.New(a.config["appId"], a.config["privateKey"], true)
+	production, err := alipayProductionEnvironment(a.config["gateway"])
+	if err != nil {
+		return nil, err
+	}
+	options := make([]alipay.OptionFunc, 0, 1)
+	if !production {
+		options = append(options, alipay.WithSandboxGateway(alipaySandboxGateway))
+	}
+	client, err := alipay.New(a.config["appId"], a.config["privateKey"], production, options...)
 	if err != nil {
 		return nil, fmt.Errorf("alipay init client: %w", err)
 	}
@@ -84,6 +97,17 @@ func (a *Alipay) getClient() (*alipay.Client, error) {
 	}
 	a.client = client
 	return a.client, nil
+}
+
+func alipayProductionEnvironment(rawGateway string) (bool, error) {
+	switch gateway := strings.TrimSpace(rawGateway); gateway {
+	case "", alipayProductionGateway:
+		return true, nil
+	case alipaySandboxGateway:
+		return false, nil
+	default:
+		return false, fmt.Errorf("alipay config has unsupported gateway: %s", gateway)
+	}
 }
 
 func (a *Alipay) Name() string        { return "Alipay" }
@@ -104,6 +128,8 @@ func (a *Alipay) MerchantIdentityMetadata() map[string]string {
 }
 
 // CreatePayment creates an Alipay payment using the following routing:
+//   - paymentMode == "redirect": alipay.trade.page.pay for all web clients.
+//     This is the AI Web App Payment flow and deliberately applies to H5 too.
 //   - Mobile (H5), default: alipay.trade.wap.pay — browser redirect into Alipay.
 //   - Mobile with AlipayMobilePrecreate: alipay.trade.precreate — return the
 //     dynamic QR payload so the frontend can open it through the Alipay app.
@@ -132,6 +158,9 @@ func (a *Alipay) CreatePayment(ctx context.Context, req payment.CreatePaymentReq
 		returnURL = req.ReturnURL
 	}
 
+	if strings.EqualFold(strings.TrimSpace(a.config["paymentMode"]), "redirect") {
+		return a.createPagePayTrade(client, req, notifyURL, returnURL)
+	}
 	if req.IsMobile {
 		if req.AlipayMobilePrecreate {
 			return a.createPrecreateTrade(ctx, client, req, notifyURL)
@@ -161,13 +190,9 @@ func (a *Alipay) createWapTrade(client *alipay.Client, req payment.CreatePayment
 }
 
 func (a *Alipay) createDesktopTrade(ctx context.Context, client *alipay.Client, req payment.CreatePaymentRequest, notifyURL, returnURL string) (*payment.CreatePaymentResponse, error) {
-	// Explicit redirect mode: merchant opted into "always open the Alipay
-	// checkout page in a new tab" via the provider instance's payment_mode.
-	// Skip precreate to avoid a wasted API call.
 	if strings.EqualFold(strings.TrimSpace(a.config["paymentMode"]), "redirect") {
 		return a.createPagePayTrade(client, req, notifyURL, returnURL)
 	}
-
 	resp, precreateErr := a.createPrecreateTrade(ctx, client, req, notifyURL)
 	if precreateErr == nil {
 		return resp, nil

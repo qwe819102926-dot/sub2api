@@ -750,6 +750,8 @@ export default {
         callbackBaseUrl: '回调基础地址',
         field_privateKey: '私钥',
         field_publicKey: '公钥',
+        field_gateway: '支付宝网关',
+        field_alipayGatewayHint: '正式环境使用默认网关；沙箱测试填写支付宝沙箱网关。',
         field_mpAppId: '公众号 App ID',
         field_mchId: '商户号',
         field_apiV3Key: 'API v3 密钥',

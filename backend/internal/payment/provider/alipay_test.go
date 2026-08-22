@@ -4,14 +4,56 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/smartwalle/alipay/v3"
 )
+
+type alipaySandboxConfig struct {
+	AppID             string `json:"appId"`
+	AppPrivatePKCSKey string `json:"appPrivatePkcsKey"`
+	AlipayPublicKey   string `json:"alipayPublicKey"`
+}
+
+func TestSandboxTradeQuerySmoke(t *testing.T) {
+	configPath := strings.TrimSpace(os.Getenv("AIPAY_SANDBOX_SMOKE_CONFIG"))
+	if configPath == "" {
+		t.Skip("set AIPAY_SANDBOX_SMOKE_CONFIG to run the sandbox trade-query smoke test")
+	}
+
+	rawConfig, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read sandbox config: %v", err)
+	}
+	var sandbox alipaySandboxConfig
+	if err := json.Unmarshal(rawConfig, &sandbox); err != nil {
+		t.Fatalf("parse sandbox config: %v", err)
+	}
+	provider, err := NewAlipay("sandbox-smoke", map[string]string{
+		"appId":           sandbox.AppID,
+		"privateKey":      sandbox.AppPrivatePKCSKey,
+		"alipayPublicKey": sandbox.AlipayPublicKey,
+		"gateway":         alipaySandboxGateway,
+	})
+	if err != nil {
+		t.Fatalf("initialize sandbox provider: %v", err)
+	}
+
+	response, err := provider.QueryOrder(context.Background(), "sandbox_probe_"+time.Now().UTC().Format("20060102150405.000000000"))
+	if err != nil {
+		t.Fatalf("sandbox trade query: %v", err)
+	}
+	if response.Status != payment.ProviderStatusPending {
+		t.Fatalf("sandbox probe status = %q, want %q", response.Status, payment.ProviderStatusPending)
+	}
+}
 
 func TestIsTradeNotExist(t *testing.T) {
 	t.Parallel()
@@ -363,6 +405,92 @@ func TestCreatePaymentKeepsWapPayForMobileWhenPrecreateDisabled(t *testing.T) {
 	}
 	if resp.PayURL == "" || resp.QRCode != "" {
 		t.Fatalf("unexpected response: qr_code=%q pay_url=%q", resp.QRCode, resp.PayURL)
+	}
+}
+
+func TestCreatePaymentRedirectModeUsesPagePayForMobile(t *testing.T) {
+	origPreCreate := alipayTradePreCreate
+	origPagePay := alipayTradePagePay
+	origWapPay := alipayTradeWapPay
+	t.Cleanup(func() {
+		alipayTradePreCreate = origPreCreate
+		alipayTradePagePay = origPagePay
+		alipayTradeWapPay = origWapPay
+	})
+
+	precreateCalls := 0
+	pagePayCalls := 0
+	wapPayCalls := 0
+	alipayTradePreCreate = func(_ context.Context, _ *alipay.Client, _ alipay.TradePreCreate) (*alipay.TradePreCreateRsp, error) {
+		precreateCalls++
+		return nil, errors.New("unexpected precreate call")
+	}
+	alipayTradePagePay = func(_ *alipay.Client, param alipay.TradePagePay) (*url.URL, error) {
+		pagePayCalls++
+		if param.ProductCode != alipayProductCodePagePay {
+			t.Fatalf("product_code = %q, want %q", param.ProductCode, alipayProductCodePagePay)
+		}
+		if param.ReturnURL != "https://merchant.example.com/payment/result" {
+			t.Fatalf("return_url = %q", param.ReturnURL)
+		}
+		return url.Parse("https://openapi.alipay.com/gateway.do?page-pay")
+	}
+	alipayTradeWapPay = func(_ *alipay.Client, _ alipay.TradeWapPay) (*url.URL, error) {
+		wapPayCalls++
+		return nil, errors.New("unexpected wap pay call")
+	}
+
+	provider := &Alipay{client: &alipay.Client{}, config: map[string]string{"paymentMode": "redirect"}}
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:   "sub2_mobile_page_pay",
+		Amount:    "18.00",
+		Subject:   "Balance recharge",
+		IsMobile:  true,
+		ReturnURL: "https://merchant.example.com/payment/result",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if precreateCalls != 0 || wapPayCalls != 0 || pagePayCalls != 1 {
+		t.Fatalf("precreate=%d wap=%d pagepay=%d, want 0, 0, 1", precreateCalls, wapPayCalls, pagePayCalls)
+	}
+	if resp.PayURL == "" || resp.QRCode != "" {
+		t.Fatalf("unexpected response: qr_code=%q pay_url=%q", resp.QRCode, resp.PayURL)
+	}
+}
+
+func TestAlipayProductionEnvironment(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		gateway    string
+		production bool
+		wantErr    bool
+	}{
+		{name: "default uses production", production: true},
+		{name: "production gateway", gateway: alipayProductionGateway, production: true},
+		{name: "sandbox gateway", gateway: alipaySandboxGateway, production: false},
+		{name: "reject unknown gateway", gateway: "https://example.invalid/gateway.do", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			production, err := alipayProductionEnvironment(tt.gateway)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected an error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if production != tt.production {
+				t.Fatalf("production = %v, want %v", production, tt.production)
+			}
+		})
 	}
 }
 

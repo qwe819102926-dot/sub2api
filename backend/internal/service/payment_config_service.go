@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"os"
@@ -40,6 +41,9 @@ const (
 	SettingCancelWindowMode              = "CANCEL_RATE_LIMIT_WINDOW_MODE"
 	SettingAlipayForceQRCode             = "ALIPAY_FORCE_QRCODE"
 	SettingAlipayMobilePrecreateDeepLink = "ALIPAY_MOBILE_PRECREATE_DEEP_LINK"
+	SettingRechargeLotteryEnabled         = "RECHARGE_LOTTERY_ENABLED"
+	SettingRechargeLotteryThreshold       = "RECHARGE_LOTTERY_THRESHOLD"
+	SettingRechargeLotteryPrizes          = "RECHARGE_LOTTERY_PRIZES"
 )
 
 // Default values for payment configuration settings.
@@ -80,6 +84,20 @@ type PaymentConfig struct {
 	AlipayForceQRCode bool `json:"alipay_force_qrcode"`
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	AlipayMobilePrecreateDeepLink bool `json:"alipay_mobile_precreate_deep_link"`
+	RechargeLottery               RechargeLotteryConfig `json:"recharge_lottery"`
+}
+
+// RechargeLotteryPrize is a balance prize with its configured chance in percent.
+type RechargeLotteryPrize struct {
+	Amount      float64 `json:"amount"`
+	Probability float64 `json:"probability"`
+}
+
+// RechargeLotteryConfig controls the recharge draw campaign.
+type RechargeLotteryConfig struct {
+	Enabled   bool                   `json:"enabled"`
+	Threshold float64                `json:"threshold"`
+	Prizes    []RechargeLotteryPrize `json:"prizes"`
 }
 
 // UpdatePaymentConfigRequest contains fields to update payment configuration.
@@ -112,6 +130,9 @@ type UpdatePaymentConfigRequest struct {
 	AlipayForceQRCode *bool `json:"alipay_force_qrcode"`
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	AlipayMobilePrecreateDeepLink *bool `json:"alipay_mobile_precreate_deep_link"`
+	RechargeLotteryEnabled         *bool                   `json:"recharge_lottery_enabled"`
+	RechargeLotteryThreshold       *float64                `json:"recharge_lottery_threshold"`
+	RechargeLotteryPrizes          []RechargeLotteryPrize `json:"recharge_lottery_prizes"`
 
 	VisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
 	VisibleMethodWxpaySource   *string `json:"payment_visible_method_wxpay_source"`
@@ -225,6 +246,7 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 		SettingCancelRateLimitOn, SettingCancelRateLimitMax,
 		SettingCancelWindowSize, SettingCancelWindowUnit, SettingCancelWindowMode,
 		SettingAlipayForceQRCode, SettingAlipayMobilePrecreateDeepLink,
+		SettingRechargeLotteryEnabled, SettingRechargeLotteryThreshold, SettingRechargeLotteryPrizes,
 		SettingPaymentVisibleMethodAlipayEnabled, SettingPaymentVisibleMethodAlipaySource,
 		SettingPaymentVisibleMethodWxpayEnabled, SettingPaymentVisibleMethodWxpaySource,
 	}
@@ -264,7 +286,12 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 
 		AlipayForceQRCode:             vals[SettingAlipayForceQRCode] == "true",
 		AlipayMobilePrecreateDeepLink: vals[SettingAlipayMobilePrecreateDeepLink] == "true",
+		RechargeLottery: RechargeLotteryConfig{
+			Enabled:   vals[SettingRechargeLotteryEnabled] == "true",
+			Threshold: pcParseFloat(vals[SettingRechargeLotteryThreshold], 0),
+		},
 	}
+	_ = json.Unmarshal([]byte(vals[SettingRechargeLotteryPrizes]), &cfg.RechargeLottery.Prizes)
 	cfg.AlipayMobilePrecreateDeepLink = pcEnvBoolOverride(
 		SettingAlipayMobilePrecreateDeepLink,
 		cfg.AlipayMobilePrecreateDeepLink,
@@ -343,6 +370,30 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return infraerrors.BadRequest("INVALID_RECHARGE_FEE_RATE", "recharge fee rate allows at most 2 decimal places")
 		}
 	}
+	if req.RechargeLotteryThreshold != nil {
+		if !isRechargeLotteryMoney(*req.RechargeLotteryThreshold) {
+			return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_THRESHOLD", "recharge lottery threshold must be greater than 0 with at most 2 decimal places")
+		}
+	}
+	if req.RechargeLotteryEnabled != nil || req.RechargeLotteryPrizes != nil {
+		current, err := s.GetPaymentConfig(ctx)
+		if err != nil {
+			return err
+		}
+		lottery := current.RechargeLottery
+		if req.RechargeLotteryEnabled != nil {
+			lottery.Enabled = *req.RechargeLotteryEnabled
+		}
+		if req.RechargeLotteryThreshold != nil {
+			lottery.Threshold = *req.RechargeLotteryThreshold
+		}
+		if req.RechargeLotteryPrizes != nil {
+			lottery.Prizes = req.RechargeLotteryPrizes
+		}
+		if err := validateRechargeLotteryConfig(lottery); err != nil {
+			return err
+		}
+	}
 	m := make(map[string]string)
 	if req.Enabled != nil {
 		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
@@ -413,6 +464,19 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 	if req.AlipayMobilePrecreateDeepLink != nil {
 		m[SettingAlipayMobilePrecreateDeepLink] = formatBoolOrEmpty(req.AlipayMobilePrecreateDeepLink)
 	}
+	if req.RechargeLotteryEnabled != nil {
+		m[SettingRechargeLotteryEnabled] = formatBoolOrEmpty(req.RechargeLotteryEnabled)
+	}
+	if req.RechargeLotteryThreshold != nil {
+		m[SettingRechargeLotteryThreshold] = formatPositiveFloat(req.RechargeLotteryThreshold)
+	}
+	if req.RechargeLotteryPrizes != nil {
+		encoded, err := json.Marshal(req.RechargeLotteryPrizes)
+		if err != nil {
+			return fmt.Errorf("encode recharge lottery prizes: %w", err)
+		}
+		m[SettingRechargeLotteryPrizes] = string(encoded)
+	}
 	if req.VisibleMethodAlipaySource != nil {
 		m[SettingPaymentVisibleMethodAlipaySource] = derefStr(req.VisibleMethodAlipaySource)
 	}
@@ -426,6 +490,33 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		m[SettingPaymentVisibleMethodWxpayEnabled] = formatBoolOrEmpty(req.VisibleMethodWxpayEnabled)
 	}
 	return s.settingRepo.SetMultiple(ctx, m)
+}
+
+func isRechargeLotteryMoney(v float64) bool {
+	return !math.IsNaN(v) && !math.IsInf(v, 0) && v > 0 && math.Round(v*100) == v*100
+}
+
+func validateRechargeLotteryConfig(cfg RechargeLotteryConfig) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if !isRechargeLotteryMoney(cfg.Threshold) {
+		return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_THRESHOLD", "recharge lottery threshold must be greater than 0 with at most 2 decimal places")
+	}
+	if len(cfg.Prizes) == 0 {
+		return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_PRIZES", "an enabled recharge lottery requires at least one prize")
+	}
+	total := 0.0
+	for _, prize := range cfg.Prizes {
+		if !isRechargeLotteryMoney(prize.Amount) || math.IsNaN(prize.Probability) || math.IsInf(prize.Probability, 0) || prize.Probability <= 0 || prize.Probability > 100 {
+			return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_PRIZES", "prize amounts must have at most 2 decimal places and probabilities must be between 0 and 100")
+		}
+		total += prize.Probability
+	}
+	if total > 100+1e-9 {
+		return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_PRIZES", "total prize probability cannot exceed 100")
+	}
+	return nil
 }
 
 func formatBoolOrEmpty(v *bool) string {

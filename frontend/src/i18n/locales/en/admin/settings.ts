@@ -755,6 +755,8 @@ export default {
         callbackBaseUrl: 'Callback Base URL',
         field_privateKey: 'Private Key',
         field_publicKey: 'Public Key',
+        field_gateway: 'Alipay Gateway',
+        field_alipayGatewayHint: 'Use the default gateway in production; use the Alipay sandbox gateway for sandbox tests.',
         field_mpAppId: 'MP App ID',
         field_mchId: 'Merchant ID',
         field_apiV3Key: 'API v3 Key',

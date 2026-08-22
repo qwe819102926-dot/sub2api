@@ -435,8 +435,8 @@ const supportsPaymentMode = computed(() => providerSupportsPaymentMode(form.prov
 
 const paymentModeOptions = computed(() => {
   if (form.provider_key === 'alipay') {
-    // For Alipay official: "" = default (precreate → page.pay fallback);
-    // "redirect" = always open the Alipay checkout page in a new tab.
+    // For Alipay official: "" = default (precreate → page.pay fallback).
+    // "redirect" = page.pay for desktop and mobile web clients.
     return [
       { value: '', label: t('admin.settings.payment.modeQRCode') },
       { value: PAYMENT_MODE_REDIRECT, label: t('admin.settings.payment.modeRedirect') },

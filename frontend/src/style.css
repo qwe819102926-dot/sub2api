@@ -17,7 +17,7 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 dark:bg-dark-950 dark:text-gray-100;
+    @apply bg-[#f4e4bc] text-[#3a3226] dark:bg-dark-950 dark:text-dark-50;
     @apply min-h-screen;
   }
 
@@ -62,7 +62,7 @@
 
   /* 选中文本样式 */
   ::selection {
-    @apply bg-primary-500/20 text-primary-900 dark:text-primary-100;
+    @apply bg-primary-300/50 text-[#3a3226] dark:text-dark-50;
   }
 
 
@@ -744,6 +744,247 @@
   /* 表头固定时添加底部阴影，增强视觉层次 */
   .table-wrapper thead.sticky {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  }
+}
+
+@layer components {
+  /* Hand-painted workspace treatment shared by user and admin screens. */
+  .app-shell {
+    background:
+      radial-gradient(circle at 11% 5%, rgba(133, 205, 202, 0.2), transparent 20rem),
+      radial-gradient(circle at 92% 15%, rgba(232, 168, 124, 0.17), transparent 18rem),
+      #f4e4bc;
+  }
+
+  .workspace-grid {
+    background-image:
+      radial-gradient(ellipse at 20% 30%, rgba(124, 185, 168, 0.13) 0 1px, transparent 1.5px),
+      radial-gradient(ellipse at 70% 65%, rgba(195, 141, 148, 0.1) 0 1px, transparent 1.5px);
+    background-size: 36px 36px, 52px 52px;
+    opacity: 0.75;
+  }
+
+  .dark .app-shell {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(124, 185, 168, 0.18), transparent 22rem),
+      #1d251c;
+  }
+
+  .dark .workspace-grid {
+    background-image:
+      radial-gradient(ellipse at 20% 30%, rgba(244, 228, 188, 0.12) 0 1px, transparent 1.5px),
+      radial-gradient(ellipse at 70% 65%, rgba(133, 205, 202, 0.11) 0 1px, transparent 1.5px);
+  }
+
+  .app-header {
+    border-bottom: 1px solid rgba(94, 122, 96, 0.25);
+    background: rgba(250, 245, 235, 0.86);
+    backdrop-filter: blur(12px);
+  }
+
+  .dark .app-header {
+    border-bottom-color: rgba(244, 228, 188, 0.16);
+    background: rgba(39, 48, 37, 0.88);
+  }
+
+  .sidebar {
+    background: rgba(250, 245, 235, 0.96);
+    border-right-color: rgba(94, 122, 96, 0.28);
+    box-shadow: 10px 0 28px -22px rgba(84, 104, 77, 0.26);
+  }
+
+  .sidebar-header {
+    border-bottom-color: rgba(94, 122, 96, 0.17);
+  }
+
+  .sidebar-logo {
+    border: 1px solid rgba(124, 185, 168, 0.45);
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(124, 185, 168, 0.18);
+  }
+
+  .sidebar-brand-title,
+  .sidebar-brand-title:hover {
+    color: #3a3226;
+  }
+
+  .sidebar-link {
+    position: relative;
+    border-radius: 14px;
+    color: #5a4a3a;
+    transition: transform 600ms ease-in-out, background-color 600ms ease-in-out, color 600ms ease-in-out;
+  }
+
+  .sidebar-link:hover {
+    background: rgba(124, 185, 168, 0.17);
+    color: #3a3226;
+    transform: translateY(-1px) rotate(-0.2deg);
+  }
+
+  .sidebar-link-active,
+  .sidebar-link-active:hover {
+    background: rgba(124, 185, 168, 0.28);
+    color: #315449;
+  }
+
+  .sidebar-link-active::before {
+    position: absolute;
+    left: 12px;
+    width: 6px;
+    height: 6px;
+    content: '';
+    border-radius: 999px;
+    background: #e8a87c;
+  }
+
+  .sidebar-section-title {
+    color: #8a7a6a;
+    letter-spacing: 0.02em;
+  }
+
+  .dark .sidebar {
+    background: #273025;
+    border-right-color: rgba(244, 228, 188, 0.16);
+    box-shadow: 10px 0 28px -22px rgba(0, 0, 0, 0.6);
+  }
+
+  .dark .sidebar-header {
+    border-bottom-color: rgba(244, 228, 188, 0.12);
+  }
+
+  .dark .sidebar-logo {
+    border-color: rgba(133, 205, 202, 0.36);
+  }
+
+  .dark .sidebar-brand-title,
+  .dark .sidebar-brand-title:hover {
+    color: #f4e4bc;
+  }
+
+  .dark .sidebar-link {
+    color: #d6ddcf;
+  }
+
+  .dark .sidebar-link:hover {
+    background: rgba(124, 185, 168, 0.2);
+    color: #f4e4bc;
+  }
+
+  .dark .sidebar-link-active,
+  .dark .sidebar-link-active:hover {
+    background: rgba(133, 205, 202, 0.25);
+    color: #f4e4bc;
+  }
+
+  .dark .sidebar-section-title {
+    color: #b8c1ac;
+  }
+
+  .card,
+  .glass-card {
+    border: 1px solid rgba(124, 185, 168, 0.4);
+    border-radius: 16px;
+    background: rgba(250, 245, 235, 0.94);
+    box-shadow: 0 4px 16px rgba(124, 185, 168, 0.2);
+  }
+
+  .dark .card,
+  .dark .glass-card {
+    border-color: rgba(184, 209, 188, 0.24);
+    background: rgba(51, 59, 48, 0.9);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  }
+
+  .card-hover:hover {
+    border-color: rgba(124, 185, 168, 0.7);
+    box-shadow: 0 8px 24px rgba(124, 185, 168, 0.28);
+    transform: translateY(-2px) rotate(0.2deg);
+    transition-duration: 600ms;
+  }
+
+  .btn {
+    border-radius: 16px;
+    font-weight: 600;
+    transition-duration: 600ms;
+  }
+
+  .btn-primary {
+    background: #639d8c;
+    box-shadow: 0 4px 16px rgba(124, 185, 168, 0.28);
+  }
+
+  .btn-primary:hover {
+    background: #4d8373;
+    box-shadow: 0 8px 24px rgba(124, 185, 168, 0.34);
+    transform: translateY(-1px) rotate(-0.25deg) scale(1.02);
+  }
+
+  .btn-secondary {
+    border-color: rgba(124, 185, 168, 0.42);
+    border-radius: 16px;
+    background: #f4e4bc;
+    color: #3a3226;
+    box-shadow: 0 2px 8px rgba(124, 185, 168, 0.14);
+  }
+
+  .dark .btn-secondary {
+    border-color: rgba(184, 209, 188, 0.28);
+  }
+
+  .input {
+    border-color: rgba(124, 185, 168, 0.46);
+    border-radius: 16px;
+    background: #faf5eb;
+    color: #3a3226;
+    transition-duration: 600ms;
+  }
+
+  .input:focus {
+    border-color: #639d8c;
+    box-shadow: 0 4px 16px rgba(124, 185, 168, 0.25);
+  }
+
+  .dark .input {
+    border-color: rgba(184, 209, 188, 0.28);
+    background: #333b30;
+  }
+
+  .table-container {
+    border-color: rgba(124, 185, 168, 0.4);
+    border-radius: 16px;
+    background: rgba(250, 245, 235, 0.8);
+  }
+
+  .table th {
+    background: rgba(124, 185, 168, 0.14);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+  }
+
+  .dark .table-container {
+    border-color: rgba(184, 209, 188, 0.22);
+    background: rgba(51, 59, 48, 0.84);
+  }
+
+  .dark .table th {
+    background: rgba(184, 209, 188, 0.1);
+  }
+
+  .dropdown,
+  .modal-content,
+  .dialog-container {
+    border-radius: 16px;
+    border-color: rgba(124, 185, 168, 0.4);
+    box-shadow: 0 8px 32px rgba(124, 185, 168, 0.25);
+  }
+
+  .page-title {
+    font-weight: 700;
+    color: #3a3226;
+  }
+
+  .dark .page-title {
+    color: #f4e4bc;
   }
 }
 

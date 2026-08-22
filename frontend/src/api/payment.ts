@@ -13,6 +13,7 @@ import type {
   CreateOrderResult,
   PaymentOrder
 } from '@/types/payment'
+import type { RechargeLotteryDrawResult, RechargeLotteryStatus } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
 export interface PublicOrderVerifyResult {
@@ -42,6 +43,16 @@ export const paymentAPI = {
   /** Get payment method limits and fee rates */
   getLimits() {
     return apiClient.get<MethodLimitsResponse>('/payment/limits')
+  },
+
+  /** Get the current user's recharge lottery chances and prize pool. */
+  getRechargeLottery() {
+    return apiClient.get<RechargeLotteryStatus>('/payment/lottery')
+  },
+
+  /** Draw one recharge lottery chance. */
+  drawRechargeLottery() {
+    return apiClient.post<RechargeLotteryDrawResult>('/payment/lottery/draw')
   },
 
   /** Create a new payment order */

@@ -12,6 +12,7 @@ import type {
   ProviderInstance
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
+import type { RechargeLotteryPrize } from '@/types/payment'
 
 /** Admin-facing payment config returned by GET /admin/payment/config */
 export interface AdminPaymentConfig {
@@ -31,6 +32,11 @@ export interface AdminPaymentConfig {
   product_name_suffix: string
   help_image_url: string
   help_text: string
+  recharge_lottery: {
+    enabled: boolean
+    threshold: number
+    prizes: RechargeLotteryPrize[]
+  }
 }
 
 /** Fields accepted by PUT /admin/payment/config (all optional via pointer semantics) */
@@ -51,6 +57,9 @@ export interface UpdatePaymentConfigRequest {
   product_name_suffix?: string
   help_image_url?: string
   help_text?: string
+  recharge_lottery_enabled?: boolean
+  recharge_lottery_threshold?: number
+  recharge_lottery_prizes?: RechargeLotteryPrize[]
 }
 
 export interface RefundResult {

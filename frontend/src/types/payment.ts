@@ -41,6 +41,29 @@ export interface PaymentConfig {
   stripe_publishable_key: string
 }
 
+export interface RechargeLotteryPrize {
+  amount: number
+  probability: number
+}
+
+export interface RechargeLotteryStatus {
+  enabled: boolean
+  threshold: number
+  prizes: RechargeLotteryPrize[]
+  remaining_draws: number
+  recent_draws: Array<{
+    prize_amount: number
+    is_winner: boolean
+    created_at: string
+  }>
+}
+
+export interface RechargeLotteryDrawResult {
+  is_winner: boolean
+  prize_amount: number
+  remaining_draws: number
+}
+
 export interface MethodLimit {
   currency?: string
   display_name?: string

@@ -1,6 +1,43 @@
 <template>
   <AppLayout>
     <div class="space-y-4">
+      <section v-if="lotteryConfig" class="rounded-lg border border-[#c9dfd2] bg-[#faf5eb] p-5 shadow-sm dark:border-[#4a6a5d] dark:bg-dark-800">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-semibold text-[#426b5c] dark:text-[#a8d5ba]">{{ t('payment.lottery.adminTitle') }}</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.lottery.adminHint') }}</p>
+          </div>
+          <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+            <input v-model="lotteryConfig.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-[#639d8c] focus:ring-[#639d8c]" />
+            {{ t('payment.lottery.enabled') }}
+          </label>
+        </div>
+        <div class="mt-4 max-w-xs">
+          <label class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('payment.lottery.threshold') }}</label>
+          <input v-model.number="lotteryConfig.threshold" type="number" min="0.01" step="0.01" class="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-[#639d8c] focus:ring-1 focus:ring-[#639d8c] dark:border-dark-600 dark:bg-dark-900 dark:text-white" />
+        </div>
+        <div class="mt-5 overflow-x-auto">
+          <table class="w-full min-w-[420px] text-left text-sm">
+            <thead class="text-xs text-gray-500 dark:text-gray-400">
+              <tr><th class="pb-2">{{ t('payment.lottery.prizeAmount') }}</th><th class="pb-2">{{ t('payment.lottery.probability') }}</th><th class="pb-2"></th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="(prize, index) in lotteryConfig.prizes" :key="index">
+                <td class="pb-2 pr-3"><input v-model.number="prize.amount" type="number" min="0.01" step="0.01" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-dark-600 dark:bg-dark-900" /></td>
+                <td class="pb-2 pr-3"><input v-model.number="prize.probability" type="number" min="0.01" max="100" step="0.01" class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-dark-600 dark:bg-dark-900" /></td>
+                <td class="pb-2"><button type="button" class="rounded-md p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" :title="t('common.delete')" @click="removeLotteryPrize(index)"><Icon name="trash" size="sm" /></button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <button type="button" class="btn btn-secondary text-sm" @click="addLotteryPrize"><Icon name="plus" size="sm" />{{ t('payment.lottery.addPrize') }}</button>
+          <div class="flex items-center gap-3">
+            <span class="text-xs" :class="totalLotteryProbability > 100 ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'">{{ t('payment.lottery.totalProbability', { value: totalLotteryProbability.toFixed(2) }) }}</span>
+            <button type="button" class="btn btn-primary text-sm" :disabled="lotterySaving" @click="saveLotteryConfig">{{ lotterySaving ? t('common.processing') : t('common.save') }}</button>
+          </div>
+        </div>
+      </section>
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2">
         <button @click="loadPlans" :disabled="plansLoading" class="btn btn-secondary" :title="t('common.refresh')">
@@ -80,6 +117,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import type { AdminPaymentConfig } from '@/api/admin/payment'
+import type { RechargeLotteryPrize } from '@/types/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import adminAPI from '@/api/admin'
 import type { SubscriptionPlan } from '@/types/payment'
@@ -105,6 +143,9 @@ function planCurrencySymbol(currency?: string): string {
 
 const groups = ref<AdminGroup[]>([])
 const paymentConfig = ref<AdminPaymentConfig | null>(null)
+const lotteryConfig = ref<{ enabled: boolean; threshold: number; prizes: RechargeLotteryPrize[] } | null>(null)
+const lotterySaving = ref(false)
+const totalLotteryProbability = computed(() => lotteryConfig.value?.prizes.reduce((total, prize) => total + (Number(prize.probability) || 0), 0) ?? 0)
 
 async function loadGroups() {
   try {
@@ -116,7 +157,38 @@ async function loadPaymentConfig() {
   try {
     const res = await adminPaymentAPI.getConfig()
     paymentConfig.value = res.data
+    lotteryConfig.value = {
+      enabled: res.data.recharge_lottery?.enabled ?? false,
+      threshold: res.data.recharge_lottery?.threshold ?? 10,
+      prizes: (res.data.recharge_lottery?.prizes ?? []).map(prize => ({ ...prize })),
+    }
   } catch { /* preview only */ }
+}
+
+function addLotteryPrize() {
+  lotteryConfig.value?.prizes.push({ amount: 1, probability: 1 })
+}
+
+function removeLotteryPrize(index: number) {
+  lotteryConfig.value?.prizes.splice(index, 1)
+}
+
+async function saveLotteryConfig() {
+  if (!lotteryConfig.value || lotterySaving.value) return
+  lotterySaving.value = true
+  try {
+    await adminPaymentAPI.updateConfig({
+      recharge_lottery_enabled: lotteryConfig.value.enabled,
+      recharge_lottery_threshold: lotteryConfig.value.threshold,
+      recharge_lottery_prizes: lotteryConfig.value.prizes,
+    })
+    await loadPaymentConfig()
+    appStore.showSuccess(t('common.success'))
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    lotterySaving.value = false
+  }
 }
 
 function getGroup(id: number): AdminGroup | undefined {
