@@ -41,6 +41,11 @@ func (s *PaymentService) grantRechargeLotteryEntries(ctx context.Context, order 
 	if order == nil || order.OrderType != payment.OrderTypeBalance {
 		return nil
 	}
+	// PaymentService unit users may omit the optional payment configuration
+	// service; with no configuration there is no lottery campaign to grant.
+	if s.configService == nil {
+		return nil
+	}
 	cfg, err := s.configService.GetPaymentConfig(ctx)
 	if err != nil {
 		return err
@@ -92,7 +97,7 @@ func (s *PaymentService) GetRechargeLotteryStatus(ctx context.Context, userID in
 	if err != nil {
 		return nil, fmt.Errorf("list recharge lottery draws: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var draw RechargeLotteryDraw
 		if err := rows.Scan(&draw.PrizeAmount, &draw.IsWinner, &draw.CreatedAt); err != nil {
@@ -184,7 +189,7 @@ func queryRechargeLotteryEntry(ctx context.Context, client *dbent.Client, userID
 	if err != nil {
 		return 0, 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return 0, 0, err
@@ -206,7 +211,7 @@ func queryRechargeLotteryRemaining(ctx context.Context, client *dbent.Client, us
 	if err != nil {
 		return 0, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return 0, err
