@@ -61,6 +61,7 @@ export interface RechargeLotteryStatus {
 export interface RechargeLotteryDrawResult {
   is_winner: boolean
   prize_amount: number
+  balance: number
   remaining_draws: number
 }
 

@@ -5,12 +5,12 @@ import (
 	cryptorand "crypto/rand"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/big"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
@@ -32,7 +32,97 @@ type RechargeLotteryStatus struct {
 type RechargeLotteryDrawResult struct {
 	IsWinner       bool    `json:"is_winner"`
 	PrizeAmount    float64 `json:"prize_amount"`
+	Balance        float64 `json:"balance"`
 	RemainingDraws int     `json:"remaining_draws"`
+}
+
+// GetRechargeLotteryRemaining returns the number of unused chances for a user.
+func (s *PaymentService) GetRechargeLotteryRemaining(ctx context.Context, userID int64) (int, error) {
+	remaining, err := queryRechargeLotteryRemaining(ctx, s.entClient, userID)
+	if err != nil {
+		return 0, fmt.Errorf("count recharge lottery draws: %w", err)
+	}
+	return remaining, nil
+}
+
+// SetRechargeLotteryRemaining makes the user's remaining chance count equal to
+// remaining. Positive differences are recorded as administrator-granted entries;
+// negative differences consume the oldest unused entries first.
+func (s *PaymentService) SetRechargeLotteryRemaining(ctx context.Context, userID int64, remaining int) (int, error) {
+	if remaining < 0 || remaining > 1_000_000 {
+		return 0, infraerrors.BadRequest("INVALID_LOTTERY_CHANCES", "lottery chances must be between 0 and 1000000")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("start recharge lottery chance transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Serialize this exact-count update with concurrent draws for the same user.
+	lockedRows, err := tx.Client().QueryContext(ctx, `
+		SELECT id FROM recharge_lottery_entries WHERE user_id = $1 FOR UPDATE
+	`, userID)
+	if err != nil {
+		return 0, fmt.Errorf("lock user recharge lottery entries: %w", err)
+	}
+	if err := lockedRows.Close(); err != nil {
+		return 0, fmt.Errorf("close locked recharge lottery entries: %w", err)
+	}
+
+	current, err := queryRechargeLotteryRemaining(ctx, tx.Client(), userID)
+	if err != nil {
+		return 0, fmt.Errorf("count current recharge lottery draws: %w", err)
+	}
+	delta := remaining - current
+	if delta > 0 {
+		_, err = tx.Client().ExecContext(ctx, `
+			INSERT INTO recharge_lottery_entries (order_id, user_id, draw_count)
+			VALUES (NULL, $1, $2)
+		`, userID, delta)
+		if err != nil {
+			return 0, fmt.Errorf("grant administrator lottery entries: %w", err)
+		}
+	} else if delta < 0 {
+		toConsume := -delta
+		rows, queryErr := tx.Client().QueryContext(ctx, `
+			SELECT id, draw_count, used_count
+			FROM recharge_lottery_entries
+			WHERE user_id = $1 AND used_count < draw_count
+			ORDER BY created_at, id
+			FOR UPDATE
+		`, userID)
+		if queryErr != nil {
+			return 0, fmt.Errorf("lock recharge lottery entries: %w", queryErr)
+		}
+		defer func() { _ = rows.Close() }()
+		for toConsume > 0 && rows.Next() {
+			var id int64
+			var drawCount, usedCount int
+			if err := rows.Scan(&id, &drawCount, &usedCount); err != nil {
+				return 0, fmt.Errorf("scan recharge lottery entry: %w", err)
+			}
+			consume := drawCount - usedCount
+			if consume > toConsume {
+				consume = toConsume
+			}
+			if _, err := tx.Client().ExecContext(ctx, `
+				UPDATE recharge_lottery_entries SET used_count = used_count + $1 WHERE id = $2
+			`, consume, id); err != nil {
+				return 0, fmt.Errorf("consume administrator lottery entries: %w", err)
+			}
+			toConsume -= consume
+		}
+		if err := rows.Err(); err != nil {
+			return 0, fmt.Errorf("iterate recharge lottery entries: %w", err)
+		}
+		if toConsume > 0 {
+			return 0, infraerrors.Conflict("LOTTERY_CHANCES_CHANGED", "lottery chances changed while updating")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit recharge lottery chance update: %w", err)
+	}
+	return remaining, nil
 }
 
 // grantRechargeLotteryEntries issues one chance for each completed threshold of a balance recharge.
@@ -155,11 +245,17 @@ func (s *PaymentService) DrawRechargeLottery(ctx context.Context, userID int64) 
 
 	amount := 0.0
 	isWinner := prize != nil
+	balance := 0.0
 	if prize != nil {
 		amount = prize.Amount
-		if _, err := txClient.User.Update().Where(user.IDEQ(userID)).AddBalance(amount).Save(ctx); err != nil {
+		updatedUser, err := txClient.User.UpdateOneID(userID).AddBalance(amount).Save(ctx)
+		if err != nil {
 			return nil, fmt.Errorf("credit recharge lottery prize: %w", err)
 		}
+		if updatedUser == nil {
+			return nil, fmt.Errorf("credit recharge lottery prize: user %d was not updated", userID)
+		}
+		balance = updatedUser.Balance
 	}
 	if _, err := txClient.ExecContext(ctx, `
 		INSERT INTO recharge_lottery_draws (user_id, entry_id, order_id, prize_amount, is_winner)
@@ -174,10 +270,17 @@ func (s *PaymentService) DrawRechargeLottery(ctx context.Context, userID int64) 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit recharge lottery draw: %w", err)
 	}
-	return &RechargeLotteryDrawResult{IsWinner: isWinner, PrizeAmount: amount, RemainingDraws: remaining}, nil
+	if isWinner && s.billingCacheService != nil {
+		if err := s.billingCacheService.InvalidateUserBalance(ctx, userID); err != nil {
+			// The database transaction is already committed; cache invalidation is
+			// best effort and the cache will converge on its normal refresh/TTL path.
+			slog.Error("invalidate lottery winner balance cache failed", "user_id", userID, "error", err)
+		}
+	}
+	return &RechargeLotteryDrawResult{IsWinner: isWinner, PrizeAmount: amount, Balance: balance, RemainingDraws: remaining}, nil
 }
 
-func queryRechargeLotteryEntry(ctx context.Context, client *dbent.Client, userID int64) (int64, int64, error) {
+func queryRechargeLotteryEntry(ctx context.Context, client *dbent.Client, userID int64) (int64, sql.NullInt64, error) {
 	rows, err := client.QueryContext(ctx, `
 		SELECT id, order_id
 		FROM recharge_lottery_entries
@@ -187,18 +290,19 @@ func queryRechargeLotteryEntry(ctx context.Context, client *dbent.Client, userID
 		LIMIT 1
 	`, userID)
 	if err != nil {
-		return 0, 0, err
+		return 0, sql.NullInt64{}, err
 	}
 	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
-			return 0, 0, err
+			return 0, sql.NullInt64{}, err
 		}
-		return 0, 0, sql.ErrNoRows
+		return 0, sql.NullInt64{}, sql.ErrNoRows
 	}
-	var entryID, orderID int64
+	var entryID int64
+	var orderID sql.NullInt64
 	if err := rows.Scan(&entryID, &orderID); err != nil {
-		return 0, 0, err
+		return 0, sql.NullInt64{}, err
 	}
 	return entryID, orderID, nil
 }

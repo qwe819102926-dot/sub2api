@@ -55,6 +55,10 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface LotteryChancesResponse {
+  remaining: number
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -182,6 +186,17 @@ export async function updateBalance(
     operation,
     notes: notes || ''
   })
+  return data
+}
+
+/** Get and set a user's remaining recharge lottery chances. */
+export async function getLotteryChances(id: number): Promise<LotteryChancesResponse> {
+  const { data } = await apiClient.get<LotteryChancesResponse>(`/admin/users/${id}/lottery-chances`)
+  return data
+}
+
+export async function updateLotteryChances(id: number, remaining: number): Promise<LotteryChancesResponse> {
+  const { data } = await apiClient.put<LotteryChancesResponse>(`/admin/users/${id}/lottery-chances`, { remaining })
   return data
 }
 
@@ -406,6 +421,8 @@ export const usersAPI = {
   update,
   delete: deleteUser,
   updateBalance,
+  getLotteryChances,
+  updateLotteryChances,
   updateConcurrency,
   batchUpdateLimits,
   toggleStatus,

@@ -78,7 +78,15 @@ async function draw() {
     const response = await paymentAPI.drawRechargeLottery()
     lastResult.value = response.data
     status.value.remaining_draws = response.data.remaining_draws
-    if (response.data.is_winner) await authStore.refreshUser()
+    if (response.data.is_winner) {
+      // The draw response contains the committed balance, so the dashboard
+      // reflects the prize immediately even if the follow-up profile request
+      // is delayed or fails transiently.
+      if (authStore.user && Number.isFinite(response.data.balance)) {
+        authStore.user.balance = response.data.balance
+      }
+      await authStore.refreshUser().catch(() => undefined)
+    }
   } finally {
     drawing.value = false
   }

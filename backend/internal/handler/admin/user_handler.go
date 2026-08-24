@@ -34,6 +34,12 @@ type UserHandler struct {
 	totpService           *service.TotpService                // 角色提升为管理员的 step-up 门控
 	userService           *service.UserService
 	settingService        *service.SettingService // step-up 功能开关
+	paymentService        *service.PaymentService
+}
+
+// SetPaymentService attaches the payment service used by administrator lottery operations.
+func (h *UserHandler) SetPaymentService(paymentService *service.PaymentService) {
+	h.paymentService = paymentService
 }
 
 // NewUserHandler creates a new admin user handler
@@ -93,6 +99,64 @@ type UpdateBalanceRequest struct {
 	Balance   float64 `json:"balance" binding:"required,gt=0"`
 	Operation string  `json:"operation" binding:"required,oneof=set add subtract"`
 	Notes     string  `json:"notes"`
+}
+
+type UpdateLotteryChancesRequest struct {
+	Remaining int `json:"remaining" binding:"gte=0,lte=1000000"`
+}
+
+// GetLotteryChances returns a user's current remaining lottery chances.
+// GET /api/v1/admin/users/:id/lottery-chances
+func (h *UserHandler) GetLotteryChances(c *gin.Context) {
+	if h.paymentService == nil {
+		response.Error(c, 503, "lottery service not available")
+		return
+	}
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	if _, err := h.adminService.GetUser(c.Request.Context(), userID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	remaining, err := h.paymentService.GetRechargeLotteryRemaining(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"remaining": remaining})
+}
+
+// UpdateLotteryChances sets a user's remaining lottery chances.
+// PUT /api/v1/admin/users/:id/lottery-chances
+func (h *UserHandler) UpdateLotteryChances(c *gin.Context) {
+	if h.paymentService == nil {
+		response.Error(c, 503, "lottery service not available")
+		return
+	}
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+	var req UpdateLotteryChancesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if _, err := h.adminService.GetUser(c.Request.Context(), userID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	remaining, err := h.paymentService.SetRechargeLotteryRemaining(c.Request.Context(), userID, req.Remaining)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	slog.Info("admin.user_lottery_chances_updated", "actor_admin_id", getAdminIDFromContext(c), "target_user_id", userID, "remaining", remaining)
+	response.Success(c, gin.H{"remaining": remaining})
 }
 
 type BindUserAuthIdentityRequest struct {

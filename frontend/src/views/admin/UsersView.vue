@@ -721,6 +721,15 @@
                 {{ t('admin.users.platformQuota.menuItem') }}
               </button>
 
+              <!-- Lottery Chances -->
+              <button
+                @click="handleLotteryChances(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="trophy" size="sm" class="text-amber-500" :stroke-width="2" />
+                {{ t('admin.users.lotteryChances') }}
+              </button>
+
               <!-- Balance History -->
               <button
                 @click="handleBalanceHistory(user); closeActionMenu()"
@@ -765,6 +774,7 @@
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
+    <UserLotteryChancesModal :show="showLotteryChancesModal" :user="lotteryChancesUser" @close="closeLotteryChancesModal" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
@@ -808,6 +818,7 @@ import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaMod
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
+import UserLotteryChancesModal from '@/components/admin/user/UserLotteryChancesModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
 
@@ -1442,7 +1453,7 @@ const openActionMenu = (user: AdminUser, e: MouseEvent) => {
 
     const rect = target.getBoundingClientRect()
     const menuWidth = 200
-    const menuHeight = 240
+    const menuHeight = 290
     const padding = 8
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
@@ -1531,6 +1542,10 @@ const groupReplaceOldGroup = ref<{ id: number; name: string } | null>(null)
 const showBalanceModal = ref(false)
 const balanceUser = ref<AdminUser | null>(null)
 const balanceOperation = ref<'add' | 'subtract'>('add')
+
+// Lottery chances modal state
+const showLotteryChancesModal = ref(false)
+const lotteryChancesUser = ref<AdminUser | null>(null)
 
 // Balance History modal state
 const showBalanceHistoryModal = ref(false)
@@ -1800,6 +1815,16 @@ const handleWithdraw = (user: AdminUser) => {
 const closeBalanceModal = () => {
   showBalanceModal.value = false
   balanceUser.value = null
+}
+
+const handleLotteryChances = (user: AdminUser) => {
+  lotteryChancesUser.value = user
+  showLotteryChancesModal.value = true
+}
+
+const closeLotteryChancesModal = () => {
+  showLotteryChancesModal.value = false
+  lotteryChancesUser.value = null
 }
 
 const handleBalanceHistory = (user: AdminUser) => {
