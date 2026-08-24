@@ -394,6 +394,10 @@ export default {
     lottery: {
       title: 'Recharge Lucky Draw',
       chances: '{count} chances left',
+      tab: 'Draw',
+      collapse: 'Collapse',
+      open: 'Open draw',
+      openHint: 'Recharge to earn lucky draw chances',
       drawNow: 'Draw Now',
       rule: 'Get 1 draw chance for every ${amount} recharged',
       won: 'You won ${amount} in balance',

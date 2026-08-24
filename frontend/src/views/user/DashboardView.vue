@@ -11,6 +11,7 @@
         </div>
       </template>
     </div>
+    <RechargeLotteryCard :show="showLottery" @available="showLottery = true" @close="showLottery = false" @open="showLottery = true" />
   </AppLayout>
 </template>
 
@@ -22,6 +23,9 @@ import UserDashboardRecentUsage from '@/components/user/dashboard/UserDashboardR
 import type { UsageLog, TrendDataPoint, ModelStat, PlatformQuotaItem } from '@/types'
 import { getMyPlatformQuotas } from '@/api/user'
 import { formatDateLocalInput } from '@/utils/format'
+import RechargeLotteryCard from '@/components/payment/RechargeLotteryCard.vue'
+
+const showLottery = ref(false)
 
 const authStore = useAuthStore(); const user = computed(() => authStore.user)
 const stats = ref<UserStatsType | null>(null); const loading = ref(false); const loadingUsage = ref(false); const loadingCharts = ref(false)

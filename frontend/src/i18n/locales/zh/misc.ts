@@ -418,6 +418,10 @@ export default {
     lottery: {
       title: '充值抽奖',
       chances: '剩余 {count} 次',
+      tab: '抽奖',
+      collapse: '收起',
+      open: '打开抽奖',
+      openHint: '充值满额即可获得抽奖机会',
       drawNow: '立即抽奖',
       rule: '每充值满 ${amount} 获得 1 次抽奖机会',
       won: '恭喜获得 ${amount} 余额',
