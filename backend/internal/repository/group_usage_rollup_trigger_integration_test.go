@@ -210,7 +210,7 @@ func TestGroupUsageRollupTriggerKeepsWatermarkForTodayInsert(t *testing.T) {
 		INSERT INTO groups (id) VALUES (10);
 		INSERT INTO users (id) VALUES (1);
 		UPDATE usage_group_rollup_state
-		SET closed_before = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date
+		SET closed_before = CURRENT_DATE
 		WHERE id = 1;
 		INSERT INTO usage_logs (id, user_id, group_id, actual_cost, created_at)
 		VALUES (1, 1, 10, 1.25, CURRENT_TIMESTAMP);
@@ -219,7 +219,7 @@ func TestGroupUsageRollupTriggerKeepsWatermarkForTodayInsert(t *testing.T) {
 
 	var unchanged bool
 	err = tx.QueryRowContext(ctx, `
-		SELECT closed_before = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai')::date
+		SELECT closed_before = CURRENT_DATE
 		FROM usage_group_rollup_state
 		WHERE id = 1
 	`).Scan(&unchanged)
