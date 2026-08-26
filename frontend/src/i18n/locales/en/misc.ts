@@ -400,7 +400,7 @@ export default {
       openHint: 'Recharge to earn lucky draw chances',
       drawNow: 'Draw Now',
       rule: 'Get 1 draw chance for every ${amount} recharged',
-      won: 'You won ${amount} in balance',
+      won: 'You won ${amount} in bonus balance',
       notWon: 'No prize this time. Try again soon.',
       noPrize: 'No prize',
       adminTitle: 'Recharge Lucky Draw',

@@ -1,6 +1,6 @@
 <template>
   <!-- Row 1: Core Stats -->
-  <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  <div class="grid grid-cols-2 gap-4 lg:grid-cols-5">
     <!-- Balance -->
     <div v-if="!isSimple" class="card p-4">
       <div class="flex items-center gap-3">
@@ -13,6 +13,20 @@
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.balance') }}</p>
           <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">${{ formatBalance(balance) }}</p>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('common.available') }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bonus Balance -->
+    <div v-if="!isSimple" class="card p-4">
+      <div class="flex items-center gap-3">
+        <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
+          <Icon name="gift" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
+        </div>
+        <div>
+          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalance') }}</p>
+          <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalanceHint') }}</p>
         </div>
       </div>
     </div>
@@ -242,6 +256,7 @@ interface FusedPlatformCard {
 const props = defineProps<{
   stats: UserStatsType
   balance: number
+  bonusBalance: number
   isSimple: boolean
   platformQuotas?: PlatformQuotaItem[] | null
 }>()

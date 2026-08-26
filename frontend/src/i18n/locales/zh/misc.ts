@@ -424,7 +424,7 @@ export default {
       openHint: '充值满额即可获得抽奖机会',
       drawNow: '立即抽奖',
       rule: '每充值满 ${amount} 获得 1 次抽奖机会',
-      won: '恭喜获得 ${amount} 余额',
+      won: '恭喜获得 ${amount} 赠送额度',
       notWon: '本次未中奖，再接再厉',
       noPrize: '未中奖',
       adminTitle: '充值抽奖活动',

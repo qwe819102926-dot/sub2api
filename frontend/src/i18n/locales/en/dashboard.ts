@@ -3,6 +3,8 @@ export default {
     title: 'Dashboard',
     welcomeMessage: "Welcome back! Here's an overview of your account.",
     balance: 'Balance',
+    bonusBalance: 'Bonus Balance',
+    bonusBalanceHint: 'Used first for API usage',
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
     todayCost: 'Today Cost',

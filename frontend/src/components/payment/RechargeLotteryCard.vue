@@ -55,7 +55,7 @@ import type { RechargeLotteryDrawResult, RechargeLotteryStatus } from '@/types/p
 import { useAuthStore } from '@/stores/auth'
 import Icon from '@/components/icons/Icon.vue'
 withDefaults(defineProps<{ show: boolean }>(), { show: false })
-const emit = defineEmits<{ available: []; close: []; open: [] }>()
+const emit = defineEmits<{ available: []; close: []; open: []; drawn: [] }>()
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -86,13 +86,13 @@ async function draw() {
     status.value.remaining_draws = response.remaining_draws
     lastResult.value = response
     if (response.is_winner) {
-      // The draw response contains the committed balance, so the dashboard
-      // reflects the prize immediately even if the follow-up profile request
-      // is delayed or fails transiently.
+      // The response contains the unchanged principal balance. Refresh the
+      // dashboard so its separate promotional-balance card updates too.
       if (authStore.user && Number.isFinite(response.balance)) {
         authStore.user.balance = response.balance
       }
       await authStore.refreshUser().catch(() => undefined)
+      emit('drawn')
     }
   } finally {
     drawing.value = false
