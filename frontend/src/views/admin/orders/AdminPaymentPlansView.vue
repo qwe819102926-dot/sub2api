@@ -38,6 +38,40 @@
           </div>
         </div>
       </section>
+      <section v-if="rechargeBonusConfig" class="rounded-lg border border-amber-200 bg-amber-50/50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-dark-800">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-semibold text-amber-800 dark:text-amber-200">{{ t('payment.activities.rechargeTitle') }}</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.activities.rechargeHint') }}</p>
+          </div>
+          <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+            <input v-model="rechargeBonusConfig.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-amber-500 focus:ring-amber-500" />
+            {{ t('payment.activities.enabled') }}
+          </label>
+        </div>
+        <RewardTierEditor v-model="rechargeBonusConfig.tiers" />
+        <div class="mt-3 flex justify-between gap-3">
+          <button type="button" class="btn btn-secondary text-sm" @click="addRewardTier(rechargeBonusConfig)"><Icon name="plus" size="sm" />{{ t('payment.activities.addTier') }}</button>
+          <button type="button" class="btn btn-primary text-sm" :disabled="rechargeBonusSaving" @click="saveRechargeBonusConfig">{{ rechargeBonusSaving ? t('common.processing') : t('common.save') }}</button>
+        </div>
+      </section>
+      <section v-if="consumptionRewardConfig" class="rounded-lg border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm dark:border-emerald-900/50 dark:bg-dark-800">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-semibold text-emerald-800 dark:text-emerald-200">{{ t('payment.activities.consumptionTitle') }}</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.activities.consumptionHint') }}</p>
+          </div>
+          <label class="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+            <input v-model="consumptionRewardConfig.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-600" />
+            {{ t('payment.activities.enabled') }}
+          </label>
+        </div>
+        <RewardTierEditor v-model="consumptionRewardConfig.tiers" />
+        <div class="mt-3 flex justify-between gap-3">
+          <button type="button" class="btn btn-secondary text-sm" @click="addRewardTier(consumptionRewardConfig)"><Icon name="plus" size="sm" />{{ t('payment.activities.addTier') }}</button>
+          <button type="button" class="btn btn-primary text-sm" :disabled="consumptionRewardSaving" @click="saveConsumptionRewardConfig">{{ consumptionRewardSaving ? t('common.processing') : t('common.save') }}</button>
+        </div>
+      </section>
       <!-- Actions -->
       <div class="flex items-center justify-end gap-2">
         <button @click="loadPlans" :disabled="plansLoading" class="btn btn-secondary" :title="t('common.refresh')">
@@ -117,7 +151,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import type { AdminPaymentConfig } from '@/api/admin/payment'
-import type { RechargeLotteryPrize } from '@/types/payment'
+import type { RechargeLotteryPrize, RewardTier } from '@/types/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import adminAPI from '@/api/admin'
 import type { SubscriptionPlan } from '@/types/payment'
@@ -128,6 +162,7 @@ import DataTable from '@/components/common/DataTable.vue'
 import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
+import RewardTierEditor from '@/components/payment/RewardTierEditor.vue'
 import PlanEditDialog from './PlanEditDialog.vue'
 import { currencySymbol } from '@/components/payment/currency'
 import { platformTextClass } from '@/utils/platformColors'
@@ -145,6 +180,11 @@ const groups = ref<AdminGroup[]>([])
 const paymentConfig = ref<AdminPaymentConfig | null>(null)
 const lotteryConfig = ref<{ enabled: boolean; threshold: number; prizes: RechargeLotteryPrize[] } | null>(null)
 const lotterySaving = ref(false)
+type RewardConfig = { enabled: boolean; tiers: RewardTier[] }
+const rechargeBonusConfig = ref<RewardConfig | null>(null)
+const consumptionRewardConfig = ref<RewardConfig | null>(null)
+const rechargeBonusSaving = ref(false)
+const consumptionRewardSaving = ref(false)
 const totalLotteryProbability = computed(() => lotteryConfig.value?.prizes.reduce((total, prize) => total + (Number(prize.probability) || 0), 0) ?? 0)
 
 async function loadGroups() {
@@ -162,6 +202,8 @@ async function loadPaymentConfig() {
       threshold: res.data.recharge_lottery?.threshold ?? 10,
       prizes: (res.data.recharge_lottery?.prizes ?? []).map(prize => ({ ...prize })),
     }
+    rechargeBonusConfig.value = { enabled: res.data.recharge_bonus?.enabled ?? false, tiers: (res.data.recharge_bonus?.tiers ?? []).map(tier => ({ ...tier })) }
+    consumptionRewardConfig.value = { enabled: res.data.consumption_reward?.enabled ?? false, tiers: (res.data.consumption_reward?.tiers ?? []).map(tier => ({ ...tier })) }
   } catch { /* preview only */ }
 }
 
@@ -188,6 +230,38 @@ async function saveLotteryConfig() {
     appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
   } finally {
     lotterySaving.value = false
+  }
+}
+
+function addRewardTier(config: RewardConfig) {
+  config.tiers.push({ threshold: 10, bonus: 1 })
+}
+
+async function saveRechargeBonusConfig() {
+  if (!rechargeBonusConfig.value || rechargeBonusSaving.value) return
+  rechargeBonusSaving.value = true
+  try {
+    await adminPaymentAPI.updateConfig({ recharge_bonus_enabled: rechargeBonusConfig.value.enabled, recharge_bonus_tiers: rechargeBonusConfig.value.tiers })
+    await loadPaymentConfig()
+    appStore.showSuccess(t('common.success'))
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    rechargeBonusSaving.value = false
+  }
+}
+
+async function saveConsumptionRewardConfig() {
+  if (!consumptionRewardConfig.value || consumptionRewardSaving.value) return
+  consumptionRewardSaving.value = true
+  try {
+    await adminPaymentAPI.updateConfig({ consumption_reward_enabled: consumptionRewardConfig.value.enabled, consumption_reward_tiers: consumptionRewardConfig.value.tiers })
+    await loadPaymentConfig()
+    appStore.showSuccess(t('common.success'))
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    consumptionRewardSaving.value = false
   }
 }
 

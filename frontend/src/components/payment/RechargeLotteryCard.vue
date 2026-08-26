@@ -24,8 +24,13 @@
           </div>
         </div>
         <div class="px-5 pb-5">
-          <div class="grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-2 dark:bg-dark-900">
-            <div v-for="prize in status.prizes" :key="`${prize.amount}-${prize.probability}`" class="rounded-lg border border-gray-200 bg-white px-2 py-4 text-center shadow-sm dark:border-dark-600 dark:bg-dark-800">
+          <div class="grid grid-cols-3 gap-2 rounded-xl bg-gray-50 p-2 dark:bg-dark-900" aria-live="polite">
+            <div
+              v-for="(prize, index) in drawPrizes"
+              :key="`${prize.amount}-${prize.probability}`"
+              class="lottery-prize rounded-lg border border-gray-200 bg-white px-2 py-4 text-center shadow-sm dark:border-dark-600 dark:bg-dark-800"
+              :class="{ 'lottery-prize--active': activePrizeIndex === index }"
+            >
               <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">${{ prize.amount.toFixed(2) }}</p>
             </div>
           </div>
@@ -56,13 +61,14 @@ const { t } = useI18n()
 const authStore = useAuthStore()
 const status = ref<RechargeLotteryStatus | null>(null)
 const drawing = ref(false)
+const activePrizeIndex = ref<number | null>(null)
 const lastResult = ref<RechargeLotteryDrawResult | null>(null)
+
+const drawPrizes = computed(() => [...(status.value?.prizes ?? [])].sort((a, b) => a.amount - b.amount))
 
 const resultMessage = computed(() => {
   if (!lastResult.value) return ''
-  return lastResult.value.is_winner
-    ? t('payment.lottery.won', { amount: lastResult.value.prize_amount.toFixed(2) })
-    : t('payment.lottery.notWon')
+  return lastResult.value.is_winner ? t('payment.lottery.won', { amount: lastResult.value.prize_amount.toFixed(2) }) : ''
 })
 
 async function load() {
@@ -74,16 +80,17 @@ async function load() {
 async function draw() {
   if (!status.value || drawing.value || status.value.remaining_draws <= 0) return
   drawing.value = true
+  lastResult.value = null
   try {
-    const response = await paymentAPI.drawRechargeLottery()
-    lastResult.value = response.data
-    status.value.remaining_draws = response.data.remaining_draws
-    if (response.data.is_winner) {
+    const response = await playDrawAnimation(paymentAPI.drawRechargeLottery())
+    status.value.remaining_draws = response.remaining_draws
+    lastResult.value = response
+    if (response.is_winner) {
       // The draw response contains the committed balance, so the dashboard
       // reflects the prize immediately even if the follow-up profile request
       // is delayed or fails transiently.
-      if (authStore.user && Number.isFinite(response.data.balance)) {
-        authStore.user.balance = response.data.balance
+      if (authStore.user && Number.isFinite(response.balance)) {
+        authStore.user.balance = response.balance
       }
       await authStore.refreshUser().catch(() => undefined)
     }
@@ -92,5 +99,75 @@ async function draw() {
   }
 }
 
+function wait(ms: number) {
+  return new Promise<void>(resolve => window.setTimeout(resolve, ms))
+}
+
+async function playDrawAnimation(resultPromise: Promise<{ data: RechargeLotteryDrawResult }>) {
+  const prizes = drawPrizes.value
+  activePrizeIndex.value = 0
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const fastDelay = reducedMotion ? 20 : 120
+  const slowDelays = reducedMotion ? [20, 20, 20] : [200, 280, 350, 500]
+
+  if (!prizes.length) return (await resultPromise).data
+
+  let requestError: unknown
+  let requestSettled = false
+  resultPromise.then(_value => {
+    requestSettled = true
+  }, error => {
+    requestError = error
+    requestSettled = true
+  })
+
+  // Keep cycling in the fixed 1 -> 2 -> 5 order while the draw is committed.
+  while (!requestSettled) {
+    for (let index = 0; index < prizes.length; index += 1) {
+      activePrizeIndex.value = index
+      await wait(fastDelay)
+      if (requestSettled) break
+    }
+  }
+  if (requestError) throw requestError
+  const drawResult = (await resultPromise).data
+
+  const targetIndex = drawResult.is_winner
+    ? Math.max(0, prizes.findIndex(prize => prize.amount === drawResult.prize_amount))
+    : activePrizeIndex.value ?? 0
+  let step = 0
+  const currentIndex = activePrizeIndex.value ?? 0
+  const distance = (targetIndex - currentIndex + prizes.length) % prizes.length
+  const stepsToTarget = distance === 0 ? prizes.length : distance
+  while (step < stepsToTarget) {
+    await wait(slowDelays[Math.min(step, slowDelays.length - 1)])
+    activePrizeIndex.value = ((activePrizeIndex.value ?? 0) + 1) % prizes.length
+    step += 1
+  }
+  await wait(reducedMotion ? 20 : 600)
+  return drawResult
+}
+
 onMounted(() => { load().catch(() => {}) })
 </script>
+
+<style scoped>
+.lottery-prize {
+  box-sizing: border-box;
+  transform: scale(1);
+  transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.lottery-prize--active {
+  border: 2px solid #f5b82e;
+  background-color: #fffaf0;
+  box-shadow: 0 0 0 2px rgba(245, 184, 46, 0.16), 0 8px 18px rgba(245, 184, 46, 0.2);
+  transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lottery-prize {
+    transition-duration: 0.01ms;
+  }
+}
+</style>

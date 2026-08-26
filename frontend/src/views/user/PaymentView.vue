@@ -51,6 +51,9 @@
                 :amounts="[10, 20, 50]"
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
+                :reward-tiers="checkout.recharge_bonus?.enabled ? checkout.recharge_bonus.tiers : []"
+                :lottery-threshold="checkout.recharge_lottery?.enabled ? checkout.recharge_lottery.threshold : 10"
+                :multiplier="balanceRechargeMultiplier"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
             </div>
@@ -78,6 +81,14 @@
                 <div v-if="balanceRechargeMultiplier !== 1" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
                   <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
                   <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
+                </div>
+                <div v-if="rechargeBonus > 0" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.activities.rechargeBonus') }}</span>
+                  <span class="font-medium text-amber-600 dark:text-amber-300">+${{ rechargeBonus.toFixed(2) }}</span>
+                </div>
+                <div v-if="rechargeBonus > 0" class="flex justify-between">
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.activities.totalCredited') }}</span>
+                  <span class="font-semibold text-emerald-600 dark:text-emerald-400">${{ (creditedAmount + rechargeBonus).toFixed(2) }}</span>
                 </div>
                 <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
                   {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
@@ -502,7 +513,7 @@ function onPaymentSettled() {
 // All checkout data from single API call
 const checkout = ref<CheckoutInfoResponse>({
   methods: {}, global_min: 0, global_max: 0,
-  plans: [], balance_disabled: false, balance_recharge_multiplier: 1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '',
+  plans: [], balance_disabled: false, balance_recharge_multiplier: 1.1, subscription_usd_to_cny_rate: 0, recharge_fee_rate: 0, help_text: '', help_image_url: '', stripe_publishable_key: '', recharge_bonus: { enabled: false, tiers: [] }, recharge_lottery: { enabled: false, threshold: 10, prizes: [] },
 })
 
 const tabs = computed(() => {
@@ -517,7 +528,7 @@ const enabledMethods = computed(() => Object.keys(visibleMethods.value))
 const validAmount = computed(() => amount.value ?? 0)
 const balanceRechargeMultiplier = computed(() => {
   const multiplier = checkout.value.balance_recharge_multiplier
-  return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1
+  return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1.1
 })
 // 订阅 CNY 换算汇率（1 USD = X CNY）。0 = 未配置，订阅保持 price 直付（与后端 opt-in 条件严格镜像）。
 const subscriptionUsdToCnyRate = computed(() => {
@@ -525,6 +536,10 @@ const subscriptionUsdToCnyRate = computed(() => {
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 })
 const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const rechargeBonus = computed(() => {
+  if (!checkout.value.recharge_bonus?.enabled) return 0
+  return checkout.value.recharge_bonus.tiers.reduce((bonus, tier) => validAmount.value >= tier.threshold ? tier.bonus : bonus, 0)
+})
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {

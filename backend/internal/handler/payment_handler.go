@@ -73,6 +73,47 @@ func (h *PaymentHandler) DrawRechargeLottery(c *gin.Context) {
 	response.Success(c, result)
 }
 
+// GetRewardCampaigns returns the current user's progress in balance reward campaigns.
+// GET /api/v1/payment/rewards
+func (h *PaymentHandler) GetRewardCampaigns(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	status, err := h.paymentService.GetRewardCampaignStatus(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
+type claimConsumptionRewardRequest struct {
+	Threshold float64 `json:"threshold" binding:"required"`
+}
+
+// ClaimConsumptionReward lets a user claim one reached cumulative-spend tier.
+// POST /api/v1/payment/rewards/consumption/claim
+func (h *PaymentHandler) ClaimConsumptionReward(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req claimConsumptionRewardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	balance, err := h.paymentService.ClaimConsumptionReward(c.Request.Context(), subject.UserID, req.Threshold)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"balance": balance})
+}
+
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {
@@ -186,6 +227,8 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		StripePublishableKey:          cfg.StripePublishableKey,
 		AlipayForceQRCode:             cfg.AlipayForceQRCode,
 		AlipayMobilePrecreateDeepLink: alipayMobilePrecreateDeepLink,
+		RechargeBonus:                 cfg.RechargeBonus,
+		RechargeLottery:               cfg.RechargeLottery,
 	})
 }
 
@@ -203,6 +246,8 @@ type checkoutInfoResponse struct {
 	StripePublishableKey          string                          `json:"stripe_publishable_key"`
 	AlipayForceQRCode             bool                            `json:"alipay_force_qrcode"`
 	AlipayMobilePrecreateDeepLink bool                            `json:"alipay_mobile_precreate_deep_link"`
+	RechargeBonus                 service.TieredRewardConfig      `json:"recharge_bonus"`
+	RechargeLottery               service.RechargeLotteryConfig   `json:"recharge_lottery"`
 }
 
 type checkoutPlan struct {

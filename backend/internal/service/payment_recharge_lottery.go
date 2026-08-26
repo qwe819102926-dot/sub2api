@@ -248,14 +248,12 @@ func (s *PaymentService) DrawRechargeLottery(ctx context.Context, userID int64) 
 	balance := 0.0
 	if prize != nil {
 		amount = prize.Amount
-		updatedUser, err := txClient.User.UpdateOneID(userID).AddBalance(amount).Save(ctx)
-		if err != nil {
+		if _, err := txClient.ExecContext(ctx, `UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, amount, userID); err != nil {
 			return nil, fmt.Errorf("credit recharge lottery prize: %w", err)
 		}
-		if updatedUser == nil {
-			return nil, fmt.Errorf("credit recharge lottery prize: user %d was not updated", userID)
+		if err := querySingleFloat(ctx, txClient, `SELECT balance FROM users WHERE id = $1`, &balance, userID); err != nil {
+			return nil, fmt.Errorf("read recharge lottery balance: %w", err)
 		}
-		balance = updatedUser.Balance
 	}
 	if _, err := txClient.ExecContext(ctx, `
 		INSERT INTO recharge_lottery_draws (user_id, entry_id, order_id, prize_amount, is_winner)

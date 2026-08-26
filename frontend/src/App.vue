@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { RouterView, useRouter, useRoute } from 'vue-router'
-import { onMounted, onBeforeUnmount, watch } from 'vue'
+import { onMounted, onBeforeUnmount, watch, ref } from 'vue'
 import Toast from '@/components/common/Toast.vue'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
 import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
 import { resolveRouteDocumentTitle } from '@/router/title'
 import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
+import BenefitsWelcomePopup from '@/components/common/BenefitsWelcomePopup.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
@@ -18,6 +19,8 @@ const subscriptionStore = useSubscriptionStore()
 const announcementStore = useAnnouncementStore()
 const adminComplianceStore = useAdminComplianceStore()
 const adminSettingsStore = useAdminSettingsStore()
+const benefitsVisible = ref(false)
+const benefitsSessionShown = ref(false)
 
 function updateDocumentTitle() {
   const customMenuItems = [
@@ -68,6 +71,10 @@ watch(
   () => authStore.isAuthenticated,
   (isAuthenticated, oldValue) => {
     if (isAuthenticated) {
+      if (!benefitsSessionShown.value) {
+        benefitsSessionShown.value = true
+        benefitsVisible.value = !authStore.isAdmin
+      }
       if (authStore.isAdmin) {
         adminComplianceStore.fetchStatus().catch((error) => {
           console.error('Failed to fetch admin compliance status:', error)
@@ -97,6 +104,8 @@ watch(
       announcementStore.reset()
       adminComplianceStore.reset()
       document.removeEventListener('visibilitychange', onVisibilityChange)
+      benefitsVisible.value = false
+      benefitsSessionShown.value = false
     }
   },
   { immediate: true }
@@ -141,5 +150,6 @@ onMounted(async () => {
   <RouterView />
   <Toast />
   <AnnouncementPopup />
+  <BenefitsWelcomePopup :show="benefitsVisible" @close="benefitsVisible = false" />
   <AdminComplianceDialog />
 </template>

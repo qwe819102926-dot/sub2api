@@ -212,6 +212,8 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-sub2api}
       - PGDATA=/var/lib/postgresql/data
       - TZ=${TZ:-Asia/Shanghai}
+    ports:
+      - "127.0.0.1:5433:5432"
     networks:
       - sub2api-network
     healthcheck:
@@ -252,6 +254,8 @@ services:
       - TZ=${TZ:-Asia/Shanghai}
       # REDISCLI_AUTH is used by redis-cli for authentication (safer than -a flag)
       - REDISCLI_AUTH=${REDIS_PASSWORD:-}
+    ports:
+      - "127.0.0.1:6379:6379"
     networks:
       - sub2api-network
     healthcheck:

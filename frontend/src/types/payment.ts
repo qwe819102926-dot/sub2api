@@ -65,6 +65,30 @@ export interface RechargeLotteryDrawResult {
   remaining_draws: number
 }
 
+export interface RewardTier {
+  threshold: number
+  bonus: number
+}
+
+export interface TieredRewardConfig {
+  enabled: boolean
+  tiers: RewardTier[]
+}
+
+export interface RewardTierStatus extends RewardTier {
+  claimed: boolean
+}
+
+export interface RewardCampaignStatus {
+  recharge_bonus: TieredRewardConfig
+  bonus_balance: number
+  consumption_reward: {
+    enabled: boolean
+    total_spent: number
+    tiers: RewardTierStatus[]
+  }
+}
+
 export interface MethodLimit {
   currency?: string
   display_name?: string
@@ -102,6 +126,8 @@ export interface CheckoutInfoResponse {
   alipay_force_qrcode?: boolean
   /** When true, official Alipay mobile orders use precreate plus an Alipay app deep link */
   alipay_mobile_precreate_deep_link?: boolean
+  recharge_bonus?: TieredRewardConfig
+  recharge_lottery?: Pick<RechargeLotteryStatus, 'enabled' | 'threshold' | 'prizes'>
 }
 
 // ==================== Orders ====================

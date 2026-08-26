@@ -12,7 +12,7 @@ import type {
   ProviderInstance
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
-import type { RechargeLotteryPrize } from '@/types/payment'
+import type { RechargeLotteryPrize, TieredRewardConfig, RewardTier } from '@/types/payment'
 
 /** Admin-facing payment config returned by GET /admin/payment/config */
 export interface AdminPaymentConfig {
@@ -37,6 +37,8 @@ export interface AdminPaymentConfig {
     threshold: number
     prizes: RechargeLotteryPrize[]
   }
+  recharge_bonus: TieredRewardConfig
+  consumption_reward: TieredRewardConfig
 }
 
 /** Fields accepted by PUT /admin/payment/config (all optional via pointer semantics) */
@@ -60,6 +62,10 @@ export interface UpdatePaymentConfigRequest {
   recharge_lottery_enabled?: boolean
   recharge_lottery_threshold?: number
   recharge_lottery_prizes?: RechargeLotteryPrize[]
+  recharge_bonus_enabled?: boolean
+  recharge_bonus_tiers?: RewardTier[]
+  consumption_reward_enabled?: boolean
+  consumption_reward_tiers?: RewardTier[]
 }
 
 export interface RefundResult {

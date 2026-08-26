@@ -13,7 +13,7 @@ import type {
   CreateOrderResult,
   PaymentOrder
 } from '@/types/payment'
-import type { RechargeLotteryDrawResult, RechargeLotteryStatus } from '@/types/payment'
+import type { RechargeLotteryDrawResult, RechargeLotteryStatus, RewardCampaignStatus } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
 export interface PublicOrderVerifyResult {
@@ -53,6 +53,16 @@ export const paymentAPI = {
   /** Draw one recharge lottery chance. */
   drawRechargeLottery() {
     return apiClient.post<RechargeLotteryDrawResult>('/payment/lottery/draw')
+  },
+
+  /** Get recharge bonuses and cumulative consumption reward progress. */
+  getRewardCampaigns() {
+    return apiClient.get<RewardCampaignStatus>('/payment/rewards')
+  },
+
+  /** Claim an eligible cumulative consumption reward tier. */
+  claimConsumptionReward(threshold: number) {
+    return apiClient.post<{ balance: number }>('/payment/rewards/consumption/claim', { threshold })
   },
 
   /** Create a new payment order */

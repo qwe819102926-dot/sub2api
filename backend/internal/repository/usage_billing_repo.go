@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"math"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -242,6 +243,26 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 
 func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, bool, error) {
 	var newBalance float64
+	var bonusBalance float64
+	// Promotional balance is consumed first. The principal balance keeps its
+	// existing overdraft behavior after the bonus bucket is exhausted.
+	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&bonusBalance); err == nil {
+		usedBonus := math.Min(amount, math.Max(0, bonusBalance))
+		if usedBonus > 0 {
+			if _, err := tx.ExecContext(ctx, `UPDATE users SET bonus_balance = bonus_balance - $1, updated_at = NOW() WHERE id = $2`, usedBonus, userID); err != nil {
+				return 0, false, err
+			}
+			amount -= usedBonus
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return 0, false, err
+	}
+	if amount <= 0 {
+		if err := tx.QueryRowContext(ctx, `SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL`, userID).Scan(&newBalance); err != nil {
+			return 0, false, err
+		}
+		return newBalance, true, nil
+	}
 	err := tx.QueryRowContext(ctx, `
 		UPDATE users
 		SET balance = balance - $1,

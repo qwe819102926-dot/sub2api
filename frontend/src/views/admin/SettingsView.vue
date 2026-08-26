@@ -7818,7 +7818,7 @@
                         form.payment_balance_recharge_multiplier =
                           parseFloat(
                             ($event.target as HTMLInputElement).value,
-                          ) || 1
+                          ) || 1.1
                       "
                       type="number"
                       step="0.01"
@@ -7839,7 +7839,7 @@
                         t("admin.settings.payment.balanceRechargePreview", {
                           usd: (
                             Number(form.payment_balance_recharge_multiplier) ||
-                            1
+                            1.1
                           ).toFixed(2),
                         })
                       }}
@@ -9528,7 +9528,7 @@ const form = reactive<SettingsForm>({
   payment_max_pending_orders: 3,
   payment_order_timeout_minutes: 30,
   payment_balance_disabled: false,
-  payment_balance_recharge_multiplier: 1,
+  payment_balance_recharge_multiplier: 1.1,
   payment_subscription_usd_to_cny_rate: 0,
   payment_recharge_fee_rate: 0,
   payment_enabled_types: [],
@@ -11331,7 +11331,7 @@ async function saveSettings() {
         Number(form.payment_order_timeout_minutes) || 0,
       payment_balance_disabled: form.payment_balance_disabled,
       payment_balance_recharge_multiplier:
-        Number(form.payment_balance_recharge_multiplier) || 1,
+        Number(form.payment_balance_recharge_multiplier) || 1.1,
       payment_subscription_usd_to_cny_rate:
         Number(form.payment_subscription_usd_to_cny_rate) || 0,
       payment_recharge_fee_rate: Number(form.payment_recharge_fee_rate) || 0,

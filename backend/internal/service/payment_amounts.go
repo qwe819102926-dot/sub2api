@@ -7,7 +7,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const defaultBalanceRechargeMultiplier = 1.0
+// Recharge amounts are credited with the campaign's default 10% bonus.
+// Administrators can still override this value through payment settings.
+const defaultBalanceRechargeMultiplier = 1.1
 
 func normalizeBalanceRechargeMultiplier(multiplier float64) float64 {
 	if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) || multiplier <= 0 {

@@ -44,6 +44,10 @@ const (
 	SettingRechargeLotteryEnabled        = "RECHARGE_LOTTERY_ENABLED"
 	SettingRechargeLotteryThreshold      = "RECHARGE_LOTTERY_THRESHOLD"
 	SettingRechargeLotteryPrizes         = "RECHARGE_LOTTERY_PRIZES"
+	SettingRechargeBonusEnabled          = "RECHARGE_BONUS_ENABLED"
+	SettingRechargeBonusTiers            = "RECHARGE_BONUS_TIERS"
+	SettingConsumptionRewardEnabled      = "CONSUMPTION_REWARD_ENABLED"
+	SettingConsumptionRewardTiers        = "CONSUMPTION_REWARD_TIERS"
 )
 
 // Default values for payment configuration settings.
@@ -85,6 +89,8 @@ type PaymentConfig struct {
 	// Use Alipay face-to-face precreate and an app deep link on mobile clients.
 	AlipayMobilePrecreateDeepLink bool                  `json:"alipay_mobile_precreate_deep_link"`
 	RechargeLottery               RechargeLotteryConfig `json:"recharge_lottery"`
+	RechargeBonus                 TieredRewardConfig    `json:"recharge_bonus"`
+	ConsumptionReward             TieredRewardConfig    `json:"consumption_reward"`
 }
 
 // RechargeLotteryPrize is a balance prize with its configured chance in percent.
@@ -98,6 +104,19 @@ type RechargeLotteryConfig struct {
 	Enabled   bool                   `json:"enabled"`
 	Threshold float64                `json:"threshold"`
 	Prizes    []RechargeLotteryPrize `json:"prizes"`
+}
+
+// RewardTier grants Bonus after reaching Threshold. Thresholds use the same
+// two-decimal currency precision as payment amounts.
+type RewardTier struct {
+	Threshold float64 `json:"threshold"`
+	Bonus     float64 `json:"bonus"`
+}
+
+// TieredRewardConfig is shared by the recharge and cumulative-consumption campaigns.
+type TieredRewardConfig struct {
+	Enabled bool         `json:"enabled"`
+	Tiers   []RewardTier `json:"tiers"`
 }
 
 // UpdatePaymentConfigRequest contains fields to update payment configuration.
@@ -133,6 +152,10 @@ type UpdatePaymentConfigRequest struct {
 	RechargeLotteryEnabled        *bool                  `json:"recharge_lottery_enabled"`
 	RechargeLotteryThreshold      *float64               `json:"recharge_lottery_threshold"`
 	RechargeLotteryPrizes         []RechargeLotteryPrize `json:"recharge_lottery_prizes"`
+	RechargeBonusEnabled           *bool                  `json:"recharge_bonus_enabled"`
+	RechargeBonusTiers             []RewardTier           `json:"recharge_bonus_tiers"`
+	ConsumptionRewardEnabled       *bool                  `json:"consumption_reward_enabled"`
+	ConsumptionRewardTiers         []RewardTier           `json:"consumption_reward_tiers"`
 
 	VisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
 	VisibleMethodWxpaySource   *string `json:"payment_visible_method_wxpay_source"`
@@ -247,6 +270,8 @@ func (s *PaymentConfigService) GetPaymentConfig(ctx context.Context) (*PaymentCo
 		SettingCancelWindowSize, SettingCancelWindowUnit, SettingCancelWindowMode,
 		SettingAlipayForceQRCode, SettingAlipayMobilePrecreateDeepLink,
 		SettingRechargeLotteryEnabled, SettingRechargeLotteryThreshold, SettingRechargeLotteryPrizes,
+		SettingRechargeBonusEnabled, SettingRechargeBonusTiers,
+		SettingConsumptionRewardEnabled, SettingConsumptionRewardTiers,
 		SettingPaymentVisibleMethodAlipayEnabled, SettingPaymentVisibleMethodAlipaySource,
 		SettingPaymentVisibleMethodWxpayEnabled, SettingPaymentVisibleMethodWxpaySource,
 	}
@@ -290,8 +315,16 @@ func (s *PaymentConfigService) parsePaymentConfig(vals map[string]string) *Payme
 			Enabled:   vals[SettingRechargeLotteryEnabled] == "true",
 			Threshold: pcParseFloat(vals[SettingRechargeLotteryThreshold], 0),
 		},
+		RechargeBonus: TieredRewardConfig{
+			Enabled: vals[SettingRechargeBonusEnabled] == "true",
+		},
+		ConsumptionReward: TieredRewardConfig{
+			Enabled: vals[SettingConsumptionRewardEnabled] == "true",
+		},
 	}
 	_ = json.Unmarshal([]byte(vals[SettingRechargeLotteryPrizes]), &cfg.RechargeLottery.Prizes)
+	_ = json.Unmarshal([]byte(vals[SettingRechargeBonusTiers]), &cfg.RechargeBonus.Tiers)
+	_ = json.Unmarshal([]byte(vals[SettingConsumptionRewardTiers]), &cfg.ConsumptionReward.Tiers)
 	cfg.AlipayMobilePrecreateDeepLink = pcEnvBoolOverride(
 		SettingAlipayMobilePrecreateDeepLink,
 		cfg.AlipayMobilePrecreateDeepLink,
@@ -394,6 +427,32 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 			return err
 		}
 	}
+	if req.RechargeBonusEnabled != nil || req.RechargeBonusTiers != nil || req.ConsumptionRewardEnabled != nil || req.ConsumptionRewardTiers != nil {
+		current, err := s.GetPaymentConfig(ctx)
+		if err != nil {
+			return err
+		}
+		rechargeBonus := current.RechargeBonus
+		if req.RechargeBonusEnabled != nil {
+			rechargeBonus.Enabled = *req.RechargeBonusEnabled
+		}
+		if req.RechargeBonusTiers != nil {
+			rechargeBonus.Tiers = req.RechargeBonusTiers
+		}
+		if err := validateTieredRewardConfig(rechargeBonus, "recharge bonus"); err != nil {
+			return err
+		}
+		consumptionReward := current.ConsumptionReward
+		if req.ConsumptionRewardEnabled != nil {
+			consumptionReward.Enabled = *req.ConsumptionRewardEnabled
+		}
+		if req.ConsumptionRewardTiers != nil {
+			consumptionReward.Tiers = req.ConsumptionRewardTiers
+		}
+		if err := validateTieredRewardConfig(consumptionReward, "consumption reward"); err != nil {
+			return err
+		}
+	}
 	m := make(map[string]string)
 	if req.Enabled != nil {
 		m[SettingPaymentEnabled] = formatBoolOrEmpty(req.Enabled)
@@ -477,6 +536,26 @@ func (s *PaymentConfigService) UpdatePaymentConfig(ctx context.Context, req Upda
 		}
 		m[SettingRechargeLotteryPrizes] = string(encoded)
 	}
+	if req.RechargeBonusEnabled != nil {
+		m[SettingRechargeBonusEnabled] = formatBoolOrEmpty(req.RechargeBonusEnabled)
+	}
+	if req.RechargeBonusTiers != nil {
+		encoded, err := json.Marshal(req.RechargeBonusTiers)
+		if err != nil {
+			return fmt.Errorf("encode recharge bonus tiers: %w", err)
+		}
+		m[SettingRechargeBonusTiers] = string(encoded)
+	}
+	if req.ConsumptionRewardEnabled != nil {
+		m[SettingConsumptionRewardEnabled] = formatBoolOrEmpty(req.ConsumptionRewardEnabled)
+	}
+	if req.ConsumptionRewardTiers != nil {
+		encoded, err := json.Marshal(req.ConsumptionRewardTiers)
+		if err != nil {
+			return fmt.Errorf("encode consumption reward tiers: %w", err)
+		}
+		m[SettingConsumptionRewardTiers] = string(encoded)
+	}
 	if req.VisibleMethodAlipaySource != nil {
 		m[SettingPaymentVisibleMethodAlipaySource] = derefStr(req.VisibleMethodAlipaySource)
 	}
@@ -515,6 +594,23 @@ func validateRechargeLotteryConfig(cfg RechargeLotteryConfig) error {
 	}
 	if total > 100+1e-9 {
 		return infraerrors.BadRequest("INVALID_RECHARGE_LOTTERY_PRIZES", "total prize probability cannot exceed 100")
+	}
+	return nil
+}
+
+func validateTieredRewardConfig(cfg TieredRewardConfig, name string) error {
+	if !cfg.Enabled {
+		return nil
+	}
+	if len(cfg.Tiers) == 0 {
+		return infraerrors.BadRequest("INVALID_REWARD_TIERS", name+" requires at least one tier")
+	}
+	previous := 0.0
+	for _, tier := range cfg.Tiers {
+		if !isRechargeLotteryMoney(tier.Threshold) || !isRechargeLotteryMoney(tier.Bonus) || tier.Threshold <= previous {
+			return infraerrors.BadRequest("INVALID_REWARD_TIERS", name+" tiers must use increasing positive amounts with at most 2 decimal places")
+		}
+		previous = tier.Threshold
 	}
 	return nil
 }

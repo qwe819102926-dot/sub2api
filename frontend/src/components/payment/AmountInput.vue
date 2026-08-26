@@ -11,14 +11,18 @@
           :key="amt"
           type="button"
           :class="[
-            'rounded-lg border-2 px-4 py-3 text-center font-medium transition-colors',
+            'relative rounded-lg border-2 px-4 py-3 text-center font-medium transition-colors',
             modelValue === amt
               ? 'border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-400 dark:bg-primary-900/40 dark:text-primary-300'
               : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500',
           ]"
           @click="selectAmount(amt)"
         >
-          {{ amt }}
+          <span v-if="bonusFor(amt) > 0" class="absolute right-2 top-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{{ t('payment.activities.giftBadge') }}</span>
+          <span class="block text-lg">{{ amt }}</span>
+          <span class="mt-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
+            {{ t('payment.activities.quickAmountSummary', { total: (amt * multiplier).toFixed(2), draws: Math.floor(amt / lotteryThreshold) }) }}
+          </span>
         </button>
       </div>
     </div>
@@ -48,16 +52,23 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import type { RewardTier } from '@/types/payment'
 
 const props = withDefaults(defineProps<{
   amounts?: number[]
   modelValue: number | null
   min?: number
   max?: number
+  rewardTiers?: RewardTier[]
+  lotteryThreshold?: number
+  multiplier?: number
 }>(), {
   amounts: () => [10, 20, 50],
   min: 0,
   max: 0,
+  rewardTiers: () => [],
+  lotteryThreshold: 10,
+  multiplier: 1.1,
 })
 
 const emit = defineEmits<{
@@ -79,6 +90,13 @@ const placeholderText = computed(() => {
   if (props.max > 0) return `≤ ${props.max}`
   return t('payment.enterAmount')
 })
+
+const lotteryThreshold = computed(() => props.lotteryThreshold > 0 ? props.lotteryThreshold : 10)
+const multiplier = computed(() => props.multiplier > 0 ? props.multiplier : 1.1)
+
+function bonusFor(amount: number): number {
+  return props.rewardTiers.reduce((bonus, tier) => amount >= tier.threshold ? tier.bonus : bonus, 0)
+}
 
 const AMOUNT_PATTERN = /^\d*(\.\d{0,2})?$/
 
