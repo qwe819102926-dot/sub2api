@@ -290,23 +290,28 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		markPatchSet("instructions", defaultCodexSynthInstructions(reqModel))
 	}
 
-	billingModel := account.GetMappedModel(reqModel)
-	if billingModel != reqModel {
-		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, billingModel, account.Name, isCodexCLI)
-		reqModel = billingModel
-		markPatchSet("model", billingModel)
+	// Account mappings choose the model sent upstream; they do not change the
+	// client-facing model used for pricing. Channel billing policy can still
+	// explicitly override this later when recording usage.
+	billingModel := originalModel
+	mappedModel := account.GetMappedModel(reqModel)
+	if mappedModel != reqModel {
+		logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", reqModel, mappedModel, account.Name, isCodexCLI)
+		reqModel = mappedModel
+		markPatchSet("model", mappedModel)
 	}
-	upstreamModel := billingModel
+	upstreamModel := reqModel
 	isCompactRequest := compactPath
 	compactMapped := false
 	if isCompactRequest {
-		compactMappedModel := resolveOpenAICompactForwardModel(account, billingModel)
-		if compactMappedModel != "" && compactMappedModel != billingModel {
+		compactMappedModel := resolveOpenAICompactForwardModel(account, reqModel)
+		if compactMappedModel != "" && compactMappedModel != reqModel {
+			previousModel := reqModel
 			compactMapped = true
 			upstreamModel = compactMappedModel
 			reqModel = compactMappedModel
 			markPatchSet("model", compactMappedModel)
-			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Compact model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", billingModel, compactMappedModel, account.Name, isCodexCLI)
+			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Compact model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", previousModel, compactMappedModel, account.Name, isCodexCLI)
 		}
 	}
 	if !compactMapped {
@@ -811,7 +816,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	}
 
 	reasoningEffort := extractOpenAIReasoningEffortFromBody(body, upstreamModel, billingModel, originalModel)
-	// 国产模型默认 effort 补充：此处 reqModel 已被 mapping 重写为 billingModel。
+	// 国产模型默认 effort 补充：此处 reqModel 已被 mapping 重写为上游模型。
 	reasoningEffort = ApplyThinkingEnabledFallback(reasoningEffort, body, reqModel)
 	reasoningEffortValue := ""
 	if reasoningEffort != nil {

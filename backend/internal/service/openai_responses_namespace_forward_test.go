@@ -31,6 +31,24 @@ const codexNamespaceRequestBody = `{
 
 const namespaceForwardOKResponse = `{"id":"resp_ns","output":[],"usage":{"input_tokens":1,"output_tokens":1,"input_tokens_details":{"cached_tokens":0}}}`
 
+func TestOpenAIGatewayService_AccountMappingPreservesRequestedBillingModel(t *testing.T) {
+	body := []byte(`{"model":"gpt-5.5","stream":false,"instructions":"test","input":"hello"}`)
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{
+		newOpenAIRejectedFieldTestResponse(http.StatusOK, namespaceForwardOKResponse),
+	}}
+	c := newOpenAIRejectedFieldTestContext(body)
+	account := newOpenAIOAuthNamespaceTestAccount()
+	account.Credentials["model_mapping"] = map[string]any{"gpt-5.5": "gpt-5.6-terra"}
+
+	result, err := newOpenAIRejectedFieldTestService(upstream).Forward(context.Background(), c, account, body)
+
+	require.NoError(t, err)
+	require.Equal(t, "gpt-5.5", result.BillingModel)
+	require.Equal(t, "gpt-5.6-terra", result.UpstreamModel)
+	require.Len(t, upstream.bodies, 1)
+	require.Equal(t, "gpt-5.6-terra", gjson.GetBytes(upstream.bodies[0], "model").String())
+}
+
 // OAuth 出口即 namespace 扩展的定义方：声明必须原样送达，历史调用项必须保留
 // namespace（缺字段上游会 400 "Missing namespace for function_call"），而非调用项上的
 // 残留 namespace 仍要清掉。回归 issue #4978。
