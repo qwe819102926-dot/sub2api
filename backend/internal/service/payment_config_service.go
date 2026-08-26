@@ -152,10 +152,10 @@ type UpdatePaymentConfigRequest struct {
 	RechargeLotteryEnabled        *bool                  `json:"recharge_lottery_enabled"`
 	RechargeLotteryThreshold      *float64               `json:"recharge_lottery_threshold"`
 	RechargeLotteryPrizes         []RechargeLotteryPrize `json:"recharge_lottery_prizes"`
-	RechargeBonusEnabled           *bool                  `json:"recharge_bonus_enabled"`
-	RechargeBonusTiers             []RewardTier           `json:"recharge_bonus_tiers"`
-	ConsumptionRewardEnabled       *bool                  `json:"consumption_reward_enabled"`
-	ConsumptionRewardTiers         []RewardTier           `json:"consumption_reward_tiers"`
+	RechargeBonusEnabled          *bool                  `json:"recharge_bonus_enabled"`
+	RechargeBonusTiers            []RewardTier           `json:"recharge_bonus_tiers"`
+	ConsumptionRewardEnabled      *bool                  `json:"consumption_reward_enabled"`
+	ConsumptionRewardTiers        []RewardTier           `json:"consumption_reward_tiers"`
 
 	VisibleMethodAlipaySource  *string `json:"payment_visible_method_alipay_source"`
 	VisibleMethodWxpaySource   *string `json:"payment_visible_method_wxpay_source"`
