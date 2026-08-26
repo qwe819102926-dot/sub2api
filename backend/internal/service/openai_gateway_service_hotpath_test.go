@@ -295,7 +295,7 @@ func TestOpenAIGatewayService_Forward_MappedImageModelUsesImageGate(t *testing.T
 	require.False(t, cached)
 }
 
-func TestOpenAIGatewayService_Forward_TextResponsesSetsBillingModelToMappedModel(t *testing.T) {
+func TestOpenAIGatewayService_Forward_TextResponsesPreservesRequestedBillingModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	upstream := &httpUpstreamRecorder{
 		resp: &http.Response{
@@ -332,7 +332,7 @@ func TestOpenAIGatewayService_Forward_TextResponsesSetsBillingModelToMappedModel
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "gpt-5.4", result.Model)
-	require.Equal(t, "gpt-5.5", result.BillingModel)
+	require.Equal(t, "gpt-5.4", result.BillingModel)
 	require.Equal(t, "gpt-5.5", result.UpstreamModel)
 	require.Equal(t, "gpt-5.5", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.Equal(t, 0, result.ImageCount)
@@ -375,7 +375,7 @@ func TestOpenAIGatewayService_Forward_TextResponsesWithoutMappingKeepsRequestedB
 	require.Equal(t, "gpt-5.4", result.UpstreamModel)
 }
 
-func TestOpenAIGatewayService_Forward_TextResponsesBillingModelMatchesChatCompletions(t *testing.T) {
+func TestOpenAIGatewayService_Forward_TextResponsesBillingModelDiffersFromChatCompletions(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cfg := &config.Config{}
 	cfg.Security.URLAllowlist.Enabled = false
@@ -428,9 +428,9 @@ func TestOpenAIGatewayService_Forward_TextResponsesBillingModelMatchesChatComple
 	require.NoError(t, err)
 	require.NotNil(t, chatResult)
 
-	require.Equal(t, chatResult.BillingModel, responsesResult.BillingModel)
-	require.Equal(t, "gpt-5.5", responsesResult.BillingModel)
+	require.Equal(t, "gpt-5.4", responsesResult.BillingModel)
 	require.Equal(t, "gpt-5.5", chatResult.BillingModel)
+	require.NotEqual(t, chatResult.BillingModel, responsesResult.BillingModel)
 }
 
 func TestOpenAIGatewayService_Forward_TextDataImageDoesNotForceMapMarshal(t *testing.T) {
