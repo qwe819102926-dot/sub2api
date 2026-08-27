@@ -50,4 +50,4 @@ jobs:
           SHA="${GITHUB_SHA::7}"
           docker tag sub2api:smoke ghcr.io/qwe819102926-dot/sub2api:dev
           docker tag sub2api:smoke ghcr.io/qwe819102926-dot/sub2api:dev-${SHA}
-          docker push --all-tags ghcr.io/qwe819102926-dot/sub2api:dev
+          docker push --all-tags ghcr.io/qwe819102926-dot/sub2api
