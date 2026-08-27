@@ -192,3 +192,31 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging down -v
 4. **假设**:staging compose 基于仓库 `deploy/docker-compose.yml` 生成,服务名
    `sub2api / postgres / redis` 与生产一致;如果服务器上的生产 compose 结构不同,
    按相同思路改成你自己的版本即可。
+---
+
+## 生产 / 测试隔离边界(保证)
+
+以下为服务器实测确认的硬隔离点,生产与 staging 不会混用:
+
+| 维度 | 生产 | staging(测试) |
+|---|---|---|
+| 数据库名 | `sub2api` | `sub2api_staging` |
+| 数据库容器 | `sub2api-postgres` | `sub2api-staging-postgres` |
+| 存储 | 宿主目录 bind-mount(`postgres_data/` `redis_data/` `data/`) | 独立命名卷 `*_staging_data` |
+| 端口 | `127.0.0.1:8080` | `127.0.0.1:8081` |
+| 镜像 tag | `ghcr.io/qwe819102926-dot/sub2api:latest` | `:dev` / `:dev-<sha>` |
+| compose / env | `docker-compose.yml` + `.env` | `docker-compose.staging.yml` + `.env.staging` |
+| 域名 | `aitokey.top` | `staging.aitokey.top` |
+| 账号 | 生产管理员 | `admin-staging@aitokey.top` |
+
+### 发布闸门(必须先测后发)
+
+1. 新功能只推 **dev(或任意非 main 分支)** → CI 自动构建 + 冒烟 → 推 `:dev` 镜像 → staging 更新。
+2. 在 `https://staging.aitokey.top` 登录验证,确认无误。
+3. 验证通过后,才把 dev **合并到 main** → 触发 publish-image 的冒烟门禁 → 冒烟通过才发布 `:latest`。
+4. 生产更新由你手动 `docker compose pull sub2api && docker compose up -d sub2api`,生产数据全程用 `sub2api` 库,与 staging 无关。
+
+### 防呆(避免误操作)
+
+- 更新 **生产** 永远用默认 `docker compose`(即 `docker-compose.yml`);更新 **staging** 永远显式带 `-f docker-compose.staging.yml --env-file .env.staging`,不要靠默认。
+- 不要改 staging 的 `POSTGRES_DB` 去指向 `sub2api`;`docker-compose.staging.yml` 默认就是 `sub2api_staging`,无需改动。
