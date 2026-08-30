@@ -54,6 +54,14 @@
           >
             {{ isAuthenticated ? t('home.dashboard') : t('home.login') }}
           </router-link>
+          <router-link
+            to="/usage-guide"
+            class="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
+            :title="t('nav.guide')"
+          >
+            <Icon name="book" size="md" />
+            <span class="hidden sm:inline">{{ t('nav.guide') }}</span>
+          </router-link>
         </div>
       </nav>
     </header>
@@ -120,6 +128,15 @@
             <Icon name="book" size="md" />
           </a>
 
+          <!-- Usage Guide -->
+          <router-link
+            to="/usage-guide"
+            class="inline-flex items-center gap-1.5 rounded-md border border-gray-900/10 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-900/5 hover:text-gray-950 dark:border-white/10 dark:text-dark-300 dark:hover:bg-white/10 dark:hover:text-white"
+            :title="t('nav.guide')"
+          >
+            <Icon name="book" size="sm" />
+            <span>{{ t('nav.guide') }}</span>
+          </router-link>
           <!-- Theme Toggle -->
           <button
             @click="toggleTheme"

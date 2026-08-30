@@ -186,6 +186,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
 
+  {
+    path: '/usage-guide',
+    name: 'UsageGuide',
+    component: () => import('@/views/GuideView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Codex 使用说明',
+      titleKey: 'nav.guide'
+    }
+  },
   // ==================== User Routes ====================
   {
     path: '/',
@@ -738,7 +748,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/usage-guide']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
