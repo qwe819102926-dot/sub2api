@@ -1,11 +1,12 @@
 <template>
   <button
     @click="openModal"
-    class="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition-all hover:bg-gray-100 hover:scale-105 dark:text-gray-400 dark:hover:bg-dark-800"
+    class="relative flex h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-gray-600 transition-all hover:bg-gray-100 hover:scale-105 dark:text-gray-400 dark:hover:bg-dark-800"
     :aria-label="buttonLabel"
     :title="buttonLabel"
   >
     <Icon name="chat" size="md" />
+    <span class="hidden text-sm font-medium sm:inline">{{ buttonLabel }}</span>
   </button>
 
   <Teleport to="body">
