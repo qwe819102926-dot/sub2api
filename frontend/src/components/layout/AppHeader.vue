@@ -11,9 +11,6 @@
           <Icon name="menu" size="md" />
         </button>
 
-        <!-- Customer service entry (configured with QR codes in Site Settings) -->
-        <CustomerServiceButton />
-
         <div class="hidden lg:block">
           <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
@@ -26,6 +23,9 @@
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex min-w-0 items-center gap-1 sm:gap-3">
+        <!-- Customer service entry -->
+        <CustomerServiceButton />
+
         <!-- Announcement Bell -->
         <AnnouncementBell v-if="user" />
 

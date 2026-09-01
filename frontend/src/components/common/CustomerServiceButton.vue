@@ -48,14 +48,14 @@
               <div class="rounded-xl border border-gray-100 bg-gray-50/60 p-4 dark:border-dark-700 dark:bg-dark-800">
                 <div class="mb-2 flex items-center justify-between">
                   <span class="text-sm font-medium text-gray-600 dark:text-dark-400">
-                    {{ t('customerService.qqLabel') }}
+                    {{ t('common.customerService.qqLabel') }}
                   </span>
                   <button
                     @click="copyValue(qqNumber)"
                     class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                   >
                     <Icon name="copy" size="xs" />
-                    {{ copiedValue === qqNumber ? t('customerService.copied') : t('customerService.copy') }}
+                    {{ copiedValue === qqNumber ? t('common.customerService.copied') : t('common.customerService.copy') }}
                   </button>
                 </div>
 
@@ -64,7 +64,7 @@
                 <div class="mt-3 flex justify-center">
                   <img
                     src="/customer-service-qq.jpg"
-                    :alt="t('customerService.qqLabel')"
+                    :alt="t('common.customerService.qqLabel')"
                     class="h-64 w-64 rounded-lg border border-gray-200 object-contain dark:border-dark-600 dark:bg-white/5"
                     loading="lazy"
                   />
@@ -89,9 +89,9 @@ const copiedValue = ref<string | null>(null)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 
 const qqNumber = '819102926'
-const buttonLabel = computed(() => t('customerService.buttonLabel'))
+const buttonLabel = computed(() => t('common.customerService.buttonLabel'))
 const panelTitle = computed(() => t('common.contactSupport'))
-const panelSubtitle = computed(() => t('customerService.subtitle'))
+const panelSubtitle = computed(() => t('common.customerService.subtitle'))
 
 function openModal() {
   isModalOpen.value = true
