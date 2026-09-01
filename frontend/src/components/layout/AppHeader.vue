@@ -11,6 +11,9 @@
           <Icon name="menu" size="md" />
         </button>
 
+        <!-- Customer service entry (configured with QR codes in Site Settings) -->
+        <CustomerServiceButton />
+
         <div class="hidden lg:block">
           <h1 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ pageTitle }}
@@ -204,7 +207,7 @@
                   </svg>
                   <span>{{ t('common.contactSupport') }}:</span>
                   <span class="font-medium text-gray-700 dark:text-gray-300">{{
-                    contactInfo
+                    contactDisplayText
                   }}</span>
                 </div>
               </div>
@@ -258,8 +261,10 @@ import { useAdminSettingsStore } from '@/stores/adminSettings'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import CustomerServiceButton from '@/components/common/CustomerServiceButton.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
+import { getContactDisplayText } from '@/utils/customerService'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
 const router = useRouter()
@@ -274,6 +279,7 @@ const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
+const contactDisplayText = computed(() => getContactDisplayText(contactInfo.value))
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')

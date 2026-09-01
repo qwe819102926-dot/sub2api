@@ -61,6 +61,12 @@ export default {
     verifying: 'Verifying...',
     processing: 'Processing...',
     contactSupport: 'Contact Support',
+    customerService: {
+      subtitle: 'Customer service QR code',
+      qqLabel: 'Support QQ',
+      copy: 'Copy',
+      copied: 'Copied',
+    },
     add: 'Add',
     invalidEmail: 'Please enter a valid email address',
     optional: 'optional',
