@@ -1,6 +1,19 @@
 <template>
   <AppLayout>
     <div class="space-y-4">
+      <section v-if="bonusConsumptionRate !== null" class="rounded-lg border border-sky-200 bg-sky-50/50 p-5 shadow-sm dark:border-sky-900/50 dark:bg-dark-800">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 class="text-base font-semibold text-sky-800 dark:text-sky-200">{{ t('payment.activities.bonusConsumptionRateTitle') }}</h2>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.activities.bonusConsumptionRateHint') }}</p>
+          </div>
+          <button type="button" class="btn btn-primary text-sm" :disabled="bonusConsumptionRateSaving" @click="saveBonusConsumptionRate">{{ bonusConsumptionRateSaving ? t('common.processing') : t('payment.activities.bonusConsumptionRateSave') }}</button>
+        </div>
+        <div class="mt-4 max-w-xs">
+          <label class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('payment.activities.bonusConsumptionRate') }}</label>
+          <input v-model.number="bonusConsumptionRate" type="number" min="0.01" step="0.01" class="mt-1 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 dark:border-dark-600 dark:bg-dark-900 dark:text-white" />
+        </div>
+      </section>
       <section v-if="lotteryConfig" class="rounded-lg border border-[#c9dfd2] bg-[#faf5eb] p-5 shadow-sm dark:border-[#4a6a5d] dark:bg-dark-800">
         <div class="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -180,6 +193,8 @@ const groups = ref<AdminGroup[]>([])
 const paymentConfig = ref<AdminPaymentConfig | null>(null)
 const lotteryConfig = ref<{ enabled: boolean; threshold: number; prizes: RechargeLotteryPrize[] } | null>(null)
 const lotterySaving = ref(false)
+const bonusConsumptionRate = ref<number | null>(null)
+const bonusConsumptionRateSaving = ref(false)
 type RewardConfig = { enabled: boolean; tiers: RewardTier[] }
 const rechargeBonusConfig = ref<RewardConfig | null>(null)
 const consumptionRewardConfig = ref<RewardConfig | null>(null)
@@ -197,6 +212,7 @@ async function loadPaymentConfig() {
   try {
     const res = await adminPaymentAPI.getConfig()
     paymentConfig.value = res.data
+    bonusConsumptionRate.value = res.data.bonus_balance_consumption_rate ?? 1
     lotteryConfig.value = {
       enabled: res.data.recharge_lottery?.enabled ?? false,
       threshold: res.data.recharge_lottery?.threshold ?? 10,
@@ -205,6 +221,20 @@ async function loadPaymentConfig() {
     rechargeBonusConfig.value = { enabled: res.data.recharge_bonus?.enabled ?? false, tiers: (res.data.recharge_bonus?.tiers ?? []).map(tier => ({ ...tier })) }
     consumptionRewardConfig.value = { enabled: res.data.consumption_reward?.enabled ?? false, tiers: (res.data.consumption_reward?.tiers ?? []).map(tier => ({ ...tier })) }
   } catch { /* preview only */ }
+}
+
+async function saveBonusConsumptionRate() {
+  if (bonusConsumptionRate.value === null || bonusConsumptionRateSaving.value) return
+  bonusConsumptionRateSaving.value = true
+  try {
+    await adminPaymentAPI.updateConfig({ bonus_balance_consumption_rate: Number(bonusConsumptionRate.value) })
+    await loadPaymentConfig()
+    appStore.showSuccess(t('common.success'))
+  } catch (err: unknown) {
+    appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error')))
+  } finally {
+    bonusConsumptionRateSaving.value = false
+  }
 }
 
 function addLotteryPrize() {

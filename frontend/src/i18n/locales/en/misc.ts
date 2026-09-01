@@ -413,6 +413,10 @@ export default {
       totalProbability: 'Total probability: {value}%',
     },
     activities: {
+      bonusConsumptionRateTitle: 'Bonus Balance Consumption Rate',
+      bonusConsumptionRateHint: 'Bonus balance deducted per $1 spent. 1.0 keeps the current 1:1 behavior; lower values make it last longer.',
+      bonusConsumptionRate: 'Consumption multiplier',
+      bonusConsumptionRateSave: 'Save rate',
       rechargeTitle: 'Recharge Bonus Campaign',
       rechargeHint: 'A completed top-up automatically receives the highest matching tier bonus.',
       consumptionTitle: 'Spend Reward Campaign',

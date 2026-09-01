@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -13,11 +14,21 @@ import (
 )
 
 type usageBillingRepository struct {
-	db *sql.DB
+	db          *sql.DB
+	settingRepo service.SettingRepository
 }
 
-func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
-	return &usageBillingRepository{db: sqlDB}
+func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB, settingRepos ...service.SettingRepository) service.UsageBillingRepository {
+	var settingRepo service.SettingRepository
+	if len(settingRepos) > 0 {
+		settingRepo = settingRepos[0]
+	}
+	return &usageBillingRepository{db: sqlDB, settingRepo: settingRepo}
+}
+
+// NewUsageBillingRepositoryWithSettings is the production constructor used by Wire.
+func NewUsageBillingRepositoryWithSettings(client *dbent.Client, sqlDB *sql.DB, settingRepo service.SettingRepository) service.UsageBillingRepository {
+	return NewUsageBillingRepository(client, sqlDB, settingRepo)
 }
 
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
@@ -180,7 +191,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost, r.bonusBalanceConsumptionRate(ctx))
 		if err != nil {
 			return err
 		}
@@ -213,6 +224,21 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	return nil
 }
 
+func (r *usageBillingRepository) bonusBalanceConsumptionRate(ctx context.Context) float64 {
+	if r == nil || r.settingRepo == nil {
+		return 1
+	}
+	raw, err := r.settingRepo.GetValue(ctx, service.SettingBonusBalanceConsumptionRate)
+	if err != nil {
+		return 1
+	}
+	rate, err := strconv.ParseFloat(strings.TrimSpace(raw), 64)
+	if err != nil || math.IsNaN(rate) || math.IsInf(rate, 0) || rate <= 0 {
+		return 1
+	}
+	return rate
+}
+
 func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {
 	const updateSQL = `
 		UPDATE user_subscriptions us
@@ -241,18 +267,22 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, bool, error) {
+func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64, rates ...float64) (float64, bool, error) {
 	var newBalance float64
 	var bonusBalance float64
 	// Promotional balance is consumed first. The principal balance keeps its
 	// existing overdraft behavior after the bonus bucket is exhausted.
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&bonusBalance); err == nil {
-		usedBonus := math.Min(amount, math.Max(0, bonusBalance))
+		rate := 1.0
+		if len(rates) > 0 && rates[0] > 0 && !math.IsNaN(rates[0]) && !math.IsInf(rates[0], 0) {
+			rate = rates[0]
+		}
+		usedBonus := math.Min(amount*rate, math.Max(0, bonusBalance))
 		if usedBonus > 0 {
 			if _, err := tx.ExecContext(ctx, `UPDATE users SET bonus_balance = bonus_balance - $1, updated_at = NOW() WHERE id = $2`, usedBonus, userID); err != nil {
 				return 0, false, err
 			}
-			amount -= usedBonus
+			amount -= usedBonus / rate
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return 0, false, err

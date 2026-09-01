@@ -437,6 +437,10 @@ export default {
       totalProbability: '总概率：{value}%',
     },
     activities: {
+      bonusConsumptionRateTitle: '赠送余额消费速率',
+      bonusConsumptionRateHint: '每消费 1 美元，扣除多少赠送余额。1.0 为当前的 1:1；数值越小，赠送余额消耗越慢。',
+      bonusConsumptionRate: '消费倍率',
+      bonusConsumptionRateSave: '保存速率',
       rechargeTitle: '充值赠送活动',
       rechargeHint: '单笔充值达到档位后，自动赠送对应余额。每笔订单仅赠送最高匹配档位。',
       consumptionTitle: '消费达标赠送活动',
