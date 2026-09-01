@@ -63,6 +63,7 @@ export default {
     contactSupport: 'Contact Support',
     customerService: {
       subtitle: 'Customer service QR code',
+      buttonLabel: 'Support',
       qqLabel: 'Support QQ',
       copy: 'Copy',
       copied: 'Copied',

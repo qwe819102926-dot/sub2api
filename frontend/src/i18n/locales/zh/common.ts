@@ -63,6 +63,7 @@ export default {
     contactSupport: '联系客服',
     customerService: {
       subtitle: 'QQ 与群二维码',
+      buttonLabel: '客服',
       qqLabel: '客服 QQ',
       copy: '复制',
       copied: '已复制',

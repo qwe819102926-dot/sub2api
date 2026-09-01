@@ -1,12 +1,12 @@
 <template>
   <button
     @click="openModal"
-    class="relative flex h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-gray-600 transition-all hover:bg-gray-100 hover:scale-105 dark:text-gray-400 dark:hover:bg-dark-800"
+    class="relative flex h-10 items-center justify-center gap-1.5 rounded-xl border border-emerald-300 bg-white px-3 text-gray-700 shadow-sm transition-all hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 hover:shadow dark:border-emerald-700 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-emerald-500 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-300"
     :aria-label="buttonLabel"
     :title="buttonLabel"
   >
-    <Icon name="chat" size="md" />
-    <span class="hidden text-sm font-medium sm:inline">{{ buttonLabel }}</span>
+    <Icon name="headphones" size="sm" />
+    <span class="text-sm font-medium">{{ buttonLabel }}</span>
   </button>
 
   <Teleport to="body">
@@ -23,7 +23,7 @@
           <!-- Header -->
           <div class="flex items-center gap-3 border-b border-gray-100 px-6 py-5 dark:border-dark-700">
             <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
-              <Icon name="chat" size="lg" />
+              <Icon name="headphones" size="lg" />
             </div>
             <div class="min-w-0">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
@@ -89,7 +89,7 @@ const copiedValue = ref<string | null>(null)
 let copyTimer: ReturnType<typeof setTimeout> | null = null
 
 const qqNumber = '819102926'
-const buttonLabel = computed(() => t('common.contactSupport'))
+const buttonLabel = computed(() => t('customerService.buttonLabel'))
 const panelTitle = computed(() => t('common.contactSupport'))
 const panelSubtitle = computed(() => t('customerService.subtitle'))
 
