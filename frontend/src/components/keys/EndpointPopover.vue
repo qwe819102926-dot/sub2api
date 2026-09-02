@@ -6,6 +6,7 @@ import type { CustomEndpoint } from '@/types'
 
 const props = defineProps<{
   apiBaseUrl: string
+  imageApiBaseUrl?: string
   customEndpoints: CustomEndpoint[]
 }>()
 
@@ -23,6 +24,14 @@ const allEndpoints = computed(() => {
       endpoint: props.apiBaseUrl,
       description: '',
       isDefault: true,
+    })
+  }
+  if (props.imageApiBaseUrl) {
+    items.push({
+      name: t('keys.endpoints.imageGeneration'),
+      endpoint: props.imageApiBaseUrl,
+      description: '',
+      isDefault: false,
     })
   }
   for (const ep of props.customEndpoints) {

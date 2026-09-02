@@ -73,6 +73,7 @@ export default {
     searchPlaceholder: 'Search name or key...',
     endpoints: {
       title: 'API Endpoints',
+      imageGeneration: 'Image API',
       default: 'Default',
       copied: 'Copied',
       copiedHint: 'Copied to clipboard',

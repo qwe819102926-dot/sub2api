@@ -73,6 +73,7 @@ export default {
     searchPlaceholder: '搜索名称或Key...',
     endpoints: {
       title: 'API 端点',
+      imageGeneration: '生图 API',
       default: '默认',
       copied: '已复制',
       copiedHint: '已复制到剪贴板',
