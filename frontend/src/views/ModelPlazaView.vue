@@ -5,7 +5,7 @@
   </AppLayout>
 
   <!-- 独立形态:自带导航条(logo/站名 + 登录/回后台) -->
-  <div v-else class="min-h-screen bg-gray-50 dark:bg-dark-950">
+  <div v-else class="model-plaza-page min-h-screen bg-gray-50 dark:bg-dark-950">
     <PlazaNavBar />
     <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <ModelPlazaContent :response="data" :loading="loading" :error="loadFailed" />
@@ -46,3 +46,21 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.model-plaza-page {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(135deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px);
+  background-position: center top;
+  background-size: 36px 36px;
+}
+
+.dark .model-plaza-page {
+  background-color: #0f172a;
+  background-image:
+    linear-gradient(135deg, rgba(71, 85, 105, 0.18) 1px, transparent 1px),
+    linear-gradient(45deg, rgba(71, 85, 105, 0.12) 1px, transparent 1px);
+}
+</style>

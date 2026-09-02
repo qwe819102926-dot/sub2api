@@ -309,6 +309,42 @@ func TestListPlazaGroups_GroupImagePriceIgnoredForNonImageModes(t *testing.T) {
 	require.Nil(t, p.PerRequestPrice)
 }
 
+func TestListPlazaGroups_UsesGroupModelListAndPricing(t *testing.T) {
+	groupPrice := 0.7e-6
+	channelPrice := 3e-6
+	channels := []Channel{{
+		ID: 1, Name: "ch", Status: StatusActive, GroupIDs: []int64{10},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"gpt-5", "hidden-model"},
+			InputPrice: &channelPrice,
+		}},
+	}}
+	groups := []Group{{
+		ID: 10, Name: "g", Platform: PlatformOpenAI, RateMultiplier: 0.06,
+		ModelsListConfig: GroupModelsListConfig{Enabled: true, Models: []string{"gpt-5", "dynamic-model"}},
+		ModelPricing: []ChannelModelPricing{{
+			Platform: PlatformOpenAI, Models: []string{"gpt-5"}, InputPrice: &groupPrice,
+		}},
+	}}
+
+	out, err := newPlazaChannelService(channels, groups, nil).ListPlazaGroups(context.Background())
+	require.NoError(t, err)
+	require.Len(t, out, 1)
+	require.Equal(t, 0.06, out[0].RateMultiplier)
+	require.Equal(t, []string{"dynamic-model", "gpt-5"}, []string{out[0].Models[0].Name, out[0].Models[1].Name})
+	byName := map[string]PlazaModel{}
+	for _, model := range out[0].Models {
+		byName[model.Name] = model
+	}
+	_, hidden := byName["hidden-model"]
+	require.False(t, hidden, "enabled custom model list must hide channel-only models")
+	require.NotNil(t, byName["gpt-5"].Pricing)
+	require.InDelta(t, groupPrice, *byName["gpt-5"].Pricing.InputPrice, 1e-12)
+	// Models explicitly listed by the group remain visible even before a
+	// channel pricing row is synchronized for the upstream model.
+	require.Contains(t, byName, "dynamic-model")
+}
+
 func TestListPlazaGroups_RepoErrorsPropagate(t *testing.T) {
 	sentinel := errors.New("boom")
 	repo := &mockChannelRepository{

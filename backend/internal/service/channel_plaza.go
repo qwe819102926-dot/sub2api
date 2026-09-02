@@ -27,9 +27,9 @@ type PlazaModel struct {
 
 // PlazaGroup 模型广场中以分组为顶层的条目。
 //
-// 与 AvailableGroupRef 相比多了 Description 与 Models；Models 来自该分组关联渠道的
-// 支持模型（普通分组按分组平台隔离，Composite 分组展开关联渠道已配置的
-// 具体平台），与「可用渠道」页口径一致。
+// 与 AvailableGroupRef 相比多了 Description 与 Models；Models 默认来自该分组关联
+// 渠道的支持模型（普通分组按分组平台隔离，Composite 分组展开关联渠道已配置的
+// 具体平台）。启用分组自定义模型列表后，列表成为该分组广场模型的筛选/补充来源。
 type PlazaGroup struct {
 	ID                 int64
 	Name               string
@@ -55,6 +55,8 @@ type PlazaGroup struct {
 // 平台隔离），仅把顶层从渠道换成分组：
 //   - 渠道按 lower(name) 排序后遍历，保证同名模型去重结果确定；
 //   - 同分组同名模型「先见者胜」，仅当已存条目无定价而新条目有定价时升级替换；
+//   - 分组模型定价覆盖渠道定价，未配置时回落到全局 LiteLLM 参考价；
+//   - 分组启用 ModelsListConfig 时，仅展示该清单，并补充尚未同步到渠道的清单模型；
 //   - 图片计费模型的档位价按实收口径合成（分组图片价 > 渠道档位价 > 渠道默认按次价，
 //     见 plazaImageDisplayPricing）；
 //   - 每个模型附带 LiteLLM 官方参考价（查不到为 nil）；
@@ -127,6 +129,9 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 			}
 			for j := range supported {
 				m := supported[j]
+				if !plazaGroupAllowsModel(groupEnt[gid], m.Name) {
+					continue
+				}
 				if pg.Platform == PlatformComposite {
 					if !isConcreteRequestPlatform(m.Platform) {
 						continue
@@ -134,7 +139,8 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 				} else if m.Platform != pg.Platform {
 					continue
 				}
-				pricing := plazaImageDisplayPricing(m.Pricing, groupEnt[gid])
+				pricing := plazaModelPricing(groupEnt[gid], m.Name, m.Pricing, s)
+				pricing = plazaImageDisplayPricing(pricing, groupEnt[gid])
 				key := modelKey{platform: m.Platform, name: m.Name}
 				if at, seen := idx[key]; seen {
 					// 先见者胜；仅当已存条目无定价而新条目有定价时升级。
@@ -150,6 +156,43 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 					Pricing:  pricing,
 				})
 			}
+		}
+	}
+
+	// A group's custom /v1/models list is also the source of truth for the
+	// plaza when enabled. It may contain models that are supplied dynamically
+	// by an upstream and therefore have no channel pricing row yet.
+	for _, gid := range order {
+		g := groupEnt[gid]
+		pg := byGroup[gid]
+		if g == nil || pg == nil || !g.CustomModelsListEnabled() {
+			continue
+		}
+		idx := modelIdx[gid]
+		if idx == nil {
+			idx = make(map[modelKey]int, len(g.ModelsListConfig.Models))
+			modelIdx[gid] = idx
+		}
+		for _, name := range g.ModelsListConfig.Models {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			platform := pg.Platform
+			if gp := matchGroupModelPricing(g, name); gp != nil && gp.Platform != "" {
+				platform = gp.Platform
+			}
+			if pg.Platform == PlatformComposite && !isConcreteRequestPlatform(platform) {
+				continue
+			}
+			key := modelKey{platform: platform, name: name}
+			if _, exists := idx[key]; exists {
+				continue
+			}
+			pricing := plazaModelPricing(g, name, nil, s)
+			pricing = plazaImageDisplayPricing(pricing, g)
+			idx[key] = len(pg.Models)
+			pg.Models = append(pg.Models, PlazaModel{Name: name, Platform: platform, Pricing: pricing})
 		}
 	}
 
@@ -179,6 +222,39 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+// plazaGroupAllowsModel applies the optional group model list to the plaza.
+// Disabled or empty lists preserve the historical channel-derived behavior.
+func plazaGroupAllowsModel(g *Group, model string) bool {
+	if g == nil || !g.CustomModelsListEnabled() {
+		return true
+	}
+	for _, configured := range g.ModelsListConfig.Models {
+		if strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(model)) {
+			return true
+		}
+	}
+	return false
+}
+
+// plazaModelPricing follows the same precedence as the billing resolver while
+// keeping this read-only showcase independent from the request hot path.
+func plazaModelPricing(g *Group, model string, channelPricing *ChannelModelPricing, s *ChannelService) *ChannelModelPricing {
+	if g != nil {
+		if pricing := matchGroupModelPricing(g, model); pricing != nil {
+			return pricing
+		}
+	}
+	if channelPricing != nil {
+		return channelPricing
+	}
+	if s != nil && s.pricingService != nil {
+		if official := s.pricingService.GetModelPricing(model); official != nil {
+			return synthesizePricingFromLiteLLM(official, nil)
+		}
+	}
+	return nil
 }
 
 // plazaImageDisplayPricing 为图片计费模型合成展示定价，使档位价与实收口径一致：
