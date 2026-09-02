@@ -179,7 +179,7 @@ func runMainServer() {
 
 	log.Println("Shutting down server...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout())
 	defer cancel()
 
 	if err := app.Server.Shutdown(ctx); err != nil {
@@ -187,4 +187,21 @@ func runMainServer() {
 	}
 
 	log.Println("Server exited")
+}
+
+// shutdownTimeout controls how long in-flight requests have to finish after a
+// deployment sends SIGTERM. Blue-green deployments use this window to drain
+// streaming responses before the old container is stopped.
+func shutdownTimeout() time.Duration {
+	const defaultTimeout = 120 * time.Second
+	raw := strings.TrimSpace(os.Getenv("SERVER_SHUTDOWN_TIMEOUT"))
+	if raw == "" {
+		return defaultTimeout
+	}
+	timeout, err := time.ParseDuration(raw)
+	if err != nil || timeout <= 0 {
+		log.Printf("Invalid SERVER_SHUTDOWN_TIMEOUT=%q; using %s", raw, defaultTimeout)
+		return defaultTimeout
+	}
+	return timeout
 }

@@ -10,6 +10,9 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | **Apple container** | Native local stack on macOS 26 | Not needed (auto-setup) |
 | **Binary Install** | Production servers, systemd | Web-based wizard |
 
+生产 Docker 应用的零停机发布见 [BLUE_GREEN.md](BLUE_GREEN.md)。该流程只切换
+Sub2API 应用容器，不重建 PostgreSQL、Redis 或持久化数据卷。
+
 ## Files
 
 | File | Description |
@@ -17,6 +20,7 @@ This directory contains files for deploying Sub2API on Linux servers and Apple-s
 | `docker-compose.yml` | Docker Compose configuration (named volumes) |
 | `docker-compose.local.yml` | Docker Compose configuration (local directories, easy migration) |
 | `docker-deploy.sh` | **One-click Docker deployment script (recommended)** |
+| `blue-green-update.sh` | Docker 应用蓝绿发布与自动回滚 |
 | `apple-container.sh` | Native Apple `container` lifecycle script |
 | `APPLE_CONTAINER.md` | Apple `container` deployment and operations guide |
 | `.env.example` | Container environment variables template |

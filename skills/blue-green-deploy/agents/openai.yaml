@@ -1,0 +1,7 @@
+interface:
+  display_name: "蓝绿部署"
+  short_description: "Docker 应用零停机蓝绿发布、健康检查与自动回滚"
+  default_prompt: "使用 $blue-green-deploy 执行本项目的 Docker 蓝绿部署。"
+
+policy:
+  allow_implicit_invocation: true
