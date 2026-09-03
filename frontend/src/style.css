@@ -1017,3 +1017,234 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* codexpert dashboard visual system: applied only to authenticated app surfaces. */
+.codexpert-console {
+  background: #fbfaf8;
+}
+
+.codexpert-console .bg-mesh-gradient {
+  z-index: 0;
+  background-size: 4.6rem 4.6rem, 4.6rem 4.6rem, auto, auto;
+  opacity: 1;
+  background-image:
+    linear-gradient(rgba(5, 5, 5, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(5, 5, 5, 0.055) 1px, transparent 1px),
+    repeating-linear-gradient(-45deg, rgba(5, 5, 5, 0.04) 0, rgba(5, 5, 5, 0.04) 1px, transparent 1px, transparent 3.25rem),
+    radial-gradient(circle at 18% 0%, rgba(255, 112, 90, 0.075), transparent 22rem);
+}
+
+.codexpert-console .app-main,
+.codexpert-console .app-header,
+.codexpert-console .app-content {
+  position: relative;
+  z-index: 1;
+}
+
+.codexpert-console header.glass {
+  background: rgba(251, 250, 248, 0.88) !important;
+  border-bottom-color: rgba(5, 5, 5, 0.08) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(18px);
+}
+
+.codexpert-console header h1,
+.codexpert-console .page-title {
+  color: #11100e !important;
+  letter-spacing: -0.035em;
+}
+
+.codexpert-console .page-description,
+.codexpert-console header p {
+  color: rgba(5, 5, 5, 0.52) !important;
+}
+
+.codexpert-console .sidebar {
+  border-right-color: rgba(5, 5, 5, 0.1) !important;
+  background:
+    linear-gradient(rgba(5, 5, 5, 0.043) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(5, 5, 5, 0.043) 1px, transparent 1px),
+    repeating-linear-gradient(-45deg, rgba(5, 5, 5, 0.024) 0, rgba(5, 5, 5, 0.024) 1px, transparent 1px, transparent 3.5rem),
+    #fbfaf8 !important;
+}
+
+.codexpert-console .sidebar-header,
+.codexpert-console .sidebar .mt-auto {
+  border-color: rgba(5, 5, 5, 0.08) !important;
+}
+
+.codexpert-console .sidebar-logo {
+  background: #050505 !important;
+  box-shadow: 0 0.9rem 1.8rem rgba(17, 24, 39, 0.12) !important;
+}
+
+.codexpert-console .sidebar-link {
+  position: relative;
+  color: rgba(5, 5, 5, 0.62) !important;
+}
+
+.codexpert-console .sidebar-link:hover {
+  background: rgba(5, 5, 5, 0.043) !important;
+  color: #050505 !important;
+}
+
+.codexpert-console .sidebar-link-active {
+  background: rgba(5, 5, 5, 0.06) !important;
+  box-shadow: inset 0 0 0 1px rgba(5, 5, 5, 0.08);
+  color: #050505 !important;
+}
+
+.codexpert-console .sidebar-link-active::before {
+  position: absolute;
+  left: 0.48rem;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  background: #ff705a;
+  content: '';
+  transform: translateY(-50%);
+}
+
+.codexpert-console .sidebar-section-title {
+  color: rgba(5, 5, 5, 0.38) !important;
+}
+
+.codexpert-console .card,
+.codexpert-console .glass-card,
+.codexpert-console .modal-content,
+.codexpert-console .dialog-container,
+.codexpert-console .dropdown {
+  border-color: rgba(5, 5, 5, 0.08) !important;
+  border-radius: 1.25rem !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  box-shadow: 0 1rem 2.4rem rgba(17, 24, 39, 0.06), inset 0 1px rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: blur(14px);
+}
+
+.codexpert-console .card:hover,
+.codexpert-console .glass-card:hover {
+  border-color: rgba(255, 112, 90, 0.26) !important;
+  box-shadow: 0 1.15rem 2.7rem rgba(17, 24, 39, 0.08), inset 0 1px rgba(255, 255, 255, 0.94) !important;
+}
+
+.codexpert-console .card h2,
+.codexpert-console .card h3 {
+  color: #11100e !important;
+  letter-spacing: -0.025em;
+}
+
+.codexpert-console .card > .border-b,
+.codexpert-console .card-header,
+.codexpert-console .modal-header,
+.codexpert-console .dialog-header,
+.codexpert-console .dialog-footer,
+.codexpert-console .modal-footer {
+  border-color: rgba(5, 5, 5, 0.07) !important;
+}
+
+.codexpert-console .table-container,
+.codexpert-console .table-wrapper {
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.88);
+  border-color: rgba(5, 5, 5, 0.08) !important;
+}
+
+.codexpert-console .table th {
+  background: rgba(5, 5, 5, 0.035) !important;
+  border-color: rgba(5, 5, 5, 0.08) !important;
+  color: rgba(5, 5, 5, 0.58) !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.codexpert-console .table td {
+  border-color: rgba(5, 5, 5, 0.055) !important;
+}
+
+.codexpert-console .table tbody tr:hover {
+  background: rgba(5, 5, 5, 0.035) !important;
+}
+
+.codexpert-console .btn-primary,
+.codexpert-console button.bg-teal-600,
+.codexpert-console button.bg-primary-600,
+.codexpert-console a.bg-primary-600 {
+  border-color: #050505 !important;
+  background: #050505 !important;
+  color: #fff !important;
+}
+
+.codexpert-console .btn-primary:hover,
+.codexpert-console button.bg-teal-600:hover,
+.codexpert-console button.bg-primary-600:hover,
+.codexpert-console a.bg-primary-600:hover {
+  background: #1b1a17 !important;
+}
+
+.codexpert-console .btn-secondary,
+.codexpert-console .input,
+.codexpert-console select,
+.codexpert-console textarea {
+  border-color: rgba(5, 5, 5, 0.12) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  color: #11100e !important;
+}
+
+.codexpert-console .input:focus,
+.codexpert-console select:focus,
+.codexpert-console textarea:focus {
+  border-color: rgba(255, 112, 90, 0.7) !important;
+  --tw-ring-color: rgba(255, 112, 90, 0.36) !important;
+}
+
+.codexpert-console .bg-primary-50,
+.codexpert-console .bg-primary-100,
+.codexpert-console .bg-blue-100,
+.codexpert-console .bg-indigo-100,
+.codexpert-console .bg-violet-100,
+.codexpert-console .bg-gray-50,
+.codexpert-console .bg-slate-50 {
+  background: rgba(5, 5, 5, 0.04) !important;
+}
+
+.codexpert-console .text-primary-600,
+.codexpert-console .text-primary-700,
+.codexpert-console .text-blue-600,
+.codexpert-console .text-indigo-600,
+.codexpert-console .text-violet-600 {
+  color: #11100e !important;
+}
+
+.codexpert-console .bg-purple-100,
+.codexpert-console .bg-rose-100 {
+  background: rgba(255, 112, 90, 0.12) !important;
+}
+
+.codexpert-console .text-purple-600,
+.codexpert-console .text-rose-600 {
+  color: #ff705a !important;
+}
+
+.dark .codexpert-console {
+  background: #0f172a;
+}
+
+.dark .codexpert-console .sidebar {
+  background: #0f172a !important;
+  border-right-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .codexpert-console header.glass {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.dark .codexpert-console .card,
+.dark .codexpert-console .glass-card,
+.dark .codexpert-console .modal-content,
+.dark .codexpert-console .dialog-container,
+.dark .codexpert-console .dropdown {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: rgba(30, 41, 59, 0.9) !important;
+  box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.28) !important;
+}

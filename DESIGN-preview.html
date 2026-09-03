@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>codexpert Authenticated Dashboard Preview</title>
+    <meta name="color-scheme" content="light" />
+    <style>
+      :root {
+        --page-bg: #fbfaf8;
+        --page-bg-muted: rgb(253, 253, 252);
+        --surface-bg: rgba(255,255,255,0.9);
+        --surface-bg-muted: rgb(253, 253, 252);
+        --surface-border: #ff705a;
+        --surface-border-strong: rgb(218, 217, 215);
+        --surface-shadow: 0 1rem 2.4rem rgba(17,24,39,0.06) plus a 1px white inset highlight.;
+        --surface-shadow-soft: 0 0 0 1px #ff705a;
+        --ink: #11100e;
+        --muted: rgba(5,5,5,0.62);
+        --subtle: rgb(143, 142, 140);
+        --accent: #ff705a;
+        --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        --font-display: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        --font-mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, monospace;
+        --body-size: 14px;
+        --body-line: 20px;
+        --body-weight: 400;
+        --label-size: 12px;
+        --label-line: 16px;
+        --label-track: 0.02em;
+        --title-size: 24px;
+        --title-line: 28px;
+        --title-track: -0.025em;
+        --section-size: 20px;
+        --section-line: 24px;
+        --section-track: -0.025em;
+        --source-size: 13px;
+        --source-line: 20px;
+        --space-1: 4px;
+        --space-2: 6px;
+        --space-3: 8px;
+        --space-4: 12px;
+        --space-5: 16px;
+        --space-6: 20px;
+        --radius-panel: 12px;
+        --radius-card: 12px;
+        --radius-micro: 8px;
+        --radius-pill: 999px;
+        --button-height: 40px;
+        --button-font-size: 12px;
+        --button-weight: 500;
+        --button-radius: 999px;
+        --secondary-button-radius: 999px;
+        --layout-gap: 12px;
+        --page-padding: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: var(--body-size);
+        font-weight: var(--body-weight);
+        line-height: var(--body-line);
+        background:
+          radial-gradient(circle at top, color-mix(in srgb, var(--accent) 8%, transparent), transparent 30%),
+          linear-gradient(180deg, var(--page-bg) 0%, var(--page-bg-muted) 100%);
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background-image:
+          linear-gradient(color-mix(in srgb, var(--surface-border) 56%, transparent) 1px, transparent 1px),
+          linear-gradient(90deg, color-mix(in srgb, var(--surface-border) 56%, transparent) 1px, transparent 1px);
+        background-size: 100% calc(24px), calc(24px) 100%;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 88%);
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .shell {
+        width: min(1440px, calc(100vw - (var(--page-padding) * 2)));
+        margin: 0 auto;
+        padding: var(--page-padding) 0 calc(var(--page-padding) * 1.2);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(340px, 0.92fr) minmax(420px, 1fr);
+        gap: var(--layout-gap);
+        align-items: start;
+      }
+
+      .stack {
+        display: grid;
+        gap: var(--space-4);
+      }
+
+      .panel {
+        overflow: hidden;
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-panel);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--surface-bg) 88%, white) 0%, var(--surface-bg) 100%);
+        box-shadow: var(--surface-shadow);
+      }
+
+      .panel-inner {
+        padding: var(--space-4);
+      }
+
+      .hero-card {
+        position: relative;
+      }
+
+      .hero-card::before {
+        content: "";
+        position: absolute;
+        left: var(--space-4);
+        right: var(--space-4);
+        top: 0;
+        height: 3px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, #050505 0%, #ff705a 33%, rgba(255,255,255,0.9) 67%, #fbfaf8 100%);
+      }
+
+      .eyebrow {
+        margin-bottom: var(--space-2);
+        color: var(--muted);
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+        letter-spacing: var(--label-track);
+        text-transform: uppercase;
+      }
+
+      .site-title,
+      .section-title {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-weight: 600;
+      }
+
+      .site-title {
+        font-size: var(--title-size);
+        line-height: var(--title-line);
+        letter-spacing: var(--title-track);
+      }
+
+      .descriptor {
+        margin: var(--space-2) 0 0;
+        max-width: 42ch;
+        color: var(--muted);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+      }
+
+      .summary {
+        margin: var(--space-3) 0 0;
+        max-width: 56ch;
+        color: var(--muted);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+      }
+
+      .chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin: var(--space-3) 0 0;
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: calc(4px * 3);
+        padding: 0 var(--space-2);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-pill);
+        background: var(--surface-bg);
+        color: var(--ink);
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+        box-shadow: var(--surface-shadow-soft);
+      }
+
+      .observed-link {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: var(--space-4);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--surface-border);
+        color: var(--muted);
+        font-size: var(--label-size);
+        overflow-wrap: anywhere;
+      }
+
+      .observed-link::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 16%, transparent);
+      }
+
+      .section-title {
+        font-size: var(--section-size);
+        line-height: var(--section-line);
+        letter-spacing: var(--section-track);
+      }
+
+      .section-subtitle {
+        margin: var(--space-2) 0 var(--space-4);
+        color: var(--muted);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+      }
+
+      .palette-grid,
+      .theme-mode-grid,
+      .type-list,
+      .component-card,
+      .prompt-list,
+      .mini-grid,
+      .token-table {
+        display: grid;
+        gap: var(--space-2);
+      }
+
+      .palette-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: var(--space-2);
+      }
+
+      .palette-row.neutral-row {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .theme-mode-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-3);
+      }
+
+      .theme-mode-card {
+        display: grid;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-card);
+        background: color-mix(in srgb, var(--surface-bg) 92%, white);
+      }
+
+      .theme-mode-card.is-dark {
+        background: #111111;
+        color: #f4f4f4;
+        border-color: rgba(255, 255, 255, 0.12);
+      }
+
+      .theme-mode-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+      }
+
+      .theme-mode-label {
+        color: var(--subtle);
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+        letter-spacing: var(--label-track);
+        text-transform: uppercase;
+      }
+
+      .theme-mode-card.is-dark .theme-mode-label {
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .theme-mode-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: calc(var(--body-size) - 1px);
+        line-height: calc(var(--body-line) - 4px);
+      }
+
+      .theme-mode-card.is-dark .theme-mode-note {
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .theme-swatch-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: var(--space-2);
+      }
+
+      .theme-swatch {
+        display: grid;
+        gap: 6px;
+      }
+
+      .theme-swatch-box {
+        height: 72px;
+        border-radius: calc(var(--radius-card) - 4px);
+        border: 1px solid color-mix(in srgb, var(--surface-border-strong) 75%, transparent);
+      }
+
+      .theme-mode-card.is-dark .theme-swatch-box {
+        border-color: rgba(255, 255, 255, 0.14);
+      }
+
+      .theme-swatch-name {
+        color: inherit;
+        font-size: 12px;
+        line-height: 1.3;
+      }
+
+      .theme-swatch-value {
+        color: var(--subtle);
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
+      .theme-mode-card.is-dark .theme-swatch-value {
+        color: rgba(255, 255, 255, 0.62);
+      }
+
+      .swatch {
+        display: grid;
+        gap: var(--space-2);
+      }
+
+      .swatch-box {
+        min-height: calc(4px * 12);
+        border-radius: var(--radius-card);
+        border: 1px solid color-mix(in srgb, var(--surface-border-strong) 75%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 4%, transparent);
+      }
+
+      .swatch-label,
+      .token-heading,
+      .prompt-card strong,
+      .card-preview h4 {
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+        font-weight: 600;
+      }
+
+      .swatch-meta,
+      .type-metrics,
+      .mini-label,
+      .copy-state,
+      .file-tab,
+      .ghost-button,
+      .segmented button {
+        color: var(--muted);
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+      }
+
+      .type-row {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+        gap: var(--space-2);
+        align-items: baseline;
+        padding: var(--space-2) 0;
+        border-top: 1px solid var(--surface-border);
+      }
+
+      .type-row:first-child,
+      .mini-row:first-child,
+      .token-row:first-child {
+        border-top: 0;
+        padding-top: 0;
+      }
+
+      .type-role {
+        color: var(--muted);
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+        letter-spacing: var(--label-track);
+        text-transform: uppercase;
+      }
+
+      .type-sample {
+        color: var(--ink);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .split-card {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+      }
+
+      .token-row,
+      .mini-row {
+        display: grid;
+        gap: var(--space-2);
+        align-items: start;
+        padding-top: var(--space-2);
+        border-top: 1px solid var(--surface-border);
+      }
+
+      .token-row {
+        grid-template-columns: 1fr auto;
+      }
+
+      .mini-row {
+        grid-template-columns: 88px minmax(0, 1fr);
+      }
+
+      .mini-content,
+      .prompt-card p,
+      .card-preview p {
+        color: var(--muted);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+      }
+
+      .radius-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-2);
+      }
+
+      .radius-card,
+      .prompt-card {
+        padding: var(--space-3);
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-card);
+        background: var(--surface-bg-muted);
+        box-shadow: var(--surface-shadow-soft);
+      }
+
+      .radius-demo {
+        aspect-ratio: 1;
+        width: 100%;
+        border: 1px solid var(--surface-border-strong);
+        background: var(--surface-bg);
+      }
+
+      .radius-name {
+        margin-top: var(--space-2);
+        color: var(--ink);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+        font-weight: 600;
+      }
+
+      .radius-value {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: var(--label-size);
+      }
+
+      .button-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: var(--button-height);
+        padding: 0 var(--space-3);
+        border-radius: var(--button-radius);
+        font-family: var(--font-body);
+        font-size: var(--button-font-size);
+        font-weight: var(--button-weight);
+        line-height: 1;
+        letter-spacing: normal;
+      }
+
+      .cta-primary {
+        border: 1px solid transparent;
+        background: #171717;
+        color: #ffffff;
+        border-radius: 999px;
+      }
+
+      .cta-secondary {
+        border: 1px solid #171717;
+        background: #ffffff;
+        color: #171717;
+        border-radius: 999px;
+        box-shadow: var(--surface-shadow-soft);
+      }
+
+      .card-preview {
+        padding: 8px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--surface-border-strong) 72%, transparent);
+        background: var(--surface-bg);
+        color: var(--ink);
+        box-shadow: 0 1rem 2.4rem rgba(17,24,39,0.06) plus a 1px white inset highlight.;
+      }
+
+      .card-preview h4 {
+        margin: 0 0 var(--space-1);
+      }
+
+      .source-shell {
+        position: sticky;
+        top: var(--page-padding);
+      }
+
+      .source-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: var(--space-3) var(--space-4) var(--space-2);
+        border-bottom: 1px solid var(--surface-border);
+      }
+
+      .file-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px var(--space-3);
+      }
+
+      .file-tab {
+        padding: 0 0 var(--space-2);
+        border-bottom: 2px solid transparent;
+      }
+
+      .file-tab.active {
+        color: var(--ink);
+        border-bottom-color: var(--ink);
+        font-weight: 600;
+      }
+
+      .source-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-4);
+        border-bottom: 1px solid var(--surface-border);
+      }
+
+      .segmented {
+        display: inline-flex;
+        padding: 3px;
+        border: 1px solid var(--surface-border);
+        border-radius: var(--radius-pill);
+        background: var(--surface-bg-muted);
+      }
+
+      .segmented button {
+        border: 0;
+        border-radius: var(--radius-pill);
+        background: transparent;
+        padding: 6px 12px;
+        cursor: pointer;
+      }
+
+      .segmented button.is-active {
+        background: var(--surface-bg);
+        color: var(--ink);
+        box-shadow: var(--surface-shadow-soft);
+      }
+
+      .toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        margin-left: auto;
+      }
+
+      .ghost-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border: 1px solid var(--surface-border);
+        border-radius: 8px;
+        background: var(--surface-bg);
+        box-shadow: var(--surface-shadow-soft);
+        cursor: pointer;
+      }
+
+      .source-body {
+        max-height: calc(100vh - (var(--page-padding) * 2) - 120px);
+        overflow: auto;
+      }
+
+      .source-view,
+      .rendered-view {
+        margin: 0;
+        padding: var(--space-4);
+      }
+
+      .source-view {
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: var(--source-size);
+        line-height: var(--source-line);
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: var(--surface-bg);
+      }
+
+      .rendered-view {
+        color: var(--ink);
+        font-family: var(--font-body);
+        font-size: var(--body-size);
+        line-height: var(--body-line);
+        background: var(--surface-bg);
+      }
+
+      .rendered-view[hidden],
+      .source-view[hidden] {
+        display: none;
+      }
+
+      .rendered-view h2,
+      .rendered-view h3 {
+        margin: var(--space-4) 0 var(--space-2);
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-weight: 600;
+      }
+
+      .rendered-view h2 {
+        font-size: var(--section-size);
+        line-height: var(--section-line);
+        letter-spacing: var(--section-track);
+      }
+
+      .rendered-view h2:first-child {
+        margin-top: 0;
+      }
+
+      .rendered-view h3 {
+        color: var(--muted);
+        font-size: calc(24px - 4px);
+        line-height: calc(28px - 4px);
+      }
+
+      .rendered-view p,
+      .rendered-view li {
+        color: var(--muted);
+      }
+
+      .rendered-view ul,
+      .rendered-view ol {
+        margin: 0 0 var(--space-3) 20px;
+        padding: 0;
+      }
+
+      .rendered-view table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: var(--space-2) 0 var(--space-4);
+      }
+
+      .rendered-view th,
+      .rendered-view td {
+        padding: var(--space-2) var(--space-2);
+        border: 1px solid var(--surface-border);
+        text-align: left;
+        vertical-align: top;
+        font-size: var(--label-size);
+        line-height: var(--label-line);
+      }
+
+      .rendered-view th {
+        color: var(--ink);
+        background: var(--surface-bg-muted);
+      }
+
+      .rendered-view code {
+        padding: 0.14em 0.4em;
+        border-radius: 8px;
+        background: var(--surface-bg-muted);
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: 0.92em;
+      }
+
+      @media (max-width: 1120px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+
+        .source-shell {
+          position: relative;
+          top: 0;
+        }
+
+        .source-body {
+          max-height: none;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          width: min(100vw - (6px * 2), 100%);
+          padding-top: 6px;
+        }
+
+        .panel-inner,
+        .source-view,
+        .rendered-view {
+          padding-left: var(--space-3);
+          padding-right: var(--space-3);
+        }
+
+        .palette-row,
+        .palette-row.neutral-row,
+        .theme-mode-grid,
+        .theme-swatch-row,
+        .split-card,
+        .radius-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .type-row,
+        .mini-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <div class="layout">
+        <section class="stack">
+          <article class="panel hero-card">
+            <div class="panel-inner">
+              <div class="eyebrow">Design Preview</div>
+              <h1 class="site-title">codexpert Authenticated Dashboard</h1>
+              <p class="descriptor">The authenticated console is a quiet, high-density operations dashboard.</p>
+              <div class="chip-row"><span class="chip">Warm neutral background #fbfaf8...</span><span class="chip">224px fixed sidebar with an acti...</span><span class="chip">20px cards with translucent whit...</span><span class="chip">Header stays sticky and transluc...</span></div>
+              <p class="summary">The authenticated console is a quiet, high-density operations dashboard. It uses a warm off-white canvas, faint technical grid lines, and white translucent surfaces to make financial and usage data easy to scan. The visual posture is precise and product-led: mostly near-black text, restrained gray chrome, one coral accent, and shallow glass depth rather than decorative illustration.</p>
+              <a class="observed-link" href="https://codexpert.top/dashboard" target="_blank" rel="noreferrer">https://codexpert.top/dashboard</a>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Palette</h2>
+              <p class="section-subtitle">Roles and neutrals rendered using the extracted design system rather than a separate display theme.</p>
+              <div class="palette-grid"><div class="palette-row"><div class="swatch">
+    <div class="swatch-box" style="background:#050505;"></div>
+    <div class="swatch-label">Ink black</div>
+    <div class="swatch-meta">
+      <span>#050505</span>
+      <span>Primary action</span>
+    </div>
+  </div><div class="swatch">
+    <div class="swatch-box" style="background:#ff705a;"></div>
+    <div class="swatch-label">Coral</div>
+    <div class="swatch-meta">
+      <span>#ff705a</span>
+      <span>Accent</span>
+    </div>
+  </div><div class="swatch">
+    <div class="swatch-box" style="background:rgba(255,255,255,0.9);"></div>
+    <div class="swatch-label">Elevated white</div>
+    <div class="swatch-meta">
+      <span>rgba(255,255,255,0.9)</span>
+      <span>Surface</span>
+    </div>
+  </div></div><div class="palette-row neutral-row"><div class="swatch">
+    <div class="swatch-box" style="background:#fbfaf8;"></div>
+    <div class="swatch-label">Warm cloud</div>
+    <div class="swatch-meta">
+      <span>#fbfaf8</span>
+      <span>Background</span>
+    </div>
+  </div><div class="swatch">
+    <div class="swatch-box" style="background:#11100e;"></div>
+    <div class="swatch-label">Ink</div>
+    <div class="swatch-meta">
+      <span>#11100e</span>
+      <span>Text</span>
+    </div>
+  </div><div class="swatch">
+    <div class="swatch-box" style="background:rgba(5,5,5,0.62);"></div>
+    <div class="swatch-label">Quiet black</div>
+    <div class="swatch-meta">
+      <span>rgba(5,5,5,0.62)</span>
+      <span>Body text</span>
+    </div>
+  </div><div class="swatch">
+    <div class="swatch-box" style="background:rgba(5,5,5,0.08);"></div>
+    <div class="swatch-label">Hairline ink</div>
+    <div class="swatch-meta">
+      <span>rgba(5,5,5,0.08)</span>
+      <span>Border</span>
+    </div>
+  </div></div></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Theme Modes</h2>
+              <p class="section-subtitle">If the product supports light and dark themes, both modes should stay visible in the exported design system and preview.</p>
+              <div class="prompt-card"><strong>Single mode detected</strong><p>No explicit <code>Theme Modes</code> section was detected in the markdown. If the product supports both light and dark themes, document both so the preview can render them side by side.</p></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Typography</h2>
+              <p class="section-subtitle">The preview shell itself now uses the extracted typography stack, sizes, line heights, and tracking.</p>
+              <div class="type-list"><div class="type-row">
+        <div class="type-role">Page title</div>
+        <div
+          class="type-sample"
+          style="font-size:18px; line-height:28px; font-weight:600; letter-spacing:-0.035em; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">18px • 600 • 28px</div>
+      </div><div class="type-row">
+        <div class="type-role">Section heading</div>
+        <div
+          class="type-sample"
+          style="font-size:16px; line-height:24px; font-weight:600; letter-spacing:-0.025em; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">16-18px • 600 • 24-28px</div>
+      </div><div class="type-row">
+        <div class="type-role">Metric value</div>
+        <div
+          class="type-sample"
+          style="font-size:28px; line-height:32px; font-weight:700; letter-spacing:normal; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">28-32px • 700 • 32-36px</div>
+      </div><div class="type-row">
+        <div class="type-role">Body</div>
+        <div
+          class="type-sample"
+          style="font-size:14px; line-height:20px; font-weight:400; letter-spacing:normal; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">14-16px • 400 • 20-24px</div>
+      </div><div class="type-row">
+        <div class="type-role">Label / eyebrow</div>
+        <div
+          class="type-sample"
+          style="font-size:12px; line-height:16px; font-weight:500; letter-spacing:0.02em; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">12-14px • 500-700 • 16-20px</div>
+      </div><div class="type-row">
+        <div class="type-role">Caption / meta</div>
+        <div
+          class="type-sample"
+          style="font-size:12px; line-height:16px; font-weight:400; letter-spacing:normal; font-family:system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Arial, sans-serif;"
+        >
+          The quick brown fox jumps
+        </div>
+        <div class="type-metrics">12px • 400 • 16px</div>
+      </div></div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Spacing &amp; Shape</h2>
+              <p class="section-subtitle">Spacing, panel padding, and radius tokens are mapped directly from the layout rules in the markdown.</p>
+              <div class="split-card">
+    <div>
+      <h3 class="token-heading">Spacing</h3>
+      <div class="token-table"><div class="token-row">
+        <span>Base unit</span>
+        <span>4px</span>
+      </div><div class="token-row">
+        <span>Step 2</span>
+        <span>6px</span>
+      </div><div class="token-row">
+        <span>Step 3</span>
+        <span>8px</span>
+      </div><div class="token-row">
+        <span>Step 4</span>
+        <span>12px</span>
+      </div><div class="token-row">
+        <span>Step 5</span>
+        <span>16px</span>
+      </div></div>
+    </div>
+    <div>
+      <h3 class="token-heading">Border Radius</h3>
+      <div class="radius-grid"><div class="radius-card">
+        <div class="radius-demo" style="border-radius:8px;"></div>
+        <div class="radius-name">Micro utility</div>
+        <div class="radius-value">8px</div>
+      </div><div class="radius-card">
+        <div class="radius-demo" style="border-radius:12px;"></div>
+        <div class="radius-name">Standard module</div>
+        <div class="radius-value">12px</div>
+      </div><div class="radius-card">
+        <div class="radius-demo" style="border-radius:999px;"></div>
+        <div class="radius-name">Category rail</div>
+        <div class="radius-value">999px</div>
+      </div><div class="radius-card">
+        <div class="radius-demo" style="border-radius:999px;"></div>
+        <div class="radius-name">CTA pill</div>
+        <div class="radius-value">999px</div>
+      </div></div>
+    </div>
+  </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Components</h2>
+              <p class="section-subtitle">Buttons and cards use the documented height, weight, radius, colors, and surface treatment.</p>
+              <div class="component-card">
+    <div class="button-row">
+      <span class="cta cta-primary">Start Deploying</span>
+      <span class="cta cta-secondary">Get a Demo</span>
+    </div>
+    <div class="card-preview">
+      <h4>System Card Preview</h4>
+      <p>translucent white with 14px backdrop blur.</p>
+    </div>
+  </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">System Notes</h2>
+              <p class="section-subtitle">Responsive behavior and depth rules stay visible while keeping the overall proportions calm and readable.</p>
+              <div class="split-card">
+    <div>
+      <h3 class="token-heading">Breakpoints</h3>
+      <div class="mini-grid"><div class="mini-row">
+            <div class="mini-label">Mobile</div>
+            <div class="mini-content"><strong>&lt;640px</strong><br />Sidebar becomes an overlay drawer; grids collapse to one column; header utility labels hide.</div>
+          </div><div class="mini-row">
+            <div class="mini-label">Tablet</div>
+            <div class="mini-content"><strong>640-1023px</strong><br />Sidebar remains drawer-capable; metric grids use two columns; controls wrap.</div>
+          </div><div class="mini-row">
+            <div class="mini-label">Desktop</div>
+            <div class="mini-content"><strong>&gt;=1024px</strong><br />Fixed 224px sidebar, sticky header, multi-column metric and chart grids.</div>
+          </div></div>
+    </div>
+    <div>
+      <h3 class="token-heading">Elevation</h3>
+      <div class="mini-grid"><div class="mini-row">
+            <div class="mini-label">Flat</div>
+            <div class="mini-content"><strong>Warm canvas and 1px texture</strong><br />App background</div>
+          </div><div class="mini-row">
+            <div class="mini-label">Ring</div>
+            <div class="mini-content"><strong>Hairline ink border or inset ring</strong><br />Active rows, controls, tables</div>
+          </div><div class="mini-row">
+            <div class="mini-label">Card</div>
+            <div class="mini-content"><strong>14px blur + soft 16/38 shadow</strong><br />Metrics, charts, recent usage</div>
+          </div><div class="mini-row">
+            <div class="mini-label">Focus</div>
+            <div class="mini-content"><strong>Coral border and translucent coral ring</strong><br />Inputs and keyboard focus</div>
+          </div></div>
+    </div>
+  </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-inner">
+              <h2 class="section-title">Prompt Guide</h2>
+              <p class="section-subtitle">Prompt snippets are shown in the same typography and spacing language as the extracted design system.</p>
+              <div class="prompt-list"><div class="prompt-card"><strong>Quick Summary</strong><p>Build a restrained authenticated AI API console on a warm off-white grid canvas. Use a 224px textured sidebar, sticky translucent header, 20px white glass cards, compact system typography, black primary actions, and coral only for active/focus/cost emphasis. Keep density high enough for repeated operational scanning and let responsive grids collapse cleanly.</p></div><div class="prompt-card">
+            <strong>Hero</strong>
+            <p>Create a compact dashboard header with an 18px semibold title, muted one-line description, and a sticky off-white glass utility bar.</p>
+          </div><div class="prompt-card">
+            <strong>Card</strong>
+            <p>Create a 20px rounded translucent white metric card with 16px padding, 14px blur, an inset white highlight, and a broad pale shadow.</p>
+          </div><div class="prompt-card">
+            <strong>Navigation</strong>
+            <p>Create a fixed 224px sidebar with a faint 1px grid and -45deg line texture; active rows use a black translucent fill, inset ring, and 6px coral marker.</p>
+          </div><div class="prompt-card">
+            <strong>Button or badge</strong>
+            <p>Create a 40px black primary button with white text; use coral for focus rings and important status badges.</p>
+          </div><div class="prompt-card"><strong>Ready-to-Use Prompt</strong><p>Implement the authenticated page in the codexpert console language: #fbfaf8 grid background, 224px fixed sidebar, sticky translucent header, 20px white glass cards, system sans typography, #050505 primary actions, and #ff705a state accents. Preserve compact metric grids, readable tables, 24px section rhythm, and mobile drawer behavior.</p></div></div>
+              <div class="split-card" style="margin-top:var(--space-4);">
+    <div>
+      <h3 class="token-heading">Do</h3>
+      <div class="mini-grid"><div class="mini-row"><div class="mini-label">Do</div><div class="mini-content">Use near-black primary actions and coral only for meaningful emphasis.</div></div><div class="mini-row"><div class="mini-label">Do</div><div class="mini-content">Keep dashboard cards rounded, translucent, and lightly elevated.</div></div><div class="mini-row"><div class="mini-label">Do</div><div class="mini-content">Preserve dense but readable tables and compact metric labels.</div></div></div>
+    </div>
+    <div>
+      <h3 class="token-heading">Don't</h3>
+      <div class="mini-grid"><div class="mini-row"><div class="mini-label">Don't</div><div class="mini-content">Do not reintroduce the previous beige/green hand-painted palette.</div></div><div class="mini-row"><div class="mini-label">Don't</div><div class="mini-content">Do not use large marketing hero treatments inside authenticated screens.</div></div><div class="mini-row"><div class="mini-label">Don't</div><div class="mini-content">Do not stack cards inside cards without a clear module boundary.</div></div></div>
+    </div>
+  </div>
+            </div>
+          </article>
+        </section>
+
+        <section class="source-shell">
+          <article class="panel">
+            <div class="source-header">
+              <div class="file-tabs">
+                <span class="file-tab">design-system.md</span>
+                <span class="file-tab active">DESIGN.md</span>
+                <span class="file-tab">Design JSON</span>
+                <span class="file-tab">CSS Variables</span>
+                <span class="file-tab">Design Tokens</span>
+              </div>
+            </div>
+            <div class="source-toolbar">
+              <div class="segmented" role="tablist" aria-label="View Switcher">
+                <button class="is-active" data-view="source" type="button">Source</button>
+                <button data-view="preview" type="button">Preview</button>
+              </div>
+              <div class="toolbar-actions">
+                <button class="ghost-button" id="copyButton" type="button">Copy</button>
+                <a class="ghost-button" href="DESIGN.md" download>Open .md</a>
+                <span class="copy-state" id="copyState"></span>
+              </div>
+            </div>
+            <div class="source-body">
+              <pre class="source-view" id="sourceView"># Design System: codexpert Authenticated Dashboard
+
+## 1. Visual Theme &amp; Atmosphere
+
+The authenticated console is a quiet, high-density operations dashboard. It uses a warm off-white canvas, faint technical grid lines, and white translucent surfaces to make financial and usage data easy to scan. The visual posture is precise and product-led: mostly near-black text, restrained gray chrome, one coral accent, and shallow glass depth rather than decorative illustration.
+
+- Overall feeling: calm, technical, premium utility.
+- Visual density: compact navigation and metric cards with generous enough gaps for scanning.
+- Brand posture: confident and minimal, with black primary actions and coral state emphasis.
+- Signature motifs: 4.6rem grid, subtle -45deg line texture, rounded glass cards, coral active marker.
+
+### Key Characteristics
+
+- Warm neutral background `#fbfaf8` instead of pure white.
+- 224px fixed sidebar with an active row ring and small coral indicator.
+- 20px cards with translucent white fill, inset highlight, and soft deep shadow.
+- Header stays sticky and translucent while the workspace scrolls underneath.
+
+## 2. Color Palette &amp; Roles
+
+| Role | Semantic Name | Value | Usage |
+| --- | --- | --- | --- |
+| Primary action | Ink black | `#050505` | Primary buttons, selected navigation, logo field |
+| Accent | Coral | `#ff705a` | Active marker, cost emphasis, focus border, hover card ring |
+| Surface | Elevated white | `rgba(255,255,255,0.9)` | Cards, dropdowns, dialogs |
+| Background | Warm cloud | `#fbfaf8` | Authenticated app canvas and sidebar |
+| Text | Ink | `#11100e` | Headings and key values |
+| Body text | Quiet black | `rgba(5,5,5,0.62)` | Navigation and supporting copy |
+| Border | Hairline ink | `rgba(5,5,5,0.08)` | Card, header, table, and divider borders |
+
+### Primary
+
+- Ink black is the strongest interactive color and replaces a colored primary CTA.
+- Coral is reserved for meaningful state, cost, focus, and active navigation signals.
+
+### Interactive
+
+- Hover surfaces use `rgba(5,5,5,0.043)`.
+- Focus uses a coral border with a translucent coral ring.
+- Active sidebar rows use `rgba(5,5,5,0.06)` and an inset 1px ring.
+
+### Neutral Scale
+
+- Page: `#fbfaf8`.
+- Surface: `rgba(255,255,255,0.9)`.
+- Primary ink: `#11100e` / `#050505`.
+- Quiet text: `rgba(5,5,5,0.52)` to `rgba(5,5,5,0.62)`.
+- Hairlines: `rgba(5,5,5,0.055)` to `rgba(5,5,5,0.12)`.
+
+### Surface &amp; Overlay
+
+- Main page surface: `#fbfaf8`.
+- Elevated card and control surface: `rgba(255,255,255,0.9)`.
+- Sticky header overlay: `rgba(251,250,248,0.88)` with 18px blur.
+- Background texture: two 1px grid gradients, a -45deg repeating line, and a low-opacity coral radial wash.
+
+### Theme Modes
+
+#### Light Mode
+
+- Background: `#fbfaf8`.
+- Surface: translucent white.
+- Text: near-black ink.
+- Accent: `#ff705a`.
+- Notes: This is the observed dashboard mode and the reference implementation.
+
+#### Dark Mode
+
+- Background: `#0f172a`.
+- Surface: `rgba(30,41,59,0.9)`.
+- Text: slate-100 and white.
+- Accent: keep coral for state and focus.
+- Notes: Preserve the same radius, spacing, and shadow language while replacing white glass with dark slate glass.
+
+### Shadows &amp; Depth
+
+- Card shadow: `0 1rem 2.4rem rgba(17,24,39,0.06)` plus a 1px white inset highlight.
+- Hover shadow: `0 1.15rem 2.7rem rgba(17,24,39,0.08)`.
+- Depth comes from blur, inset highlights, and soft shadows; avoid heavy borders.
+
+## 3. Typography Rules
+
+### Font Family
+
+- Primary: `system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;, sans-serif`.
+- Monospace: system monospace for code or technical values only.
+- OpenType Features: normal system rendering; use tight negative tracking only for headings.
+
+### Hierarchy
+
+| Role | Font | Size | Weight | Line Height | Letter Spacing | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| Page title | System sans | 18px | 600 | 28px | -0.035em | Header title |
+| Section heading | System sans | 16-18px | 600 | 24-28px | -0.025em | Card and module headings |
+| Metric value | System sans | 28-32px | 700 | 32-36px | normal | Numbers should dominate labels |
+| Body | System sans | 14-16px | 400 | 20-24px | normal | Dashboard copy |
+| Label / eyebrow | System sans | 12-14px | 500-700 | 16-20px | 0.02em | Table headers and stat labels |
+| Caption / meta | System sans | 12px | 400 | 16px | normal | Hints, dates, totals |
+
+### Principles
+
+- Keep labels quiet and values high-contrast.
+- Use sentence-case Chinese UI copy and short operational labels.
+- Let numeric columns align and breathe; do not use oversized marketing typography inside the console.
+
+## 4. Component Stylings
+
+### Buttons and Links
+
+- Primary CTA: black fill, white text, hairline black border, compact 40px-ish height.
+- Secondary CTA: white translucent fill, ink text, `rgba(5,5,5,0.12)` border.
+- Text links: gray by default, near-black on hover.
+- Hover and active feel: crisp color change, no bounce; coral appears for focus or important state.
+
+### Cards and Containers
+
+- Surface style: translucent white with 14px backdrop blur.
+- Radius: 20px for cards; 12-18px for smaller panels and controls.
+- Border: `rgba(5,5,5,0.08)` hairline.
+- Shadow or elevation: soft 16px/38px shadow and 1px inset white highlight.
+- Internal spacing: 16px compact cards, 20-24px section headers and larger modules.
+
+### Inputs and Interactive Controls
+
+- Inputs and selects use white translucent fill with a 0.12 ink border.
+- Focus switches the border and ring to coral.
+- Selectors and date controls are compact, rounded, and grouped into a single filter bar.
+
+### Navigation
+
+- Structure: fixed vertical sidebar plus sticky utility header.
+- Background treatment: sidebar repeats the same grid/diagonal texture as the canvas.
+- Link style: 12px radius, 10px vertical padding, gray ink; active row gets inset ring and coral dot.
+- Sticky or scroll behavior: header remains pinned; sidebar remains fixed and independently scrollable.
+
+### Image Treatment
+
+- Keep logo imagery contained in a small rounded square; avoid large decorative imagery in the dashboard.
+- Preserve real product marks where available and do not blur or darken them.
+
+### Distinctive Components
+
+- Metric grid: short cards with colored icon tiles and large values.
+- Reward progress rail: horizontal milestone track with green completion states.
+- Recharge lottery panel: framed floating card with compact reward chips and a single wide action.
+- Model usage table: dense, readable table inside a rounded surface.
+
+## 5. Layout Principles
+
+### Spacing System
+
+- Base unit: 4px, with 8px and 16px as dominant rhythm.
+- Repeated spacing values: 12px control gaps, 16px card padding, 24px section gaps, 32px desktop page padding.
+
+### Grid &amp; Container
+
+- Grid logic: responsive CSS grids; five compact metrics at wide desktop, four token/performance metrics below, then two-column charts and a 3-column recent/quick-actions area.
+- Max content width: fluid within the main area; desktop content uses 32px page padding.
+- Section spacing: 24px vertical rhythm between dashboard modules.
+
+### Whitespace Philosophy
+
+- Whitespace is functional: enough separation to scan metrics, never oversized hero gaps.
+- Align labels and values to a consistent card baseline.
+- Let long model names truncate rather than force layout expansion.
+
+### Border Radius Scale
+
+- Micro: 8px for controls and icon tiles.
+- Standard: 12px for nav rows, tables, and compact panels.
+- Large: 20px for cards and dialogs.
+- Pill: 999px for progress markers and badges only.
+
+## 6. Depth &amp; Elevation
+
+| Level | Treatment | Use |
+| --- | --- | --- |
+| Flat | Warm canvas and 1px texture | App background |
+| Ring | Hairline ink border or inset ring | Active rows, controls, tables |
+| Card | 14px blur + soft 16/38 shadow | Metrics, charts, recent usage |
+| Focus | Coral border and translucent coral ring | Inputs and keyboard focus |
+
+### Depth Principles
+
+- Surface hierarchy: canvas -&gt; sticky glass header/sidebar -&gt; white glass cards -&gt; floating dropdowns.
+- Shadow language: broad and pale, never black or dramatic.
+- Blur, glass, or overlay behavior: use backdrop blur on sticky and elevated surfaces.
+- Use depth for grouping and hierarchy; keep the grid texture visually subordinate.
+
+## 7. Do&#39;s and Don&#39;ts
+
+### Do
+
+- Use near-black primary actions and coral only for meaningful emphasis.
+- Keep dashboard cards rounded, translucent, and lightly elevated.
+- Preserve dense but readable tables and compact metric labels.
+
+### Don&#39;t
+
+- Do not reintroduce the previous beige/green hand-painted palette.
+- Do not use large marketing hero treatments inside authenticated screens.
+- Do not stack cards inside cards without a clear module boundary.
+
+## 8. Responsive Behavior
+
+### Breakpoints
+
+| Name | Width | Key Changes |
+| --- | --- | --- |
+| Mobile | &lt;640px | Sidebar becomes an overlay drawer; grids collapse to one column; header utility labels hide. |
+| Tablet | 640-1023px | Sidebar remains drawer-capable; metric grids use two columns; controls wrap. |
+| Desktop | &gt;=1024px | Fixed 224px sidebar, sticky header, multi-column metric and chart grids. |
+
+### Touch Targets
+
+- Keep icon buttons at least 36-40px square.
+- Keep nav rows around 40px high with 12px horizontal gaps.
+
+### Collapsing Strategy
+
+- Desktop behavior: fixed sidebar at 224px, collapsible to 72px icon rail.
+- Tablet behavior: preserve the same shell but allow the drawer to close after navigation.
+- Mobile behavior: hide sidebar by default and use the header menu toggle.
+- Breakpoint-driven component changes: card grids collapse before typography changes; labels hide before controls disappear.
+- Touch target and spacing adjustments: retain 8-16px gaps and avoid shrinking primary actions below 40px.
+
+## 9. Agent Prompt Guide
+
+### Quick Color Reference
+
+- Primary CTA: `#050505`.
+- Background: `#fbfaf8`.
+- Heading text: `#11100e`.
+- Body text: `rgba(5,5,5,0.62)`.
+- Border or ring: `rgba(5,5,5,0.08)`.
+- Accent: `#ff705a`.
+
+### Quick Summary
+
+Build a restrained authenticated AI API console on a warm off-white grid canvas. Use a 224px textured sidebar, sticky translucent header, 20px white glass cards, compact system typography, black primary actions, and coral only for active/focus/cost emphasis. Keep density high enough for repeated operational scanning and let responsive grids collapse cleanly.
+
+### Example Component Prompts
+
+- Hero: Create a compact dashboard header with an 18px semibold title, muted one-line description, and a sticky off-white glass utility bar.
+- Card: Create a 20px rounded translucent white metric card with 16px padding, 14px blur, an inset white highlight, and a broad pale shadow.
+- Navigation: Create a fixed 224px sidebar with a faint 1px grid and -45deg line texture; active rows use a black translucent fill, inset ring, and 6px coral marker.
+- Button or badge: Create a 40px black primary button with white text; use coral for focus rings and important status badges.
+
+### Ready-to-Use Prompt
+
+Implement the authenticated page in the codexpert console language: `#fbfaf8` grid background, 224px fixed sidebar, sticky translucent header, 20px white glass cards, system sans typography, `#050505` primary actions, and `#ff705a` state accents. Preserve compact metric grids, readable tables, 24px section rhythm, and mobile drawer behavior.
+
+### Iteration Guide
+
+1. Verify canvas, sidebar, header, and card surfaces before tuning individual widgets.
+2. Check the 1024px desktop layout first, then collapse grids at tablet and mobile widths.
+3. Keep accent usage sparse; if every element is colorful, return emphasis to ink black and neutral gray.
+
+## Optional Appendix: Interaction Patterns
+
+- Scroll behavior: header stays sticky; sidebar stays fixed; content scrolls beneath the shell.
+- Hover behavior: links gain a faint ink wash; cards gain a coral-tinted border and slightly broader shadow.
+- Click behavior: sidebar collapse toggles to a 72px icon rail; utility controls open compact dropdowns or panels.
+- Animation tone: short, restrained transitions around 200-300ms.
+
+## Optional Appendix: Content &amp; Messaging Patterns
+
+- Headline pattern: direct page names such as “仪表盘”, followed by one short orientation sentence.
+- CTA language: operational verbs such as “刷新”, “查看全部”, “立即抽奖”, and “创建 API 密钥”.
+- Trust signal pattern: show actual balance, request, token, and cost values rather than promotional claims.
+- Voice and tone: concise, factual, bilingual-friendly product UI copy.
+
+## Optional Appendix: Observed Pages
+
+- `https://codexpert.top/dashboard`: authenticated user dashboard observed after user login; contributed the shell, metric cards, reward rail, lottery panel, charts, usage table, and quick-action layout.
+</pre>
+              <article class="rendered-view" id="previewView" hidden><section><h2>1. Visual Theme &amp; Atmosphere</h2><p>The authenticated console is a quiet, high-density operations dashboard. It uses a warm off-white canvas, faint technical grid lines, and white translucent surfaces to make financial and usage data easy to scan. The visual posture is precise and product-led: mostly near-black text, restrained gray chrome, one coral accent, and shallow glass depth rather than decorative illustration.</p><ul><li>Overall feeling: calm, technical, premium utility.</li><li>Visual density: compact navigation and metric cards with generous enough gaps for scanning.</li><li>Brand posture: confident and minimal, with black primary actions and coral state emphasis.</li><li>Signature motifs: 4.6rem grid, subtle -45deg line texture, rounded glass cards, coral active marker.</li></ul><h3>Key Characteristics</h3><ul><li>Warm neutral background <code>#fbfaf8</code> instead of pure white.</li><li>224px fixed sidebar with an active row ring and small coral indicator.</li><li>20px cards with translucent white fill, inset highlight, and soft deep shadow.</li><li>Header stays sticky and translucent while the workspace scrolls underneath.</li></ul></section><section><h2>2. Color Palette &amp; Roles</h2><table><thead><tr><th>Role</th><th>Semantic Name</th><th>Value</th><th>Usage</th></tr></thead><tbody><tr><td>Primary action</td><td>Ink black</td><td><code>#050505</code></td><td>Primary buttons, selected navigation, logo field</td></tr><tr><td>Accent</td><td>Coral</td><td><code>#ff705a</code></td><td>Active marker, cost emphasis, focus border, hover card ring</td></tr><tr><td>Surface</td><td>Elevated white</td><td><code>rgba(255,255,255,0.9)</code></td><td>Cards, dropdowns, dialogs</td></tr><tr><td>Background</td><td>Warm cloud</td><td><code>#fbfaf8</code></td><td>Authenticated app canvas and sidebar</td></tr><tr><td>Text</td><td>Ink</td><td><code>#11100e</code></td><td>Headings and key values</td></tr><tr><td>Body text</td><td>Quiet black</td><td><code>rgba(5,5,5,0.62)</code></td><td>Navigation and supporting copy</td></tr><tr><td>Border</td><td>Hairline ink</td><td><code>rgba(5,5,5,0.08)</code></td><td>Card, header, table, and divider borders</td></tr></tbody></table><h3>Primary</h3><ul><li>Ink black is the strongest interactive color and replaces a colored primary CTA.</li><li>Coral is reserved for meaningful state, cost, focus, and active navigation signals.</li></ul><h3>Interactive</h3><ul><li>Hover surfaces use <code>rgba(5,5,5,0.043)</code>.</li><li>Focus uses a coral border with a translucent coral ring.</li><li>Active sidebar rows use <code>rgba(5,5,5,0.06)</code> and an inset 1px ring.</li></ul><h3>Neutral Scale</h3><ul><li>Page: <code>#fbfaf8</code>.</li><li>Surface: <code>rgba(255,255,255,0.9)</code>.</li><li>Primary ink: <code>#11100e</code> / <code>#050505</code>.</li><li>Quiet text: <code>rgba(5,5,5,0.52)</code> to <code>rgba(5,5,5,0.62)</code>.</li><li>Hairlines: <code>rgba(5,5,5,0.055)</code> to <code>rgba(5,5,5,0.12)</code>.</li></ul><h3>Surface &amp; Overlay</h3><ul><li>Main page surface: <code>#fbfaf8</code>.</li><li>Elevated card and control surface: <code>rgba(255,255,255,0.9)</code>.</li><li>Sticky header overlay: <code>rgba(251,250,248,0.88)</code> with 18px blur.</li><li>Background texture: two 1px grid gradients, a -45deg repeating line, and a low-opacity coral radial wash.</li></ul><h3>Theme Modes</h3><p>#### Light Mode</p><ul><li>Background: <code>#fbfaf8</code>.</li><li>Surface: translucent white.</li><li>Text: near-black ink.</li><li>Accent: <code>#ff705a</code>.</li><li>Notes: This is the observed dashboard mode and the reference implementation.</li></ul><p>#### Dark Mode</p><ul><li>Background: <code>#0f172a</code>.</li><li>Surface: <code>rgba(30,41,59,0.9)</code>.</li><li>Text: slate-100 and white.</li><li>Accent: keep coral for state and focus.</li><li>Notes: Preserve the same radius, spacing, and shadow language while replacing white glass with dark slate glass.</li></ul><h3>Shadows &amp; Depth</h3><ul><li>Card shadow: <code>0 1rem 2.4rem rgba(17,24,39,0.06)</code> plus a 1px white inset highlight.</li><li>Hover shadow: <code>0 1.15rem 2.7rem rgba(17,24,39,0.08)</code>.</li><li>Depth comes from blur, inset highlights, and soft shadows; avoid heavy borders.</li></ul></section><section><h2>3. Typography Rules</h2><h3>Font Family</h3><ul><li>Primary: <code>system-ui, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;, Arial, &quot;PingFang SC&quot;, &quot;Microsoft YaHei&quot;, sans-serif</code>.</li><li>Monospace: system monospace for code or technical values only.</li><li>OpenType Features: normal system rendering; use tight negative tracking only for headings.</li></ul><h3>Hierarchy</h3><table><thead><tr><th>Role</th><th>Font</th><th>Size</th><th>Weight</th><th>Line Height</th><th>Letter Spacing</th><th>Notes</th></tr></thead><tbody><tr><td>Page title</td><td>System sans</td><td>18px</td><td>600</td><td>28px</td><td>-0.035em</td><td>Header title</td></tr><tr><td>Section heading</td><td>System sans</td><td>16-18px</td><td>600</td><td>24-28px</td><td>-0.025em</td><td>Card and module headings</td></tr><tr><td>Metric value</td><td>System sans</td><td>28-32px</td><td>700</td><td>32-36px</td><td>normal</td><td>Numbers should dominate labels</td></tr><tr><td>Body</td><td>System sans</td><td>14-16px</td><td>400</td><td>20-24px</td><td>normal</td><td>Dashboard copy</td></tr><tr><td>Label / eyebrow</td><td>System sans</td><td>12-14px</td><td>500-700</td><td>16-20px</td><td>0.02em</td><td>Table headers and stat labels</td></tr><tr><td>Caption / meta</td><td>System sans</td><td>12px</td><td>400</td><td>16px</td><td>normal</td><td>Hints, dates, totals</td></tr></tbody></table><h3>Principles</h3><ul><li>Keep labels quiet and values high-contrast.</li><li>Use sentence-case Chinese UI copy and short operational labels.</li><li>Let numeric columns align and breathe; do not use oversized marketing typography inside the console.</li></ul></section><section><h2>4. Component Stylings</h2><h3>Buttons and Links</h3><ul><li>Primary CTA: black fill, white text, hairline black border, compact 40px-ish height.</li><li>Secondary CTA: white translucent fill, ink text, <code>rgba(5,5,5,0.12)</code> border.</li><li>Text links: gray by default, near-black on hover.</li><li>Hover and active feel: crisp color change, no bounce; coral appears for focus or important state.</li></ul><h3>Cards and Containers</h3><ul><li>Surface style: translucent white with 14px backdrop blur.</li><li>Radius: 20px for cards; 12-18px for smaller panels and controls.</li><li>Border: <code>rgba(5,5,5,0.08)</code> hairline.</li><li>Shadow or elevation: soft 16px/38px shadow and 1px inset white highlight.</li><li>Internal spacing: 16px compact cards, 20-24px section headers and larger modules.</li></ul><h3>Inputs and Interactive Controls</h3><ul><li>Inputs and selects use white translucent fill with a 0.12 ink border.</li><li>Focus switches the border and ring to coral.</li><li>Selectors and date controls are compact, rounded, and grouped into a single filter bar.</li></ul><h3>Navigation</h3><ul><li>Structure: fixed vertical sidebar plus sticky utility header.</li><li>Background treatment: sidebar repeats the same grid/diagonal texture as the canvas.</li><li>Link style: 12px radius, 10px vertical padding, gray ink; active row gets inset ring and coral dot.</li><li>Sticky or scroll behavior: header remains pinned; sidebar remains fixed and independently scrollable.</li></ul><h3>Image Treatment</h3><ul><li>Keep logo imagery contained in a small rounded square; avoid large decorative imagery in the dashboard.</li><li>Preserve real product marks where available and do not blur or darken them.</li></ul><h3>Distinctive Components</h3><ul><li>Metric grid: short cards with colored icon tiles and large values.</li><li>Reward progress rail: horizontal milestone track with green completion states.</li><li>Recharge lottery panel: framed floating card with compact reward chips and a single wide action.</li><li>Model usage table: dense, readable table inside a rounded surface.</li></ul></section><section><h2>5. Layout Principles</h2><h3>Spacing System</h3><ul><li>Base unit: 4px, with 8px and 16px as dominant rhythm.</li><li>Repeated spacing values: 12px control gaps, 16px card padding, 24px section gaps, 32px desktop page padding.</li></ul><h3>Grid &amp; Container</h3><ul><li>Grid logic: responsive CSS grids; five compact metrics at wide desktop, four token/performance metrics below, then two-column charts and a 3-column recent/quick-actions area.</li><li>Max content width: fluid within the main area; desktop content uses 32px page padding.</li><li>Section spacing: 24px vertical rhythm between dashboard modules.</li></ul><h3>Whitespace Philosophy</h3><ul><li>Whitespace is functional: enough separation to scan metrics, never oversized hero gaps.</li><li>Align labels and values to a consistent card baseline.</li><li>Let long model names truncate rather than force layout expansion.</li></ul><h3>Border Radius Scale</h3><ul><li>Micro: 8px for controls and icon tiles.</li><li>Standard: 12px for nav rows, tables, and compact panels.</li><li>Large: 20px for cards and dialogs.</li><li>Pill: 999px for progress markers and badges only.</li></ul></section><section><h2>6. Depth &amp; Elevation</h2><table><thead><tr><th>Level</th><th>Treatment</th><th>Use</th></tr></thead><tbody><tr><td>Flat</td><td>Warm canvas and 1px texture</td><td>App background</td></tr><tr><td>Ring</td><td>Hairline ink border or inset ring</td><td>Active rows, controls, tables</td></tr><tr><td>Card</td><td>14px blur + soft 16/38 shadow</td><td>Metrics, charts, recent usage</td></tr><tr><td>Focus</td><td>Coral border and translucent coral ring</td><td>Inputs and keyboard focus</td></tr></tbody></table><h3>Depth Principles</h3><ul><li>Surface hierarchy: canvas -&gt; sticky glass header/sidebar -&gt; white glass cards -&gt; floating dropdowns.</li><li>Shadow language: broad and pale, never black or dramatic.</li><li>Blur, glass, or overlay behavior: use backdrop blur on sticky and elevated surfaces.</li><li>Use depth for grouping and hierarchy; keep the grid texture visually subordinate.</li></ul></section><section><h2>7. Do&#39;s and Don&#39;ts</h2><h3>Do</h3><ul><li>Use near-black primary actions and coral only for meaningful emphasis.</li><li>Keep dashboard cards rounded, translucent, and lightly elevated.</li><li>Preserve dense but readable tables and compact metric labels.</li></ul><h3>Don&#39;t</h3><ul><li>Do not reintroduce the previous beige/green hand-painted palette.</li><li>Do not use large marketing hero treatments inside authenticated screens.</li><li>Do not stack cards inside cards without a clear module boundary.</li></ul></section><section><h2>8. Responsive Behavior</h2><h3>Breakpoints</h3><table><thead><tr><th>Name</th><th>Width</th><th>Key Changes</th></tr></thead><tbody><tr><td>Mobile</td><td>&lt;640px</td><td>Sidebar becomes an overlay drawer; grids collapse to one column; header utility labels hide.</td></tr><tr><td>Tablet</td><td>640-1023px</td><td>Sidebar remains drawer-capable; metric grids use two columns; controls wrap.</td></tr><tr><td>Desktop</td><td>&gt;=1024px</td><td>Fixed 224px sidebar, sticky header, multi-column metric and chart grids.</td></tr></tbody></table><h3>Touch Targets</h3><ul><li>Keep icon buttons at least 36-40px square.</li><li>Keep nav rows around 40px high with 12px horizontal gaps.</li></ul><h3>Collapsing Strategy</h3><ul><li>Desktop behavior: fixed sidebar at 224px, collapsible to 72px icon rail.</li><li>Tablet behavior: preserve the same shell but allow the drawer to close after navigation.</li><li>Mobile behavior: hide sidebar by default and use the header menu toggle.</li><li>Breakpoint-driven component changes: card grids collapse before typography changes; labels hide before controls disappear.</li><li>Touch target and spacing adjustments: retain 8-16px gaps and avoid shrinking primary actions below 40px.</li></ul></section><section><h2>9. Agent Prompt Guide</h2><h3>Quick Color Reference</h3><ul><li>Primary CTA: <code>#050505</code>.</li><li>Background: <code>#fbfaf8</code>.</li><li>Heading text: <code>#11100e</code>.</li><li>Body text: <code>rgba(5,5,5,0.62)</code>.</li><li>Border or ring: <code>rgba(5,5,5,0.08)</code>.</li><li>Accent: <code>#ff705a</code>.</li></ul><h3>Quick Summary</h3><p>Build a restrained authenticated AI API console on a warm off-white grid canvas. Use a 224px textured sidebar, sticky translucent header, 20px white glass cards, compact system typography, black primary actions, and coral only for active/focus/cost emphasis. Keep density high enough for repeated operational scanning and let responsive grids collapse cleanly.</p><h3>Example Component Prompts</h3><ul><li>Hero: Create a compact dashboard header with an 18px semibold title, muted one-line description, and a sticky off-white glass utility bar.</li><li>Card: Create a 20px rounded translucent white metric card with 16px padding, 14px blur, an inset white highlight, and a broad pale shadow.</li><li>Navigation: Create a fixed 224px sidebar with a faint 1px grid and -45deg line texture; active rows use a black translucent fill, inset ring, and 6px coral marker.</li><li>Button or badge: Create a 40px black primary button with white text; use coral for focus rings and important status badges.</li></ul><h3>Ready-to-Use Prompt</h3><p>Implement the authenticated page in the codexpert console language: <code>#fbfaf8</code> grid background, 224px fixed sidebar, sticky translucent header, 20px white glass cards, system sans typography, <code>#050505</code> primary actions, and <code>#ff705a</code> state accents. Preserve compact metric grids, readable tables, 24px section rhythm, and mobile drawer behavior.</p><h3>Iteration Guide</h3><ol><li>Verify canvas, sidebar, header, and card surfaces before tuning individual widgets.</li><li>Check the 1024px desktop layout first, then collapse grids at tablet and mobile widths.</li><li>Keep accent usage sparse; if every element is colorful, return emphasis to ink black and neutral gray.</li></ol></section><section><h2>Optional Appendix: Interaction Patterns</h2><ul><li>Scroll behavior: header stays sticky; sidebar stays fixed; content scrolls beneath the shell.</li><li>Hover behavior: links gain a faint ink wash; cards gain a coral-tinted border and slightly broader shadow.</li><li>Click behavior: sidebar collapse toggles to a 72px icon rail; utility controls open compact dropdowns or panels.</li><li>Animation tone: short, restrained transitions around 200-300ms.</li></ul></section><section><h2>Optional Appendix: Content &amp; Messaging Patterns</h2><ul><li>Headline pattern: direct page names such as “仪表盘”, followed by one short orientation sentence.</li><li>CTA language: operational verbs such as “刷新”, “查看全部”, “立即抽奖”, and “创建 API 密钥”.</li><li>Trust signal pattern: show actual balance, request, token, and cost values rather than promotional claims.</li><li>Voice and tone: concise, factual, bilingual-friendly product UI copy.</li></ul></section><section><h2>Optional Appendix: Observed Pages</h2><ul><li><code>https://codexpert.top/dashboard</code>: authenticated user dashboard observed after user login; contributed the shell, metric cards, reward rail, lottery panel, charts, usage table, and quick-action layout.</li></ul></section></article>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      const sourceView = document.getElementById("sourceView");
+      const previewView = document.getElementById("previewView");
+      const copyButton = document.getElementById("copyButton");
+      const copyState = document.getElementById("copyState");
+      const viewButtons = document.querySelectorAll("[data-view]");
+
+      function setActiveView(view) {
+        const showSource = view === "source";
+        sourceView.hidden = !showSource;
+        previewView.hidden = showSource;
+        viewButtons.forEach((button) => {
+          button.classList.toggle("is-active", button.dataset.view === view);
+        });
+      }
+
+      viewButtons.forEach((button) => {
+        button.addEventListener("click", () => setActiveView(button.dataset.view));
+      });
+
+      copyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(sourceView.textContent || "");
+          copyState.textContent = "Copied";
+        } catch (error) {
+          copyState.textContent = "Clipboard unavailable";
+        }
+
+        setTimeout(() => {
+          copyState.textContent = "";
+        }, 1400);
+      });
+    </script>
+  </body>
+</html>
