@@ -1035,10 +1035,15 @@
 }
 
 .codexpert-console .app-main,
-.codexpert-console .app-header,
 .codexpert-console .app-content {
   position: relative;
   z-index: 1;
+}
+
+.codexpert-console .app-header {
+  position: relative;
+  z-index: 100;
+  overflow: visible !important;
 }
 
 .codexpert-console header.glass {
@@ -1125,6 +1130,19 @@
 .codexpert-console .glass-card:hover {
   border-color: rgba(255, 112, 90, 0.26) !important;
   box-shadow: 0 1.15rem 2.7rem rgba(17, 24, 39, 0.08), inset 0 1px rgba(255, 255, 255, 0.94) !important;
+}
+
+.codexpert-console .app-header .dropdown {
+  z-index: 1000;
+  max-height: min(32rem, calc(100vh - 5rem));
+  overflow-y: auto;
+  background: #fff !important;
+  opacity: 1;
+  isolation: isolate;
+}
+
+.dark .codexpert-console .app-header .dropdown {
+  background: #1e293b !important;
 }
 
 .codexpert-console .card h2,
