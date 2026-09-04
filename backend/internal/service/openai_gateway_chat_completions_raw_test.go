@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -121,6 +122,65 @@ func TestForwardAsRawChatCompletions_ForcesStreamUsageUpstreamAndPassesUsageDown
 	require.True(t, gjson.GetBytes(upstream.lastBody, "stream_options.include_usage").Bool())
 	require.Contains(t, rec.Body.String(), `"usage"`)
 	require.Contains(t, rec.Body.String(), "data: [DONE]")
+}
+
+func TestForwardAsRawChatCompletions_HidesMappedModelFromDownstream(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name            string
+		stream          bool
+		upstreamPayload string
+	}{
+		{
+			name:            "non-streaming JSON",
+			stream:          false,
+			upstreamPayload: `{"id":"chatcmpl_1","object":"chat.completion","model":"gpt-5.6-terra","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}`,
+		},
+		{
+			name:   "streaming SSE",
+			stream: true,
+			upstreamPayload: strings.Join([]string{
+				`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.6-terra","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
+				"",
+				`data: {"id":"chatcmpl_1","object":"chat.completion.chunk","model":"gpt-5.6-terra","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}`,
+				"",
+				"data: [DONE]",
+				"",
+			}, "\n"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := []byte(`{"model":"gpt-5.6-sol","messages":[{"role":"user","content":"hello"}],"stream":` + strconv.FormatBool(tt.stream) + `}`)
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+
+			contentType := "application/json"
+			if tt.stream {
+				contentType = "text/event-stream"
+			}
+			upstream := &httpUpstreamRecorder{resp: &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{contentType}},
+				Body:       io.NopCloser(strings.NewReader(tt.upstreamPayload)),
+			}}
+			svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig(), httpUpstream: upstream}
+			account := rawChatCompletionsTestAccount()
+			account.Credentials["model_mapping"] = map[string]any{"gpt-5.6-sol": "gpt-5.6-terra"}
+
+			result, err := svc.forwardAsRawChatCompletions(context.Background(), c, account, body, "")
+
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.Equal(t, "gpt-5.6-terra", gjson.GetBytes(upstream.lastBody, "model").String())
+			require.Contains(t, recorder.Body.String(), `"model":"gpt-5.6-sol"`)
+			require.NotContains(t, recorder.Body.String(), `"model":"gpt-5.6-terra"`)
+			require.Equal(t, "gpt-5.6-terra", result.UpstreamResponseModel)
+		})
+	}
 }
 
 func TestForwardAsChatCompletions_OpenAICompatibleGrokRawMissingUsageFailsBeforeWrite(t *testing.T) {

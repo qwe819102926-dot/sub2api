@@ -1126,6 +1126,27 @@
   backdrop-filter: blur(14px);
 }
 
+/* Card backdrop-filter creates a stacking context. Raise the card that owns an
+   open in-card popover so it can render above neighboring dashboard cards. */
+.codexpert-console .card:has(.date-picker-trigger-open),
+.codexpert-console .card:has(.date-picker-dropdown),
+.codexpert-console .card:has(.select-trigger-open),
+.codexpert-console .card:has(.select-dropdown),
+.codexpert-console .card:has(.dropdown),
+.codexpert-console .card:has([aria-expanded='true']),
+.codexpert-console .card:has(.absolute.z-50),
+.codexpert-console .glass-card:has(.date-picker-trigger-open),
+.codexpert-console .glass-card:has(.date-picker-dropdown),
+.codexpert-console .glass-card:has(.select-trigger-open),
+.codexpert-console .glass-card:has(.select-dropdown),
+.codexpert-console .glass-card:has(.dropdown),
+.codexpert-console .glass-card:has([aria-expanded='true']),
+.codexpert-console .glass-card:has(.absolute.z-50) {
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
 .codexpert-console .card:hover,
 .codexpert-console .glass-card:hover {
   border-color: rgba(255, 112, 90, 0.26) !important;
