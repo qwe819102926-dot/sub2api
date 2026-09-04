@@ -15,6 +15,18 @@ description: Docker 应用零停机蓝绿发布、健康检查与自动回滚。
 - 不在服务器上编辑应用源代码或构建镜像；镜像由 GitHub Actions 构建并发布。
 - 不启动、重建或删除 PostgreSQL、Redis、数据卷、`.env`、`data/`、`postgres_data/` 或 `redis_data/`。
 
+## 工作目录定位
+
+调用 skill 时不要假设当前目录就是仓库根目录。先定位 Sub2API 的 Git 根目录：
+
+1. 优先从当前目录及其父目录执行 `git rev-parse --show-toplevel`。
+2. 如果当前目录不是 Git 仓库，检查当前目录的直接子目录；选择同时包含
+   `deploy/blue-green-update.sh`、`backend/` 和 `frontend/` 的唯一目录。
+3. 后续仓库检查、文件读取和本地测试都以找到的 Git 根目录为基准。不要因为外层
+   工作区包含多个项目就报告“目录不对”。
+4. 服务器上的部署目录（例如 `/opt/sub2api-deploy`）与本地 Git 根目录是两个不同
+   概念；只有实际执行服务器发布脚本时才切换到部署目录。
+
 ## 标准流程
 
 1. 检查仓库状态和当前分支，保留无关的用户修改。
