@@ -328,6 +328,12 @@ func (s *OpenAIGatewayService) streamRawChatCompletions(
 				}
 			}
 		}
+		// Raw Chat Completions requests still use account mapping upstream, but
+		// downstream clients must keep seeing the model they requested. Preserve
+		// a genuinely different response model for the audit trail instead.
+		if originalModel != upstreamModel && strings.Contains(line, upstreamModel) {
+			line = s.replaceModelInSSELine(line, upstreamModel, originalModel)
+		}
 
 		writeLine(line)
 		if line == "" {
@@ -458,6 +464,12 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	if requiresBillableGrokChatUsage(account, billingModel, upstreamModel, responseModel) && !hasBillableGrokChatUsage(usage) {
 		upstreamRequestID := firstNonEmpty(requestID, resp.Header.Get("xai-request-id"))
 		return nil, newGrokMissingUsageFailoverError(c, account, upstreamRequestID)
+	}
+	// Hide the account-level mapping from the client response. Only replace the
+	// model that was actually sent upstream; a different declared response model
+	// remains visible to the admin audit as a possible upstream substitution.
+	if originalModel != upstreamModel {
+		respBody = s.replaceModelInResponseBody(respBody, upstreamModel, originalModel)
 	}
 
 	if s.responseHeaderFilter != nil {
