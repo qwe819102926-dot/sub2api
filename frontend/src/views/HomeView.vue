@@ -1778,6 +1778,8 @@ onMounted(() => {
 .node-claude { top: 13rem; right: 12%; color: #dd7357; }
 .node-gemini { bottom: 11rem; left: 48%; color: #4d7dd8; }
 .home-page > header :deep(.bg-gray-950) { background: linear-gradient(180deg, #ffffff 0%, #e7e9e6 100%) !important; color: #303530 !important; border: 1px solid rgba(23,27,24,.14) !important; box-shadow: 0 3px 10px rgba(23,27,24,.1) !important; }
+.home-page > header :deep(.bg-gray-950 > span:nth-child(2)) { color: #303530 !important; }
+.home-page > header :deep(.bg-gray-950 > svg) { color: #647067 !important; }
 .home-page > header :deep(a[href="/login"]) { border-radius: 8px !important; background: linear-gradient(180deg, #ffffff 0%, #e7e9e6 100%) !important; color: #303530 !important; border: 1px solid rgba(23,27,24,.14) !important; box-shadow: 0 3px 10px rgba(23,27,24,.1) !important; }
 .home-page > header :deep(a[href="/login"]:hover) { background: linear-gradient(180deg, #ffffff 0%, #d9ddd9 100%) !important; color: #151715 !important; }
 .signal-strip { position: relative; z-index: 4; margin-top: -1px; border-radius: 0 !important; border-color: rgba(0,0,0,.14) !important; background: #fbfaf8 !important; }
