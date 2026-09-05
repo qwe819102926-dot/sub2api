@@ -328,10 +328,13 @@ describe('PaymentView subscription plan grid', () => {
 })
 
 describe('PaymentView recharge amounts', () => {
-  it('offers the configured recharge presets up to 1000', async () => {
+  it('keeps the existing presets and adds recharge amounts up to 1000', async () => {
     const wrapper = await mountRecharge()
 
     expect(wrapper.findComponent(AmountInput).props('amounts')).toEqual([
+      10,
+      20,
+      50,
       100,
       200,
       300,
