@@ -48,7 +48,7 @@
             <div class="card p-6">
               <AmountInput
                 v-model="amount"
-                :amounts="[10, 20, 50]"
+                :amounts="[100, 200, 300, 500, 800, 1000]"
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
                 :reward-tiers="checkout.recharge_bonus?.enabled ? checkout.recharge_bonus.tiers : []"
