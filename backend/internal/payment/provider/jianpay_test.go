@@ -29,6 +29,28 @@ func TestJianPaySignExcludesSignatureFieldsAndSerializesObjects(t *testing.T) {
 	}
 }
 
+func TestJianPayResolveURLsFallsBackToConfig(t *testing.T) {
+	provider, err := NewJianPay("test", map[string]string{
+		"clientNo": "JP_TEST", "merchantKey": "secret", "apiBase": "https://jpay.example",
+		"notifyUrl": " https://merchant.example/notify ", "returnUrl": " https://merchant.example/result ",
+	})
+	if err != nil {
+		t.Fatalf("NewJianPay: %v", err)
+	}
+
+	notifyURL, returnURL := provider.resolveURLs(payment.CreatePaymentRequest{})
+	if notifyURL != "https://merchant.example/notify" || returnURL != "https://merchant.example/result" {
+		t.Fatalf("resolveURLs() = (%q, %q)", notifyURL, returnURL)
+	}
+
+	notifyURL, returnURL = provider.resolveURLs(payment.CreatePaymentRequest{
+		NotifyURL: " https://request.example/notify ", ReturnURL: " https://request.example/result ",
+	})
+	if notifyURL != "https://request.example/notify" || returnURL != "https://request.example/result" {
+		t.Fatalf("resolveURLs() request override = (%q, %q)", notifyURL, returnURL)
+	}
+}
+
 func TestJianPayCreateAndQueryPayment(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var payload map[string]any

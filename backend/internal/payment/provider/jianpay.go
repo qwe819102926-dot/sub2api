@@ -86,11 +86,12 @@ func (j *JianPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 		"clientNo": j.config["clientNo"], "amount": amount, "orderNo": req.OrderID,
 		"goodsName": req.Subject, "payMethod": method, "sign_type": "MD5",
 	}
-	if strings.TrimSpace(req.NotifyURL) != "" {
-		params["notifyUrl"] = req.NotifyURL
+	notifyURL, returnURL := j.resolveURLs(req)
+	if notifyURL != "" {
+		params["notifyUrl"] = notifyURL
 	}
-	if strings.TrimSpace(req.ReturnURL) != "" {
-		params["returnUrl"] = req.ReturnURL
+	if returnURL != "" {
+		params["returnUrl"] = returnURL
 	}
 	params["sign"] = jianPaySign(params, j.config["merchantKey"])
 	body, err := j.post(ctx, "/open/payment/pay/create", params)
@@ -135,11 +136,12 @@ func (j *JianPay) CreateAPIPayment(ctx context.Context, req payment.CreatePaymen
 	if len(methodExpand) > 0 {
 		params["methodExpand"] = methodExpand
 	}
-	if req.NotifyURL != "" {
-		params["notifyUrl"] = req.NotifyURL
+	notifyURL, returnURL := j.resolveURLs(req)
+	if notifyURL != "" {
+		params["notifyUrl"] = notifyURL
 	}
-	if req.ReturnURL != "" {
-		params["returnUrl"] = req.ReturnURL
+	if returnURL != "" {
+		params["returnUrl"] = returnURL
 	}
 	params["sign"] = jianPaySign(params, j.config["merchantKey"])
 	body, err := j.post(ctx, "/open/payment/pay/api-create", params)
@@ -163,6 +165,18 @@ func (j *JianPay) CreateAPIPayment(ctx context.Context, req payment.CreatePaymen
 		return nil, fmt.Errorf("jianpay api create failed: %s", response.Message)
 	}
 	return &payment.CreatePaymentResponse{TradeNo: response.Data.OrderID, QRCode: response.Data.QRCode, PayURL: response.Data.PayActionURL, JSAPI: response.Data.PayInfo}, nil
+}
+
+func (j *JianPay) resolveURLs(req payment.CreatePaymentRequest) (string, string) {
+	notifyURL := strings.TrimSpace(req.NotifyURL)
+	if notifyURL == "" {
+		notifyURL = strings.TrimSpace(j.config["notifyUrl"])
+	}
+	returnURL := strings.TrimSpace(req.ReturnURL)
+	if returnURL == "" {
+		returnURL = strings.TrimSpace(j.config["returnUrl"])
+	}
+	return notifyURL, returnURL
 }
 
 func jianPayMethod(paymentType string) (string, error) {

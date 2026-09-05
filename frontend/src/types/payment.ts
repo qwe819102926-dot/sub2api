@@ -154,6 +154,7 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  provider_key?: string
 }
 
 // ==================== Plans & Channels ====================
