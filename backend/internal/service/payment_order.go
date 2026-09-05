@@ -296,6 +296,11 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 			snapshot["merchant_id"] = merchantID
 		}
 	}
+	if providerKey == payment.TypeJianPay {
+		if clientNo := strings.TrimSpace(sel.Config["clientNo"]); clientNo != "" {
+			snapshot["merchant_id"] = clientNo
+		}
+	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}

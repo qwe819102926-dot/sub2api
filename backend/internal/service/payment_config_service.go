@@ -714,7 +714,7 @@ func pcParseInt(s string, defaultVal int) int {
 }
 
 func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInstance) map[string]bool {
-	available := make(map[string]bool, 4)
+	available := make(map[string]bool, 6)
 	for _, inst := range instances {
 		switch inst.ProviderKey {
 		case payment.TypeAlipay:
@@ -732,6 +732,15 @@ func buildVisibleMethodSourceAvailability(instances []*dbent.PaymentProviderInst
 					available[VisibleMethodSourceEasyPayAlipay] = true
 				case payment.TypeWxpay:
 					available[VisibleMethodSourceEasyPayWechat] = true
+				}
+			}
+		case payment.TypeJianPay:
+			for _, supportedType := range splitTypes(inst.SupportedTypes) {
+				switch NormalizeVisibleMethod(supportedType) {
+				case payment.TypeAlipay:
+					available[VisibleMethodSourceJianPayAlipay] = true
+				case payment.TypeWxpay:
+					available[VisibleMethodSourceJianPayWechat] = true
 				}
 			}
 		}
