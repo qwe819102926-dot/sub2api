@@ -270,7 +270,7 @@ func (j *JianPay) post(ctx context.Context, path string, payload map[string]any)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxJianPayResponseSize))
 	if err != nil {
 		return nil, err
