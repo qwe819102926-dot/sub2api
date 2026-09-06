@@ -296,6 +296,11 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 			snapshot["merchant_id"] = merchantID
 		}
 	}
+	if providerKey == payment.TypeJianPay {
+		if clientNo := strings.TrimSpace(sel.Config["clientNo"]); clientNo != "" {
+			snapshot["merchant_id"] = clientNo
+		}
+	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
@@ -511,11 +516,16 @@ func removePostgresTextNUL(value string) string {
 }
 
 func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.InstanceSelection, orderID, amount, subject string) payment.CreatePaymentRequest {
+	notifyURL := ""
+	if sel != nil {
+		notifyURL = strings.TrimSpace(sel.Config["notifyUrl"])
+	}
 	return payment.CreatePaymentRequest{
 		OrderID:            orderID,
 		Amount:             amount,
 		PaymentType:        req.PaymentType,
 		Subject:            subject,
+		NotifyURL:          notifyURL,
 		ReturnURL:          req.ReturnURL,
 		OpenID:             strings.TrimSpace(req.OpenID),
 		ClientIP:           req.ClientIP,

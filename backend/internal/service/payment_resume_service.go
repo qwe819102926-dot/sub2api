@@ -31,8 +31,10 @@ const (
 
 	VisibleMethodSourceOfficialAlipay = "official_alipay"
 	VisibleMethodSourceEasyPayAlipay  = "easypay_alipay"
+	VisibleMethodSourceJianPayAlipay  = "jianpay_alipay"
 	VisibleMethodSourceOfficialWechat = "official_wxpay"
 	VisibleMethodSourceEasyPayWechat  = "easypay_wxpay"
+	VisibleMethodSourceJianPayWechat  = "jianpay_wxpay"
 
 	wechatPaymentResumeTokenType = "wechat_payment_resume"
 
@@ -156,6 +158,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialAlipay
 		case VisibleMethodSourceEasyPayAlipay, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayAlipay
+		case VisibleMethodSourceJianPayAlipay, payment.TypeJianPay:
+			return VisibleMethodSourceJianPayAlipay
 		}
 	case payment.TypeWxpay:
 		switch strings.TrimSpace(strings.ToLower(source)) {
@@ -163,6 +167,8 @@ func NormalizeVisibleMethodSource(method, source string) string {
 			return VisibleMethodSourceOfficialWechat
 		case VisibleMethodSourceEasyPayWechat, payment.TypeEasyPay:
 			return VisibleMethodSourceEasyPayWechat
+		case VisibleMethodSourceJianPayWechat, payment.TypeJianPay:
+			return VisibleMethodSourceJianPayWechat
 		}
 	}
 	return ""
@@ -174,10 +180,14 @@ func VisibleMethodProviderKeyForSource(method, source string) (string, bool) {
 		return payment.TypeAlipay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceEasyPayAlipay:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeAlipay
+	case VisibleMethodSourceJianPayAlipay:
+		return payment.TypeJianPay, NormalizeVisibleMethod(method) == payment.TypeAlipay
 	case VisibleMethodSourceOfficialWechat:
 		return payment.TypeWxpay, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	case VisibleMethodSourceEasyPayWechat:
 		return payment.TypeEasyPay, NormalizeVisibleMethod(method) == payment.TypeWxpay
+	case VisibleMethodSourceJianPayWechat:
+		return payment.TypeJianPay, NormalizeVisibleMethod(method) == payment.TypeWxpay
 	default:
 		return "", false
 	}

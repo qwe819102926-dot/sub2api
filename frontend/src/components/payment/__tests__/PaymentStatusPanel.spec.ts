@@ -185,6 +185,31 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.emitted('success')).toHaveLength(1)
   })
 
+  it('actively verifies a pending JianPay order when its webhook is delayed', async () => {
+    pollOrderStatus.mockResolvedValue({ ...orderFactory('PENDING'), provider_key: 'jianpay' })
+    verifyOrder.mockResolvedValue({
+      data: { ...orderFactory('COMPLETED'), provider_key: 'jianpay' },
+    })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'https://pay.example.com/qr/42',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'alipay',
+        orderType: 'balance',
+      },
+      global: { stubs: { Icon: true } },
+    })
+
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(verifyOrder).toHaveBeenCalledWith('sub2_20260420abcd1234')
+    expect(wrapper.emitted('success')).toHaveLength(1)
+  })
+
   it('actively verifies a pending mobile Alipay precreate order', async () => {
     const originalLocation = window.location
     const originalHidden = Object.getOwnPropertyDescriptor(document, 'hidden')

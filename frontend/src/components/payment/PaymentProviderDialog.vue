@@ -32,7 +32,7 @@
       <!-- Toggles + Payment mode + Supported types (single row) -->
       <div class="flex flex-wrap items-center gap-x-5 gap-y-2">
         <ToggleSwitch :label="t('common.enabled')" :checked="form.enabled" @toggle="form.enabled = !form.enabled" />
-        <ToggleSwitch :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
+        <ToggleSwitch v-if="form.provider_key !== 'jianpay'" :label="t('admin.settings.payment.refundEnabled')" :checked="form.refund_enabled" @toggle="form.refund_enabled = !form.refund_enabled; if (!form.refund_enabled) form.allow_user_refund = false" />
         <ToggleSwitch v-if="form.refund_enabled" :label="t('admin.settings.payment.allowUserRefund')" :checked="form.allow_user_refund" @toggle="form.allow_user_refund = !form.allow_user_refund" />
         <div v-if="supportsPaymentMode" class="flex items-center gap-2">
           <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.settings.payment.paymentMode') }}</span>
@@ -332,20 +332,20 @@ import {
 /** Default payment_mode per provider key — "" means "no preference, use
  * provider's built-in default behavior". */
 function defaultPaymentMode(providerKey: string): string {
-  if (providerKey === 'easypay') return PAYMENT_MODE_QRCODE
+  if (providerKey === 'easypay' || providerKey === 'jianpay') return PAYMENT_MODE_QRCODE
   return ''
 }
 
 /** Provider keys whose admin UI exposes a payment_mode selector.
  * Other providers always send payment_mode = ''. */
 function providerSupportsPaymentMode(providerKey: string): boolean {
-  return providerKey === 'easypay' || providerKey === 'alipay'
+  return providerKey === 'easypay' || providerKey === 'alipay' || providerKey === 'jianpay'
 }
 
 /** Allowed payment_mode values per provider. Used to coerce DB values
  * from a different provider (or stale data) back to the default. */
 function isValidPaymentMode(providerKey: string, mode: string): boolean {
-  if (providerKey === 'easypay') {
+  if (providerKey === 'easypay' || providerKey === 'jianpay') {
     return mode === PAYMENT_MODE_QRCODE || mode === PAYMENT_MODE_POPUP
   }
   if (providerKey === 'alipay') {
@@ -418,6 +418,7 @@ const defaultBaseUrl = typeof window !== 'undefined' ? window.location.origin : 
 const providerWebhookHintMap: Record<string, string> = {
   stripe: 'admin.settings.payment.stripeWebhookHint',
   airwallex: 'admin.settings.payment.airwallexWebhookHint',
+  jianpay: 'admin.settings.payment.jianpayWebhookHint',
 }
 
 const providerWebhookUrl = computed(() => {
@@ -719,8 +720,8 @@ function handleSave() {
     supported_types: form.supported_types,
     enabled: form.enabled,
     payment_mode: supportsPaymentMode.value ? form.payment_mode : '',
-    refund_enabled: form.refund_enabled,
-    allow_user_refund: form.refund_enabled ? form.allow_user_refund : false,
+    refund_enabled: form.provider_key === 'jianpay' ? false : form.refund_enabled,
+    allow_user_refund: form.provider_key === 'jianpay' ? false : (form.refund_enabled ? form.allow_user_refund : false),
     config: filteredConfig,
     limits: serializeLimits(),
   })
@@ -808,8 +809,8 @@ function loadProvider(provider: ProviderInstance) {
   form.payment_mode = isValidPaymentMode(provider.provider_key, provider.payment_mode || '')
     ? (provider.payment_mode || '')
     : defaultPaymentMode(provider.provider_key)
-  form.refund_enabled = provider.refund_enabled
-  form.allow_user_refund = provider.allow_user_refund
+  form.refund_enabled = provider.provider_key === 'jianpay' ? false : provider.refund_enabled
+  form.allow_user_refund = provider.provider_key === 'jianpay' ? false : provider.allow_user_refund
   clearConfig()
   // Pre-fill config from API response. Backend omits sensitive fields entirely,
   // so those inputs stay blank — submitting blank preserves the stored secret.

@@ -1147,6 +1147,15 @@
   overflow: visible;
 }
 
+/* The cache breakdown tooltip lives inside the stats card, whose backdrop
+   filter creates a stacking context. Lift the whole stats section only while
+   that tooltip is active so it can extend over the filters below it. */
+.codexpert-console .usage-stats-cards:has(.cache-token-tooltip-trigger:hover),
+.codexpert-console .usage-stats-cards:has(.cache-token-tooltip-trigger:focus) {
+  position: relative;
+  z-index: 40;
+}
+
 .codexpert-console .card:hover,
 .codexpert-console .glass-card:hover {
   border-color: rgba(255, 112, 90, 0.26) !important;

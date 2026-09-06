@@ -43,6 +43,12 @@ func (h *PaymentWebhookHandler) EasyPayNotify(c *gin.Context) {
 	h.handleNotify(c, payment.TypeEasyPay)
 }
 
+// JianPayNotify handles JianPay payment notifications.
+// POST /api/v1/payment/webhook/jianpay
+func (h *PaymentWebhookHandler) JianPayNotify(c *gin.Context) {
+	h.handleNotify(c, payment.TypeJianPay)
+}
+
 // AlipayNotify handles Alipay payment notifications.
 // POST /api/v1/payment/webhook/alipay
 func (h *PaymentWebhookHandler) AlipayNotify(c *gin.Context) {
@@ -163,6 +169,13 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 		}
 		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
 			return strings.TrimSpace(payload.Data.Object.MerchantOrderID)
+		}
+	case payment.TypeJianPay:
+		var payload struct {
+			MerchantOrderNo string `json:"merchantOrderNo"`
+		}
+		if err := json.Unmarshal([]byte(rawBody), &payload); err == nil {
+			return strings.TrimSpace(payload.MerchantOrderNo)
 		}
 	}
 	// For other providers (Stripe, Alipay direct, WxPay direct), the registry
