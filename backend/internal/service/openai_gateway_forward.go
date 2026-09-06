@@ -372,7 +372,6 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		if compactMappedModel != "" && compactMappedModel != reqModel {
 			previousModel := reqModel
 			upstreamModel = compactMappedModel
-			reqModel = compactMappedModel
 			markPatchSet("model", compactMappedModel)
 			logger.LegacyPrintf("service.openai_gateway", "[OpenAI] Compact model mapping applied: %s -> %s (account: %s, isCodexCLI: %v)", previousModel, compactMappedModel, account.Name, isCodexCLI)
 		}
