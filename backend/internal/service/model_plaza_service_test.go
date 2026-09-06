@@ -342,7 +342,7 @@ func TestListPlazaGroups_UsesGroupModelListAndPricing(t *testing.T) {
 		}},
 	}}
 
-	out, err := newPlazaChannelService(channels, groups, nil).ListPlazaGroups(context.Background())
+	out, err := newPlazaService(channels, groups, nil).ListGroups(context.Background())
 	require.NoError(t, err)
 	require.Len(t, out, 1)
 	require.Equal(t, 0.06, out[0].RateMultiplier)

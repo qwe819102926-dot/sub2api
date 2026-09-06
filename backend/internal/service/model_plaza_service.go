@@ -165,6 +165,9 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 			}
 			for j := range supported {
 				m := supported[j]
+				if !plazaGroupAllowsModel(groupEnt[gid], m.Name) {
+					continue
+				}
 				if pg.Platform == PlatformComposite {
 					if !isConcreteRequestPlatform(m.Platform) {
 						continue
@@ -187,6 +190,47 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 					Pricing:  m.Pricing,
 				})
 			}
+		}
+	}
+
+	// A group's custom model list remains the source of truth when enabled.
+	// Include dynamically supplied models even before a channel pricing row is
+	// synchronized, while hiding channel-only models outside the list.
+	for _, gid := range order {
+		g := groupEnt[gid]
+		pg := byGroup[gid]
+		if g == nil || pg == nil || !g.CustomModelsListEnabled() {
+			continue
+		}
+		idx := modelIdx[gid]
+		if idx == nil {
+			idx = make(map[modelKey]int, len(g.ModelsListConfig.Models))
+			modelIdx[gid] = idx
+		}
+		for _, name := range g.ModelsListConfig.Models {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				continue
+			}
+			platform := pg.Platform
+			if gp := matchGroupModelPricing(g, name); gp != nil && gp.Platform != "" {
+				platform = gp.Platform
+			}
+			if pg.Platform == PlatformComposite && !isConcreteRequestPlatform(platform) {
+				continue
+			}
+			key := modelKey{platform: platform, name: name}
+			if _, exists := idx[key]; exists {
+				continue
+			}
+			var pricing *ChannelModelPricing
+			if groupPricing := matchGroupModelPricing(g, name); groupPricing != nil {
+				pricing = groupPricing
+			} else if s.pricingService != nil {
+				pricing = synthesizePricingFromLiteLLM(s.pricingService.GetModelPricing(name), nil)
+			}
+			idx[key] = len(pg.Models)
+			pg.Models = append(pg.Models, PlazaModel{Name: name, Platform: platform, Pricing: pricing})
 		}
 	}
 
@@ -218,6 +262,18 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+func plazaGroupAllowsModel(g *Group, model string) bool {
+	if g == nil || !g.CustomModelsListEnabled() {
+		return true
+	}
+	for _, configured := range g.ModelsListConfig.Models {
+		if strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(model)) {
+			return true
+		}
+	}
+	return false
 }
 
 // fillDisplayPricing 把模型的展示定价换成实收口径：
