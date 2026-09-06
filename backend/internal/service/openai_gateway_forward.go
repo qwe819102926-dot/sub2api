@@ -367,8 +367,14 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 	isCompactRequest := compactPath
 	requestedModel := reqModel
 	billingModel, upstreamModel := resolveOpenAIForwardMappedModels(account, requestedModel, isCompactRequest)
+	// Responses billing keeps the client-requested model for usage accounting;
+	// account mapping only determines the upstream model. Chat Completions has
+	// its own compatibility billing path and is intentionally unaffected.
+	if !isCompactRequest {
+		billingModel = requestedModel
+	}
 	if isCompactRequest {
-		compactMappedModel := resolveOpenAICompactForwardModel(account, reqModel)
+		compactMappedModel := s.resolveOpenAICompactFallbackModel(account, reqModel)
 		if compactMappedModel != "" && compactMappedModel != reqModel {
 			previousModel := reqModel
 			upstreamModel = compactMappedModel
