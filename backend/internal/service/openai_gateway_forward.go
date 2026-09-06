@@ -371,7 +371,6 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		compactMappedModel := resolveOpenAICompactForwardModel(account, reqModel)
 		if compactMappedModel != "" && compactMappedModel != reqModel {
 			previousModel := reqModel
-			compactMapped = true
 			upstreamModel = compactMappedModel
 			reqModel = compactMappedModel
 			markPatchSet("model", compactMappedModel)
