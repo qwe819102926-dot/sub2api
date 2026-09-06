@@ -55,7 +55,9 @@ docker run -d --name "${PREFIX}-redis" --network "${NET}" \
 
 say "Waiting for Postgres to be ready"
 i=0
-until docker exec "${PREFIX}-postgres" pg_isready -U sub2api -d sub2api >/dev/null 2>&1; do
+# The application connects through Docker TCP, so a Unix-socket-only probe can
+# report ready slightly before PostgreSQL starts accepting the app's connection.
+until docker exec "${PREFIX}-postgres" pg_isready -h 127.0.0.1 -p 5432 -U sub2api -d sub2api >/dev/null 2>&1; do
   i=$((i + 1))
   if [ "$i" -ge 90 ]; then
     echo "Postgres did not become ready in time" >&2
