@@ -1296,3 +1296,105 @@
   background: rgba(30, 41, 59, 0.9) !important;
   box-shadow: 0 1rem 2.4rem rgba(0, 0, 0, 0.28) !important;
 }
+
+/* Keep the console's dark theme readable after the light console refinements
+   above. These selectors intentionally mirror the light-mode rules that use
+   !important so utility classes cannot be replaced with near-black text. */
+.dark .codexpert-console header h1,
+.dark .codexpert-console .page-title,
+.dark .codexpert-console .card h2,
+.dark .codexpert-console .card h3 {
+  color: #f8fafc !important;
+}
+
+.dark .codexpert-console .page-description,
+.dark .codexpert-console header p {
+  color: #cbd5e1 !important;
+}
+
+.dark .codexpert-console .sidebar-link {
+  color: #cbd5e1 !important;
+}
+
+.dark .codexpert-console .sidebar-link:hover,
+.dark .codexpert-console .sidebar-link-active,
+.dark .codexpert-console .sidebar-link-active:hover {
+  color: #f8fafc !important;
+}
+
+.dark .codexpert-console .sidebar-section-title {
+  color: #94a3b8 !important;
+}
+
+.dark .codexpert-console [class~="dark:text-dark-300"],
+.dark .codexpert-console [class~="dark:text-gray-300"] {
+  color: #cbd5e1 !important;
+}
+
+.dark .codexpert-console [class~="dark:text-dark-400"],
+.dark .codexpert-console [class~="dark:text-gray-400"] {
+  color: #94a3b8 !important;
+}
+
+.dark .codexpert-console [class~="dark:text-dark-500"],
+.dark .codexpert-console [class~="dark:text-gray-500"] {
+  color: #64748b !important;
+}
+
+.dark .codexpert-console [class~="dark:text-dark-200"] {
+  color: #e2e8f0 !important;
+}
+
+.dark .codexpert-console .table-container,
+.dark .codexpert-console .table-wrapper {
+  border-color: rgba(148, 163, 184, 0.24) !important;
+  background: rgba(15, 23, 42, 0.42) !important;
+}
+
+.dark .codexpert-console .table th {
+  background: rgba(148, 163, 184, 0.1) !important;
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  color: #cbd5e1 !important;
+}
+
+.dark .codexpert-console .table td {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+}
+
+.dark .codexpert-console .table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.1) !important;
+}
+
+.dark .codexpert-console .btn-secondary,
+.dark .codexpert-console .input,
+.dark .codexpert-console select,
+.dark .codexpert-console textarea {
+  border-color: rgba(148, 163, 184, 0.34) !important;
+  background: rgba(30, 41, 59, 0.92) !important;
+  color: #f8fafc !important;
+}
+
+.dark .codexpert-console .text-primary-600,
+.dark .codexpert-console .text-primary-700 {
+  color: #7dd3c0 !important;
+}
+
+.dark .codexpert-console .text-blue-600 {
+  color: #93c5fd !important;
+}
+
+.dark .codexpert-console .text-indigo-600 {
+  color: #a5b4fc !important;
+}
+
+.dark .codexpert-console .text-violet-600 {
+  color: #c4b5fd !important;
+}
+
+.dark .codexpert-console .text-purple-600 {
+  color: #d8b4fe !important;
+}
+
+.dark .codexpert-console .text-rose-600 {
+  color: #fda4af !important;
+}
