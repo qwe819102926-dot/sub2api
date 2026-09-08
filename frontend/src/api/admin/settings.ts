@@ -1432,6 +1432,38 @@ export async function updateRectifierSettings(
   return data;
 }
 
+// ==================== Fixed Source Routing Settings ====================
+
+export interface FixedSourceRoute {
+  source_group_id: number;
+  target_group_id: number;
+  account_id: number;
+}
+
+export interface FixedSourceRoutingSettings {
+  enabled: boolean;
+  domains: string[];
+  ips: string[];
+  routes: FixedSourceRoute[];
+}
+
+export async function getFixedSourceRoutingSettings(): Promise<FixedSourceRoutingSettings> {
+  const { data } = await apiClient.get<FixedSourceRoutingSettings>(
+    "/admin/settings/fixed-source-routing",
+  );
+  return data;
+}
+
+export async function updateFixedSourceRoutingSettings(
+  settings: FixedSourceRoutingSettings,
+): Promise<FixedSourceRoutingSettings> {
+  const { data } = await apiClient.put<FixedSourceRoutingSettings>(
+    "/admin/settings/fixed-source-routing",
+    settings,
+  );
+  return data;
+}
+
 // ==================== OpenAI Fast Policy Settings ====================
 
 /**
@@ -1587,6 +1619,8 @@ export const settingsAPI = {
   updateStreamTimeoutSettings,
   getRectifierSettings,
   updateRectifierSettings,
+  getFixedSourceRoutingSettings,
+  updateFixedSourceRoutingSettings,
   getBetaPolicySettings,
   updateBetaPolicySettings,
   getWebSearchEmulationConfig,

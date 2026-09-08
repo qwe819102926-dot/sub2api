@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	"github.com/gin-gonic/gin"
@@ -255,6 +256,12 @@ func (s *OpenAIGatewayService) SelectAccountForModel(ctx context.Context, groupI
 // SelectAccountForModelWithExclusions selects an account supporting the requested model while excluding specified accounts.
 // SelectAccountForModelWithExclusions 选择支持指定模型的账号，同时排除指定的账号。
 func (s *OpenAIGatewayService) SelectAccountForModelWithExclusions(ctx context.Context, groupID *int64, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}) (*Account, error) {
+	if account, fixed, err := s.selectFixedRouteOpenAIAccount(ctx, groupID, PlatformOpenAI, requestedModel, excludedIDs, false, ""); fixed {
+		if err != nil {
+			return nil, err
+		}
+		return s.hydrateSelectedAccount(ctx, account)
+	}
 	return s.selectAccountForModelWithExclusions(s.withOpenAIQuotaAutoPauseContext(ctx), groupID, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, 0, "", false)
 }
 
@@ -271,6 +278,12 @@ func (s *OpenAIGatewayService) SelectAccountForTokenCount(
 ) (*Account, error) {
 	ctx = WithOpenAIProfitControlSuppressed(ctx)
 	ctx = s.withOpenAIQuotaAutoPauseContext(ctx)
+	if account, fixed, err := s.selectFixedRouteOpenAIAccount(ctx, groupID, platform, requestedModel, nil, false, requiredCapability); fixed {
+		if err != nil {
+			return nil, err
+		}
+		return s.hydrateSelectedAccount(ctx, account)
+	}
 	return s.selectAccountForModelWithExclusions(
 		ctx,
 		groupID,
@@ -1108,11 +1121,49 @@ func (s *OpenAIGatewayService) SelectAccountWithLoadAwareness(ctx context.Contex
 	// 分组利润控制：legacy 公共入口同样装门，保证不经
 	// selectAccountWithScheduler 的调用方也无法绕过利润准入。
 	ctx = s.withOpenAIProfitControlGate(ctx, groupID)
+	if account, fixed, err := s.selectFixedRouteOpenAIAccount(ctx, groupID, PlatformOpenAI, requestedModel, excludedIDs, false, ""); fixed {
+		if err != nil {
+			return nil, err
+		}
+		result, acquireErr := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+		if acquireErr == nil && result != nil && result.Acquired {
+			return s.newAcquiredSelectionResult(ctx, account, result.ReleaseFunc)
+		}
+		return nil, ErrNoAvailableAccounts
+	}
 	return s.selectAccountWithLoadAwareness(ctx, groupID, PlatformOpenAI, sessionHash, requestedModel, excludedIDs, false, "", true)
+}
+
+func (s *OpenAIGatewayService) selectFixedRouteOpenAIAccount(ctx context.Context, groupID *int64, platform string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, requiredCapability OpenAIEndpointCapability) (*Account, bool, error) {
+	accountID, fixed := ctx.Value(ctxkey.FixedRouteAccountID).(int64)
+	if !fixed || accountID <= 0 {
+		return nil, false, nil
+	}
+	if _, excluded := excludedIDs[accountID]; excluded {
+		return nil, true, ErrNoAvailableAccounts
+	}
+	if s.accountRepo == nil {
+		return nil, true, ErrNoAvailableAccounts
+	}
+	account, err := s.accountRepo.GetByID(ctx, accountID)
+	if err != nil || account == nil || !s.openAIAccountMatchesSchedulingGroup(account, groupID) || !isOpenAICompatibleAccountEligibleForRequest(ctx, account, platform, requestedModel, requireCompact, requiredCapability) || s.isOpenAIAccountRequestRuntimeBlocked(account, requestedModel) || s.isOpenAIAccountBlockedBySchedulingThreshold(ctx, account) || !parentHealthyForShadow(account, s.parentAccountLookup(ctx)) {
+		return nil, true, ErrNoAvailableAccounts
+	}
+	return account, true, nil
 }
 
 func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Context, groupID *int64, platform string, sessionHash string, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool, requiredCapability OpenAIEndpointCapability, useUpstreamTokenCost bool) (*AccountSelectionResult, error) {
 	platform = NormalizeOpenAICompatiblePlatform(platform)
+	if account, fixed, err := s.selectFixedRouteOpenAIAccount(ctx, groupID, platform, requestedModel, excludedIDs, requireCompact, requiredCapability); fixed {
+		if err != nil {
+			return nil, err
+		}
+		result, acquireErr := s.tryAcquireAccountSlot(ctx, account.ID, account.Concurrency)
+		if acquireErr != nil || result == nil || !result.Acquired {
+			return nil, ErrNoAvailableAccounts
+		}
+		return s.newAcquiredSelectionResult(ctx, account, result.ReleaseFunc)
+	}
 	if s.checkChannelPricingRestriction(ctx, groupID, requestedModel) {
 		slog.Warn("channel pricing restriction blocked request",
 			"group_id", derefGroupID(groupID),

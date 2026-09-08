@@ -1420,6 +1420,169 @@
         </div>
         <!-- /Tab: Gateway -->
 
+        <!-- Tab: Security - Fixed source routing -->
+        <div v-show="activeTab === 'security'" class="space-y-6">
+          <div class="card">
+            <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t("admin.settings.fixedSourceRouting.title") }}
+              </h2>
+              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                {{ t("admin.settings.fixedSourceRouting.description") }}
+              </p>
+            </div>
+            <div v-if="fixedSourceRoutingLoading" class="flex items-center justify-center p-8">
+              <div class="h-6 w-6 animate-spin rounded-full border-b-2 border-primary-600"></div>
+            </div>
+            <div v-else class="space-y-5 p-6">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <label class="font-medium text-gray-900 dark:text-white">
+                    {{ t("admin.settings.fixedSourceRouting.enabled") }}
+                  </label>
+                  <p class="text-sm text-gray-500 dark:text-gray-400">
+                    {{ t("admin.settings.fixedSourceRouting.enabledHint") }}
+                  </p>
+                </div>
+                <Toggle v-model="fixedSourceRoutingForm.enabled" />
+              </div>
+
+              <div class="grid gap-5 border-t border-gray-100 pt-5 dark:border-dark-700 lg:grid-cols-2">
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t("admin.settings.fixedSourceRouting.domains") }}
+                  </label>
+                  <div class="min-h-[44px] rounded border border-gray-300 bg-white p-2 dark:border-dark-500 dark:bg-dark-700">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span
+                        v-for="domain in fixedSourceRoutingForm.domains"
+                        :key="domain"
+                        class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-dark-600 dark:text-gray-200"
+                      >
+                        {{ domain }}
+                        <button type="button" :title="t('common.delete')" @click="removeFixedSourceTag('domains', domain)">
+                          <Icon name="x" size="xs" />
+                        </button>
+                      </span>
+                      <input
+                        v-model="fixedSourceDomainDraft"
+                        type="text"
+                        class="min-w-[180px] flex-1 bg-transparent px-1 py-1 text-sm outline-none dark:text-white"
+                        :placeholder="t('admin.settings.fixedSourceRouting.domainPlaceholder')"
+                        @keydown="handleFixedSourceTagKeydown($event, 'domains')"
+                        @blur="commitFixedSourceTag('domains')"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t("admin.settings.fixedSourceRouting.ips") }}
+                  </label>
+                  <div class="min-h-[44px] rounded border border-gray-300 bg-white p-2 dark:border-dark-500 dark:bg-dark-700">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span
+                        v-for="ip in fixedSourceRoutingForm.ips"
+                        :key="ip"
+                        class="inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-1 text-xs font-mono text-gray-700 dark:bg-dark-600 dark:text-gray-200"
+                      >
+                        {{ ip }}
+                        <button type="button" :title="t('common.delete')" @click="removeFixedSourceTag('ips', ip)">
+                          <Icon name="x" size="xs" />
+                        </button>
+                      </span>
+                      <input
+                        v-model="fixedSourceIPDraft"
+                        type="text"
+                        class="min-w-[180px] flex-1 bg-transparent px-1 py-1 text-sm outline-none dark:text-white"
+                        :placeholder="t('admin.settings.fixedSourceRouting.ipPlaceholder')"
+                        @keydown="handleFixedSourceTagKeydown($event, 'ips')"
+                        @blur="commitFixedSourceTag('ips')"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="border-t border-gray-100 pt-5 dark:border-dark-700">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="font-medium text-gray-900 dark:text-white">
+                      {{ t("admin.settings.fixedSourceRouting.routes") }}
+                    </h3>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                      {{ t("admin.settings.fixedSourceRouting.routesHint") }}
+                    </p>
+                  </div>
+                  <button type="button" class="btn btn-secondary btn-sm" @click="addFixedSourceRoute">
+                    <Icon name="plus" size="sm" class="mr-1" />
+                    {{ t("admin.settings.fixedSourceRouting.addRoute") }}
+                  </button>
+                </div>
+                <div v-if="fixedSourceRoutingForm.routes.length === 0" class="border-y border-gray-100 py-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
+                  {{ t("admin.settings.fixedSourceRouting.noRoutes") }}
+                </div>
+                <div
+                  v-for="(route, index) in fixedSourceRoutingForm.routes"
+                  :key="index"
+                  class="grid gap-3 border-t border-gray-100 py-4 first:border-t-0 dark:border-dark-700 md:grid-cols-[1fr_1fr_1.25fr_auto] md:items-end"
+                >
+                  <label class="block text-sm text-gray-600 dark:text-gray-300">
+                    <span class="mb-1 block">{{ t("admin.settings.fixedSourceRouting.sourceGroup") }}</span>
+                    <select v-model.number="route.source_group_id" class="input w-full">
+                      <option :value="0">{{ t("common.selectOption") }}</option>
+                      <option v-for="group in fixedSourceRoutingGroups" :key="group.id" :value="group.id">
+                        {{ group.name }}
+                      </option>
+                    </select>
+                  </label>
+                  <label class="block text-sm text-gray-600 dark:text-gray-300">
+                    <span class="mb-1 block">{{ t("admin.settings.fixedSourceRouting.targetGroup") }}</span>
+                    <select v-model.number="route.target_group_id" class="input w-full" @change="route.account_id = 0">
+                      <option :value="0">{{ t("common.selectOption") }}</option>
+                      <option v-for="group in fixedSourceRoutingActiveGroups" :key="group.id" :value="group.id">
+                        {{ group.name }}
+                      </option>
+                    </select>
+                  </label>
+                  <label class="block text-sm text-gray-600 dark:text-gray-300">
+                    <span class="mb-1 block">{{ t("admin.settings.fixedSourceRouting.account") }}</span>
+                    <select v-model.number="route.account_id" class="input w-full" :disabled="!route.target_group_id">
+                      <option :value="0">{{ t("common.selectOption") }}</option>
+                      <option
+                        v-for="account in fixedSourceAccountsForGroup(route.target_group_id)"
+                        :key="account.id"
+                        :value="account.id"
+                      >
+                        {{ account.name }} (#{{ account.id }})
+                      </option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm text-red-600"
+                    :title="t('common.delete')"
+                    @click="removeFixedSourceRoute(index)"
+                  >
+                    <Icon name="trash" size="sm" />
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex justify-end border-t border-gray-100 pt-5 dark:border-dark-700">
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  :disabled="fixedSourceRoutingSaving"
+                  @click="saveFixedSourceRouting"
+                >
+                  {{ fixedSourceRoutingSaving ? t("common.saving") : t("common.save") }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Tab: Security — Registration, Turnstile, LinuxDo -->
         <div v-show="activeTab === 'security'" class="space-y-6">
           <!-- Registration Settings -->
@@ -8809,8 +8972,10 @@ import type {
   WebSearchEmulationConfig,
   WebSearchProviderConfig,
   WebSearchTestResult,
+  FixedSourceRoutingSettings,
 } from "@/api/admin/settings";
 import type {
+  AccountListItem,
   AdminGroup,
   LoginAgreementDocument,
   NotifyEmailEntry,
@@ -8974,6 +9139,22 @@ const adminApiKeyMasked = ref("");
 const adminApiKeyOperating = ref(false);
 const newAdminApiKey = ref("");
 const subscriptionGroups = ref<AdminGroup[]>([]);
+
+const fixedSourceRoutingLoading = ref(true);
+const fixedSourceRoutingSaving = ref(false);
+const fixedSourceRoutingGroups = ref<AdminGroup[]>([]);
+const fixedSourceRoutingAccounts = ref<AccountListItem[]>([]);
+const fixedSourceDomainDraft = ref("");
+const fixedSourceIPDraft = ref("");
+const fixedSourceRoutingForm = reactive<FixedSourceRoutingSettings>({
+  enabled: false,
+  domains: [],
+  ips: [],
+  routes: [],
+});
+const fixedSourceRoutingActiveGroups = computed(() =>
+  fixedSourceRoutingGroups.value.filter((group) => group.status === "active"),
+);
 
 // Upstream billing probe state
 const upstreamBillingProbeLoading = ref(true);
@@ -12568,6 +12749,123 @@ async function handleDeleteProvider() {
   }
 }
 
+async function loadFixedSourceRoutingAccounts(): Promise<AccountListItem[]> {
+  const first = await adminAPI.accounts.list(1, 100, {
+    status: "active",
+    lite: "1",
+  });
+  const items = [...first.items];
+  for (let page = 2; page <= first.pages; page += 1) {
+    const next = await adminAPI.accounts.list(page, 100, {
+      status: "active",
+      lite: "1",
+    });
+    items.push(...next.items);
+  }
+  return items;
+}
+
+async function loadFixedSourceRouting(): Promise<void> {
+  fixedSourceRoutingLoading.value = true;
+  try {
+    const [settings, groups, accounts] = await Promise.all([
+      adminAPI.settings.getFixedSourceRoutingSettings(),
+      adminAPI.groups.getAllIncludingInactive(),
+      loadFixedSourceRoutingAccounts(),
+    ]);
+    fixedSourceRoutingForm.enabled = settings.enabled;
+    fixedSourceRoutingForm.domains = [...settings.domains];
+    fixedSourceRoutingForm.ips = [...settings.ips];
+    fixedSourceRoutingForm.routes = settings.routes.map((route) => ({ ...route }));
+    fixedSourceRoutingGroups.value = groups;
+    fixedSourceRoutingAccounts.value = accounts;
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.fixedSourceRouting.loadFailed"),
+      ),
+    );
+  } finally {
+    fixedSourceRoutingLoading.value = false;
+  }
+}
+
+function fixedSourceAccountsForGroup(groupID: number): AccountListItem[] {
+  if (!groupID) return [];
+  return fixedSourceRoutingAccounts.value.filter((account) =>
+    account.group_ids?.includes(groupID),
+  );
+}
+
+function commitFixedSourceTag(kind: "domains" | "ips"): void {
+  const draft = kind === "domains" ? fixedSourceDomainDraft : fixedSourceIPDraft;
+  const values = draft.value
+    .split(/[,\s]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const current = fixedSourceRoutingForm[kind];
+  for (const value of values) {
+    const normalized = kind === "domains" ? value.toLowerCase().replace(/\.$/, "") : value;
+    if (!current.includes(normalized)) current.push(normalized);
+  }
+  draft.value = "";
+}
+
+function handleFixedSourceTagKeydown(
+  event: KeyboardEvent,
+  kind: "domains" | "ips",
+): void {
+  if (event.key !== "Enter" && event.key !== ",") return;
+  event.preventDefault();
+  commitFixedSourceTag(kind);
+}
+
+function removeFixedSourceTag(kind: "domains" | "ips", value: string): void {
+  fixedSourceRoutingForm[kind] = fixedSourceRoutingForm[kind].filter(
+    (item) => item !== value,
+  );
+}
+
+function addFixedSourceRoute(): void {
+  fixedSourceRoutingForm.routes.push({
+    source_group_id: 0,
+    target_group_id: 0,
+    account_id: 0,
+  });
+}
+
+function removeFixedSourceRoute(index: number): void {
+  fixedSourceRoutingForm.routes.splice(index, 1);
+}
+
+async function saveFixedSourceRouting(): Promise<void> {
+  commitFixedSourceTag("domains");
+  commitFixedSourceTag("ips");
+  fixedSourceRoutingSaving.value = true;
+  try {
+    const updated = await adminAPI.settings.updateFixedSourceRoutingSettings({
+      enabled: fixedSourceRoutingForm.enabled,
+      domains: [...fixedSourceRoutingForm.domains],
+      ips: [...fixedSourceRoutingForm.ips],
+      routes: fixedSourceRoutingForm.routes.map((route) => ({ ...route })),
+    });
+    fixedSourceRoutingForm.domains = [...updated.domains];
+    fixedSourceRoutingForm.ips = [...updated.ips];
+    fixedSourceRoutingForm.routes = updated.routes.map((route) => ({ ...route }));
+    appStore.showSuccess(t("admin.settings.fixedSourceRouting.saved"));
+  } catch (error: unknown) {
+    appStore.showError(
+      extractApiErrorMessage(
+        error,
+        t("admin.settings.fixedSourceRouting.saveFailed"),
+      ),
+    );
+  } finally {
+    fixedSourceRoutingSaving.value = false;
+  }
+}
+
 onMounted(() => {
   loadSettings();
   loadSubscriptionGroups();
@@ -12580,6 +12878,7 @@ onMounted(() => {
   loadStreamTimeoutSettings();
   loadRectifierSettings();
   loadBetaPolicySettings();
+  loadFixedSourceRouting();
   loadProviders();
 });
 

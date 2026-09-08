@@ -62,6 +62,7 @@ type SettingHandler struct {
 	notificationEmailService *service.NotificationEmailService
 	totpService              *service.TotpService
 	userService              *service.UserService
+	fixedSourceRoutingReader fixedSourceRoutingAdminReader
 }
 
 // NewSettingHandler 创建系统设置处理器
@@ -96,6 +97,12 @@ func (h *SettingHandler) SetAliyunCaptchaService(aliyunCaptchaService *service.A
 func (h *SettingHandler) SetStepUpDeps(totpService *service.TotpService, userService *service.UserService) {
 	h.totpService = totpService
 	h.userService = userService
+}
+
+// SetFixedSourceRoutingReader attaches the admin lookups used to validate
+// fixed source routing rules without changing the constructor used by tests.
+func (h *SettingHandler) SetFixedSourceRoutingReader(reader fixedSourceRoutingAdminReader) {
+	h.fixedSourceRoutingReader = reader
 }
 
 // GetSettings 获取所有系统设置

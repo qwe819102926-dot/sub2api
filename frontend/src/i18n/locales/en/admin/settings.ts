@@ -974,6 +974,26 @@ export default {
         metricsInterval: 'Metrics Collection Interval (seconds)',
         metricsIntervalHint: 'How often to collect system/request metrics (60-3600 seconds)'
       },
+      fixedSourceRouting: {
+        title: 'Fixed Source Routing',
+        description: 'Detect requests from configured domains or IPs and pin each API key source group to an account in a target group.',
+        enabled: 'Enable fixed source routing',
+        enabledHint: 'A matched request uses only the configured account. It fails instead of falling back when that account is unavailable.',
+        domains: 'Source domains',
+        domainPlaceholder: 'Enter a domain and press Enter, e.g. example.com',
+        ips: 'Source IP / CIDR',
+        ipPlaceholder: 'Enter an IP or CIDR and press Enter',
+        routes: 'Group routing rules',
+        routesHint: 'The API key source group selects its target group and pinned account.',
+        sourceGroup: 'API key source group',
+        targetGroup: 'Target group',
+        account: 'Pinned account',
+        addRoute: 'Add rule',
+        noRoutes: 'No routing rules configured',
+        saved: 'Fixed source routing saved',
+        loadFailed: 'Failed to load fixed source routing',
+        saveFailed: 'Failed to save fixed source routing'
+      },
       adminApiKey: {
         title: 'Admin API Key',
         description: 'Global API key for external system integration with full admin access',

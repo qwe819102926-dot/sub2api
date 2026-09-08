@@ -81,4 +81,12 @@ const (
 
 	// ClaudeCodeVersion stores the extracted Claude Code version from User-Agent (e.g. "2.1.22")
 	ClaudeCodeVersion Key = "ctx_claude_code_version"
+
+	// FixedRouteAccountID pins a source-matched request to one account. Schedulers
+	// must fail closed when that account cannot serve the request.
+	FixedRouteAccountID Key = "ctx_fixed_route_account_id"
+
+	// FixedRouteSourceGroupID records the API key group which matched a fixed
+	// source routing rule, for request diagnostics.
+	FixedRouteSourceGroupID Key = "ctx_fixed_route_source_group_id"
 )

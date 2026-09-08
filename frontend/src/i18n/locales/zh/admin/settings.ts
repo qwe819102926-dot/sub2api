@@ -969,6 +969,26 @@ export default {
         metricsInterval: '采集频率（秒）',
         metricsIntervalHint: '系统/请求指标采集频率（60-3600 秒）'
       },
+      fixedSourceRouting: {
+        title: '固定来源路由',
+        description: '识别指定域名或 IP 的请求，并按 API Key 原分组固定路由到目标分组中的指定账号。',
+        enabled: '启用固定来源路由',
+        enabledHint: '命中规则后固定使用指定账号；账号不可用时请求直接失败，不会回退其他账号。',
+        domains: '来源域名',
+        domainPlaceholder: '输入域名后按回车，例如 example.com',
+        ips: '来源 IP / CIDR',
+        ipPlaceholder: '输入 IP 或 CIDR 后按回车',
+        routes: '分组路由规则',
+        routesHint: 'API Key 原分组决定使用哪条目标分组和固定账号规则。',
+        sourceGroup: 'API Key 原分组',
+        targetGroup: '目标分组',
+        account: '固定账号',
+        addRoute: '添加规则',
+        noRoutes: '暂无路由规则',
+        saved: '固定来源路由已保存',
+        loadFailed: '加载固定来源路由失败',
+        saveFailed: '保存固定来源路由失败'
+      },
       adminApiKey: {
         title: '管理员 API Key',
         description: '用于外部系统集成的全局 API Key，拥有完整的管理员权限',
