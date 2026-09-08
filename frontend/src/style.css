@@ -1398,3 +1398,44 @@
 .dark .codexpert-console .text-rose-600 {
   color: #fda4af !important;
 }
+
+/* Explicit root selector for the authenticated console. The console has a
+   light-theme visual layer with !important declarations, so keep the dark
+   palette on the same specificity path as the rendered application root. */
+html.dark .codexpert-console .sidebar-link,
+html.dark .codexpert-console .sidebar-label {
+  color: #dbeafe !important;
+}
+
+html.dark .codexpert-console .sidebar-link:hover,
+html.dark .codexpert-console .sidebar-link-active,
+html.dark .codexpert-console .sidebar-link-active .sidebar-label {
+  color: #ffffff !important;
+}
+
+html.dark .codexpert-console header h1,
+html.dark .codexpert-console header p,
+html.dark .codexpert-console header .text-gray-600,
+html.dark .codexpert-console header .dark\:text-dark-400,
+html.dark .codexpert-console header .text-primary-600,
+html.dark .codexpert-console header .text-primary-700 {
+  color: #e2e8f0 !important;
+}
+
+html.dark .codexpert-console header h1,
+html.dark .codexpert-console header .page-title {
+  color: #f8fafc !important;
+}
+
+html.dark .codexpert-console .model-plaza-page,
+html.dark .codexpert-console .model-plaza-page .text-gray-500,
+html.dark .codexpert-console .model-plaza-page .text-gray-400,
+html.dark .codexpert-console .model-plaza-page [class*="dark:text-dark-500"],
+html.dark .codexpert-console .model-plaza-page [class*="dark:text-dark-400"] {
+  color: #cbd5e1 !important;
+}
+
+html.dark .codexpert-console .model-plaza-page input,
+html.dark .codexpert-console .model-plaza-page input::placeholder {
+  color: #cbd5e1 !important;
+}
