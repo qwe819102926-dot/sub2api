@@ -22,10 +22,13 @@ const {
   getStreamTimeoutSettings,
   getRectifierSettings,
   getBetaPolicySettings,
+  getFixedSourceRoutingSettings,
+  updateFixedSourceRoutingSettings,
   getUpstreamBillingProbeSettings,
   updateUpstreamBillingProbeSettings,
   getOllamaCloudUsageSettings,
   updateOllamaCloudUsageSettings,
+  listAccounts,
   getGroups,
   listProxies,
   getProviders,
@@ -56,6 +59,8 @@ const {
   getStreamTimeoutSettings: vi.fn(),
   getRectifierSettings: vi.fn(),
   getBetaPolicySettings: vi.fn(),
+  getFixedSourceRoutingSettings: vi.fn(),
+  updateFixedSourceRoutingSettings: vi.fn(),
   getUpstreamBillingProbeSettings: vi.fn().mockResolvedValue({
     enabled: true,
     interval_minutes: 30,
@@ -67,6 +72,7 @@ const {
     debounce_minutes: 1,
   }),
   updateOllamaCloudUsageSettings: vi.fn().mockImplementation(async (payload) => payload),
+  listAccounts: vi.fn(),
   getGroups: vi.fn(),
   listProxies: vi.fn(),
   getProviders: vi.fn(),
@@ -97,8 +103,11 @@ vi.mock("@/api", () => ({
       getStreamTimeoutSettings,
       getRectifierSettings,
       getBetaPolicySettings,
+      getFixedSourceRoutingSettings,
+      updateFixedSourceRoutingSettings,
     },
     accounts: {
+      list: listAccounts,
       getUpstreamBillingProbeSettings,
       updateUpstreamBillingProbeSettings,
       getOllamaCloudUsageSettings,
@@ -106,6 +115,7 @@ vi.mock("@/api", () => ({
     },
     groups: {
       getAll: getGroups,
+      getAllIncludingInactive: getGroups,
     },
     proxies: {
       list: listProxies,
@@ -639,10 +649,13 @@ describe("admin SettingsView payment visible method controls", () => {
     getStreamTimeoutSettings.mockReset();
     getRectifierSettings.mockReset();
     getBetaPolicySettings.mockReset();
+    getFixedSourceRoutingSettings.mockReset();
+    updateFixedSourceRoutingSettings.mockReset();
     getUpstreamBillingProbeSettings.mockReset();
     updateUpstreamBillingProbeSettings.mockReset();
     getOllamaCloudUsageSettings.mockReset();
     updateOllamaCloudUsageSettings.mockReset();
+    listAccounts.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -698,6 +711,13 @@ describe("admin SettingsView payment visible method controls", () => {
     getBetaPolicySettings.mockResolvedValue({
       rules: [],
     });
+    getFixedSourceRoutingSettings.mockResolvedValue({
+      enabled: false,
+      domains: [],
+      ips: [],
+      routes: [],
+    });
+    updateFixedSourceRoutingSettings.mockImplementation(async (payload) => payload);
     getUpstreamBillingProbeSettings.mockResolvedValue({
       enabled: true,
       interval_minutes: 30,
@@ -709,6 +729,10 @@ describe("admin SettingsView payment visible method controls", () => {
       debounce_minutes: 1,
     });
     updateOllamaCloudUsageSettings.mockImplementation(async (payload) => payload);
+    listAccounts.mockResolvedValue({
+      items: [],
+      pages: 1,
+    });
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({
       items: [],
@@ -1568,6 +1592,9 @@ describe("admin SettingsView wechat connect controls", () => {
     getStreamTimeoutSettings.mockReset();
     getRectifierSettings.mockReset();
     getBetaPolicySettings.mockReset();
+    getFixedSourceRoutingSettings.mockReset();
+    updateFixedSourceRoutingSettings.mockReset();
+    listAccounts.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -1626,6 +1653,14 @@ describe("admin SettingsView wechat connect controls", () => {
     getBetaPolicySettings.mockResolvedValue({
       rules: [],
     });
+    getFixedSourceRoutingSettings.mockResolvedValue({
+      enabled: false,
+      domains: [],
+      ips: [],
+      routes: [],
+    });
+    updateFixedSourceRoutingSettings.mockImplementation(async (payload) => payload);
+    listAccounts.mockResolvedValue({ items: [], pages: 1 });
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({
       items: [],
@@ -1814,6 +1849,9 @@ describe("admin SettingsView platform quota matrix", () => {
     getStreamTimeoutSettings.mockReset();
     getRectifierSettings.mockReset();
     getBetaPolicySettings.mockReset();
+    getFixedSourceRoutingSettings.mockReset();
+    updateFixedSourceRoutingSettings.mockReset();
+    listAccounts.mockReset();
     getGroups.mockReset();
     listProxies.mockReset();
     getProviders.mockReset();
@@ -1840,6 +1878,14 @@ describe("admin SettingsView platform quota matrix", () => {
     getStreamTimeoutSettings.mockResolvedValue({});
     getRectifierSettings.mockResolvedValue({});
     getBetaPolicySettings.mockResolvedValue({});
+    getFixedSourceRoutingSettings.mockResolvedValue({
+      enabled: false,
+      domains: [],
+      ips: [],
+      routes: [],
+    });
+    updateFixedSourceRoutingSettings.mockImplementation(async (payload) => payload);
+    listAccounts.mockResolvedValue({ items: [], pages: 1 });
     getGroups.mockResolvedValue([]);
     listProxies.mockResolvedValue({ items: [] });
     getProviders.mockResolvedValue({ data: [] });
