@@ -3,9 +3,35 @@ import { describe, expect, it } from 'vitest'
 import {
   getPaymentVisibleMethodSourceOptions,
   normalizePaymentVisibleMethodSource,
+  normalizeFixedSourceRoutingSettings,
 } from '@/api/admin/settings'
 
 describe('admin settings payment visible method helpers', () => {
+  it('normalizes incomplete fixed source routing payloads', () => {
+    expect(normalizeFixedSourceRoutingSettings({ enabled: true })).toEqual({
+      enabled: true,
+      domains: [],
+      ips: [],
+      routes: [],
+    })
+  })
+
+  it('drops malformed fixed source routes while preserving valid ids', () => {
+    expect(normalizeFixedSourceRoutingSettings({
+      domains: null,
+      ips: ['203.0.113.10', 123],
+      routes: [
+        { source_group_id: 2.9, target_group_id: 3, account_id: 4 },
+        null,
+      ],
+    })).toEqual({
+      enabled: false,
+      domains: [],
+      ips: ['203.0.113.10'],
+      routes: [{ source_group_id: 2, target_group_id: 3, account_id: 4 }],
+    })
+  })
+
   it('normalizes aliases into canonical source keys per visible method', () => {
     expect(normalizePaymentVisibleMethodSource('alipay', 'official')).toBe('official_alipay')
     expect(normalizePaymentVisibleMethodSource('alipay', 'alipay_direct')).toBe('official_alipay')

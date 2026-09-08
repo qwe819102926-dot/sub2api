@@ -1447,21 +1447,70 @@ export interface FixedSourceRoutingSettings {
   routes: FixedSourceRoute[];
 }
 
+/**
+ * Normalize fixed source routing data from older or partially initialized
+ * server responses. The settings page must remain usable when an optional
+ * collection is omitted or stored as null.
+ */
+export function normalizeFixedSourceRoutingSettings(
+  input: unknown,
+): FixedSourceRoutingSettings {
+  const raw =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+  const stringArray = (value: unknown): string[] =>
+    Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === "string")
+      : [];
+  const routes = Array.isArray(raw.routes)
+    ? raw.routes
+        .filter(
+          (item): item is Record<string, unknown> =>
+            item !== null && typeof item === "object",
+        )
+        .map((item) => ({
+          source_group_id:
+            typeof item.source_group_id === "number" &&
+            Number.isFinite(item.source_group_id)
+              ? Math.trunc(item.source_group_id)
+              : 0,
+          target_group_id:
+            typeof item.target_group_id === "number" &&
+            Number.isFinite(item.target_group_id)
+              ? Math.trunc(item.target_group_id)
+              : 0,
+          account_id:
+            typeof item.account_id === "number" &&
+            Number.isFinite(item.account_id)
+              ? Math.trunc(item.account_id)
+              : 0,
+        }))
+    : [];
+
+  return {
+    enabled: raw.enabled === true,
+    domains: stringArray(raw.domains),
+    ips: stringArray(raw.ips),
+    routes,
+  };
+}
+
 export async function getFixedSourceRoutingSettings(): Promise<FixedSourceRoutingSettings> {
-  const { data } = await apiClient.get<FixedSourceRoutingSettings>(
+  const { data } = await apiClient.get<unknown>(
     "/admin/settings/fixed-source-routing",
   );
-  return data;
+  return normalizeFixedSourceRoutingSettings(data);
 }
 
 export async function updateFixedSourceRoutingSettings(
   settings: FixedSourceRoutingSettings,
 ): Promise<FixedSourceRoutingSettings> {
-  const { data } = await apiClient.put<FixedSourceRoutingSettings>(
+  const { data } = await apiClient.put<unknown>(
     "/admin/settings/fixed-source-routing",
     settings,
   );
-  return data;
+  return normalizeFixedSourceRoutingSettings(data);
 }
 
 // ==================== OpenAI Fast Policy Settings ====================

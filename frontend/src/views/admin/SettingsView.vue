@@ -12767,28 +12767,48 @@ async function loadFixedSourceRoutingAccounts(): Promise<AccountListItem[]> {
 
 async function loadFixedSourceRouting(): Promise<void> {
   fixedSourceRoutingLoading.value = true;
-  try {
-    const [settings, groups, accounts] = await Promise.all([
-      adminAPI.settings.getFixedSourceRoutingSettings(),
-      adminAPI.groups.getAllIncludingInactive(),
-      loadFixedSourceRoutingAccounts(),
-    ]);
+  const [settingsResult, groupsResult, accountsResult] = await Promise.allSettled([
+    adminAPI.settings.getFixedSourceRoutingSettings(),
+    adminAPI.groups.getAllIncludingInactive(),
+    loadFixedSourceRoutingAccounts(),
+  ]);
+
+  let firstError: unknown = null;
+  if (settingsResult.status === "fulfilled") {
+    const settings = settingsResult.value;
     fixedSourceRoutingForm.enabled = settings.enabled;
     fixedSourceRoutingForm.domains = [...settings.domains];
     fixedSourceRoutingForm.ips = [...settings.ips];
     fixedSourceRoutingForm.routes = settings.routes.map((route) => ({ ...route }));
-    fixedSourceRoutingGroups.value = groups;
-    fixedSourceRoutingAccounts.value = accounts;
-  } catch (error: unknown) {
+  } else {
+    firstError = settingsResult.reason;
+  }
+
+  if (groupsResult.status === "fulfilled") {
+    fixedSourceRoutingGroups.value = Array.isArray(groupsResult.value)
+      ? groupsResult.value
+      : [];
+  } else if (!firstError) {
+    firstError = groupsResult.reason;
+  }
+
+  if (accountsResult.status === "fulfilled") {
+    fixedSourceRoutingAccounts.value = Array.isArray(accountsResult.value)
+      ? accountsResult.value
+      : [];
+  } else if (!firstError) {
+    firstError = accountsResult.reason;
+  }
+
+  if (firstError) {
     appStore.showError(
       extractApiErrorMessage(
-        error,
+        firstError,
         t("admin.settings.fixedSourceRouting.loadFailed"),
       ),
     );
-  } finally {
-    fixedSourceRoutingLoading.value = false;
   }
+  fixedSourceRoutingLoading.value = false;
 }
 
 function fixedSourceAccountsForGroup(groupID: number): AccountListItem[] {
