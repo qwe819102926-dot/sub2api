@@ -7,7 +7,7 @@
 
 - 生产机器安装 Docker、Docker Compose、Caddy、Python 3 和 `flock`。
 - 当前应用容器名为 `sub2api`，对外监听 `127.0.0.1:8080`。
-- Caddyfile 中存在唯一的 `localhost:8080` 或 `127.0.0.1:8080` upstream。
+- Caddyfile 中存在唯一的 active upstream（初始为 `localhost:8080` 或 `127.0.0.1:8080`；后续端口由状态文件记录）。
 - `deploy/.env` 中设置固定的 `JWT_SECRET`、`TOTP_ENCRYPTION_KEY` 和数据库密码。
 - 镜像使用不可变 tag，例如 `ghcr.io/qwe819102926-dot/sub2api:sha-abcdef0`。
 
@@ -29,7 +29,7 @@ chmod +x blue-green-update.sh
 脚本会：
 
 1. 拉取目标镜像并复制当前容器的环境变量、网络和所有挂载。
-2. 在临时 loopback 端口 `18080` 启动 green。
+2. 自动选择与 active 端口不同且未被占用的 loopback 端口，再启动 green；默认优先尝试 `18080`、当前 blue 端口，然后扫描后续端口。也可通过 `--green-port` 强制指定。
 3. 等待 green `/health` 成功。
 4. 校验并 reload Caddy，将流量切换到 green。
 5. 检查公网 `/health`。

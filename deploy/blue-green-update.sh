@@ -7,9 +7,15 @@ CADDY_CONFIG="${CADDY_CONFIG:-${DEPLOY_DIR}/Caddyfile}"
 PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-}"
 IMAGE="${SUB2API_IMAGE:-}"
 BLUE_PORT="${BLUE_PORT:-8080}"
-GREEN_PORT="${GREEN_PORT:-18080}"
+GREEN_PORT="${GREEN_PORT:-}"
+GREEN_PORT_BASE="${GREEN_PORT_BASE:-18080}"
+GREEN_PORT_SCAN_LIMIT="${GREEN_PORT_SCAN_LIMIT:-100}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-120}"
 KEEP_OLD=0
+GREEN_PORT_EXPLICIT=0
+if [[ -n "$GREEN_PORT" ]]; then
+  GREEN_PORT_EXPLICIT=1
+fi
 
 usage() {
   cat <<'EOF'
@@ -20,7 +26,7 @@ Usage: blue-green-update.sh --image IMAGE --public-health-url URL [options]
   --env-file FILE           Environment file (default: DIR/.env)
   --caddy-config FILE       Caddyfile to switch (default: DIR/Caddyfile)
   --blue-port PORT          Existing application host port (default: 8080)
-  --green-port PORT         Temporary green host port (default: 18080)
+  --green-port PORT         Force green host port (default: auto-select)
   --drain-seconds N         Keep blue alive before stopping it (default: 120)
   --keep-old                Leave blue running for manual rollback
 EOF
@@ -36,7 +42,7 @@ while (($#)); do
     --env-file) ENV_FILE="${2:?missing value for --env-file}"; shift 2 ;;
     --caddy-config) CADDY_CONFIG="${2:?missing value for --caddy-config}"; shift 2 ;;
     --blue-port) BLUE_PORT="${2:?missing value for --blue-port}"; shift 2 ;;
-    --green-port) GREEN_PORT="${2:?missing value for --green-port}"; shift 2 ;;
+    --green-port) GREEN_PORT="${2:?missing value for --green-port}"; GREEN_PORT_EXPLICIT=1; shift 2 ;;
     --drain-seconds) DRAIN_SECONDS="${2:?missing value for --drain-seconds}"; shift 2 ;;
     --keep-old) KEEP_OLD=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -47,6 +53,7 @@ done
 [[ -n "$IMAGE" ]] || die "--image is required"
 [[ -n "$PUBLIC_HEALTH_URL" ]] || die "--public-health-url is required"
 [[ "$DRAIN_SECONDS" =~ ^[0-9]+$ ]] || die "--drain-seconds must be a non-negative integer"
+[[ "$GREEN_PORT_SCAN_LIMIT" =~ ^[0-9]+$ ]] || die "GREEN_PORT_SCAN_LIMIT must be a non-negative integer"
 [[ -f "$ENV_FILE" ]] || die "environment file not found: $ENV_FILE"
 [[ -f "$CADDY_CONFIG" ]] || die "Caddyfile not found: $CADDY_CONFIG"
 for command in docker curl python3 caddy flock; do
@@ -75,9 +82,68 @@ if [[ -z "$ACTIVE_CONTAINER" ]]; then
   ACTIVE_PORT="$BLUE_PORT"
 fi
 [[ -n "$ACTIVE_PORT" ]] || die "active port missing from $STATE_FILE"
+validate_port() {
+  local port="$1"
+  local number
+  [[ "$port" =~ ^[0-9]+$ ]] || return 1
+  number=$((10#$port))
+  (( number >= 1 && number <= 65535 ))
+}
+
+validate_port "$ACTIVE_PORT" || die "active port is invalid: $ACTIVE_PORT"
+ACTIVE_PORT=$((10#$ACTIVE_PORT))
 docker inspect "$ACTIVE_CONTAINER" >/dev/null 2>&1 || die "active container not found: $ACTIVE_CONTAINER"
 [[ "$(docker inspect -f '{{.State.Running}}' "$ACTIVE_CONTAINER")" == "true" ]] || die "active container is not running"
-[[ "$ACTIVE_PORT" != "$GREEN_PORT" ]] || die "green port must differ from active port"
+
+port_is_available() {
+  local port="$1"
+  python3 - "$port" <<'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+    sock.bind(("127.0.0.1", port))
+PY
+}
+
+select_green_port() {
+  local candidate start end
+  local candidates=()
+
+  if [[ "$GREEN_PORT_EXPLICIT" == "1" ]]; then
+    validate_port "$GREEN_PORT" || die "green port is invalid: $GREEN_PORT"
+    GREEN_PORT=$((10#$GREEN_PORT))
+    [[ "$GREEN_PORT" != "$ACTIVE_PORT" ]] || die "green port must differ from active port"
+    port_is_available "$GREEN_PORT" || die "green port is already occupied: $GREEN_PORT"
+    return
+  fi
+
+  validate_port "$BLUE_PORT" || die "blue port is invalid: $BLUE_PORT"
+  validate_port "$GREEN_PORT_BASE" || die "GREEN_PORT_BASE is invalid: $GREEN_PORT_BASE"
+  BLUE_PORT=$((10#$BLUE_PORT))
+  GREEN_PORT_BASE=$((10#$GREEN_PORT_BASE))
+
+  candidates+=("$GREEN_PORT_BASE" "$BLUE_PORT")
+  start=$((10#$GREEN_PORT_BASE + 1))
+  end=$((start + GREEN_PORT_SCAN_LIMIT - 1))
+  for ((candidate=start; candidate<=end && candidate<=65535; candidate++)); do
+    candidates+=("$candidate")
+  done
+
+  for candidate in "${candidates[@]}"; do
+    [[ "$candidate" != "$ACTIVE_PORT" ]] || continue
+    if port_is_available "$candidate"; then
+      GREEN_PORT="$candidate"
+      echo "selected available green port: $GREEN_PORT"
+      return
+    fi
+  done
+
+  die "no available green port found (active=$ACTIVE_PORT, base=$GREEN_PORT_BASE, scan_limit=$GREEN_PORT_SCAN_LIMIT)"
+}
+
+select_green_port
 
 OLD_STATE=""
 if [[ -f "$STATE_FILE" ]]; then
@@ -117,6 +183,7 @@ rollback() {
 }
 trap rollback EXIT
 
+port_is_available "$GREEN_PORT" || die "green port became occupied before container start: $GREEN_PORT"
 docker run -d --name "$GREEN_CONTAINER" --restart unless-stopped \
   --security-opt no-new-privileges:true \
   --publish "127.0.0.1:$GREEN_PORT:8080" \

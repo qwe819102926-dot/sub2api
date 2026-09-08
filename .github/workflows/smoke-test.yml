@@ -39,8 +39,8 @@ jobs:
           push: false
           load: true
           tags: sub2api:smoke
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=dev-smoke
+          cache-to: type=gha,mode=max,scope=dev-smoke
 
       - name: Run smoke tests
         run: sh deploy/smoke-test.sh sub2api:smoke 8080
