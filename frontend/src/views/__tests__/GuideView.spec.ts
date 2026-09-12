@@ -27,7 +27,7 @@ describe('GuideView', () => {
     await flushPromises()
     const frame = wrapper.find('iframe.guide-frame')
     expect(frame.exists()).toBe(true)
-    expect(frame.attributes('src')).toBe('/usage-guide/index.html')
+    expect(frame.attributes('src')).toBe('/usage-guide/guide.html')
     expect(frame.attributes('title')).toBe('key智中转使用说明')
   })
 

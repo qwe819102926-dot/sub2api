@@ -3,7 +3,7 @@
     <div class="guide-page">
       <iframe
         class="guide-frame"
-        src="/usage-guide/index.html"
+        src="/usage-guide/guide.html"
         title="key智中转使用说明"
         loading="eager"
       ></iframe>
