@@ -1,0 +1,2026 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="key智中转登录后配置 API 密钥，再导入 CC Switch、Codex++、WorkBuddy 或 ZCode 的图文教程">
+  <title>key智中转登录后配置指南</title>
+  <style>
+    :root {
+      --ink: #15283d;
+      --muted: #68788c;
+      --soft: #f4f7fa;
+      --paper: #ffffff;
+      --line: #dfe7ed;
+      --teal: #0aa99f;
+      --teal-dark: #087f7a;
+      --coral: #ef6b57;
+      --yellow: #f5c96a;
+      --shadow: 0 20px 60px rgba(30, 62, 83, .10);
+      --radius: 18px;
+      --violet: #6d5cff;
+      --violet-dark: #5244d6;
+      --orange: #e08a2c;
+      --orange-dark: #b86c16;
+      --navy: #2d4a7a;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(21, 40, 61, .032) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(21, 40, 61, .032) 1px, transparent 1px),
+        #f8fafb;
+      background-size: 36px 36px;
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.7;
+    }
+
+    a { color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible {
+      outline: 3px solid rgba(10, 169, 159, .32);
+      outline-offset: 3px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid rgba(223, 231, 237, .88);
+      background: rgba(248, 250, 251, .88);
+      backdrop-filter: blur(16px);
+    }
+
+    .topbar-inner {
+      width: min(1220px, calc(100% - 40px));
+      min-height: 72px;
+      margin: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      font-weight: 800;
+      letter-spacing: .02em;
+    }
+
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--ink);
+      box-shadow: 5px 5px 0 rgba(10, 169, 159, .25);
+      font-size: 16px;
+    }
+
+    .brand-mark img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: inherit;
+    }
+
+    .brand small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .06em;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .top-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: .2s ease;
+    }
+
+    .top-link:hover {
+      border-color: rgba(10, 169, 159, .55);
+      color: var(--teal-dark);
+      transform: translateY(-1px);
+    }
+
+    .top-link.primary {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .page {
+      width: min(1220px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      position: relative;
+      min-height: auto;
+      padding: 48px 0 28px;
+      max-width: 760px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+      color: var(--teal-dark);
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 24px;
+      height: 2px;
+      background: var(--coral);
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 720px;
+      margin-bottom: 12px;
+      font-family: Georgia, "Songti SC", "STSong", serif;
+      font-size: clamp(36px, 5vw, 56px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      font-weight: 700;
+      text-wrap: balance;
+    }
+
+    .hero-copy {
+      max-width: 640px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .hero-copy strong { color: var(--ink); }
+
+    .quick-note {
+      margin-top: 18px;
+      padding: 15px 18px;
+      border-left: 3px solid var(--yellow);
+      background: rgba(255, 255, 255, .74);
+      color: #506275;
+      font-size: 13px;
+    }
+
+    .hero-rail {
+      position: relative;
+      padding: 30px 28px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+
+    .hero-rail::before {
+      content: "";
+      position: absolute;
+      width: 66px;
+      height: 66px;
+      top: -16px;
+      right: -16px;
+      border: 1px solid rgba(239, 107, 87, .45);
+      border-radius: 50%;
+    }
+
+    .rail-label {
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .mini-route {
+      display: grid;
+      gap: 0;
+    }
+
+    .mini-route-item {
+      position: relative;
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 12px;
+      padding-bottom: 22px;
+    }
+
+    .mini-route-item:last-child { padding-bottom: 0; }
+
+    .mini-route-item:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      top: 28px;
+      left: 14px;
+      height: calc(100% - 10px);
+      border-left: 1px dashed #badbd8;
+    }
+
+    .mini-num {
+      position: relative;
+      z-index: 1;
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #a8ddd8;
+      border-radius: 50%;
+      background: #edfbf9;
+      color: var(--teal-dark);
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mini-route-item strong {
+      display: block;
+      padding-top: 2px;
+      font-size: 14px;
+    }
+
+    .mini-route-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .route-section {
+      margin: 12px 0 92px;
+      padding: 30px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .72);
+    }
+
+    .section-kicker {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .section-kicker h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .section-kicker p {
+      max-width: 540px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .route.is-forked {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .path-choice {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0 0;
+    }
+
+    .path-choice-wide {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      margin-top: 22px;
+    }
+
+    .path-card {
+      display: block;
+      padding: 18px 18px 16px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      text-decoration: none;
+      color: inherit;
+      transition: .2s ease;
+    }
+
+    .path-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(21, 40, 61, .08);
+    }
+
+    .path-card.ccs {
+      border-top: 3px solid var(--teal);
+    }
+
+    .path-card.codexpp {
+      border-top: 3px solid var(--violet);
+    }
+
+    .path-card.workbuddy {
+      border-top: 3px solid var(--orange);
+    }
+
+    .path-card.zcode {
+      border-top: 3px solid var(--navy);
+    }
+
+    .path-card.chatgpt {
+      border-top: 3px solid var(--coral);
+    }
+
+    .path-card .path-kicker {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .path-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    .path-card span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .fork-wrap {
+      margin: 0 0 18px;
+      padding: 18px;
+      border: 1px dashed #c8d6df;
+      background: rgba(255, 255, 255, .66);
+    }
+
+    .fork-wrap h4 {
+      margin: 0 0 14px;
+      font-size: 15px;
+    }
+
+    .fork-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .fork-lane {
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .fork-lane.ccs { border-left: 3px solid var(--teal); }
+    .fork-lane.codexpp { border-left: 3px solid var(--violet); }
+
+    .fork-lane h5 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    .fork-lane p,
+    .fork-lane ol {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .fork-lane ol {
+      padding-left: 18px;
+    }
+
+    .fork-lane li + li { margin-top: 6px; }
+    .fork-lane strong { color: var(--ink); }
+
+    .split-screens {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      align-items: stretch;
+      width: min(1320px, calc(100% + 80px));
+      margin: 8px auto 80px;
+      min-height: calc(100vh - 120px);
+    }
+
+    .path-block {
+      margin: 0;
+      min-width: 0;
+      max-height: calc(100vh - 120px);
+      overflow: auto;
+      padding: 0 0 8px;
+      border: 1px solid var(--line);
+      background: var(--paper);
+      box-shadow: var(--shadow);
+      scroll-margin-top: 100px;
+    }
+
+    .path-block-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .path-block.ccs { border-top: 4px solid var(--teal); }
+    .path-block.codexpp { border-top: 4px solid var(--violet); }
+    .path-block.workbuddy { border-top: 4px solid var(--orange); }
+    .path-block.zcode { border-top: 4px solid var(--navy); }
+    .path-block.chatgpt { border-top: 4px solid var(--coral); }
+
+    .same-rule {
+      margin: 16px 16px 22px;
+      padding: 14px 16px;
+      border-left: 3px solid var(--coral);
+      background: #fff6f3;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .same-rule strong { color: var(--ink); }
+
+    .split-screens.secondary {
+      margin-top: 0;
+      min-height: auto;
+    }
+
+    .split-screens.secondary .path-block {
+      max-height: none;
+      overflow: visible;
+    }
+
+    .split-screens.single {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+
+    .split-screens.single .path-block {
+      max-height: none;
+      overflow: visible;
+    }
+
+    .path-block-head h3 {
+      margin: 0 0 6px;
+      font-size: 20px;
+    }
+
+    .path-block-head p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .path-block .step {
+      margin: 0 16px;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 14px;
+      padding: 22px 0 24px;
+    }
+
+    .path-block .step::before { left: 19px; }
+    .path-block .step-marker { width: 40px; height: 40px; font-size: 11px; }
+    .path-block .step-heading { display: block; }
+    .path-block .step-heading h3 { font-size: 18px; }
+    .path-block .step-tag { display: inline-block; margin-top: 8px; }
+    .path-block .step-grid { grid-template-columns: 1fr; gap: 14px; }
+    .path-block .step:last-of-type { padding-bottom: 22px; }
+
+    .path-block .download-band,
+    .path-download {
+      margin: 0 16px 18px;
+      display: block;
+      padding: 16px;
+    }
+
+    .path-block .download-actions {
+      justify-content: start;
+      margin-top: 12px;
+    }
+
+    .step-tag.violet {
+      border-color: #cfc8ff;
+      color: var(--violet-dark);
+      background: #f4f1ff;
+    }
+
+    .step-tag.orange {
+      border-color: #f1c48a;
+      color: var(--orange-dark);
+      background: #fff6ea;
+    }
+
+    .step-tag.navy {
+      border-color: #b7c6dc;
+      color: var(--navy);
+      background: #eef3f9;
+    }
+
+    .step-tag.coral {
+      border-color: #f3b7ad;
+      color: #c24b3a;
+      background: #fff3f0;
+    }
+
+    .route-node {
+      position: relative;
+      min-height: 170px;
+      padding: 22px 18px 18px;
+      border-right: 1px solid var(--line);
+    }
+
+    .route-node:last-child { border-right: 0; }
+
+    .route-node:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      top: 48%;
+      right: -11px;
+      z-index: 2;
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: var(--teal);
+      background: var(--paper);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .route-node:nth-child(2) { background: #fffaf0; }
+    .route-node:nth-child(4) { background: #f1fbfa; }
+
+    .route-index {
+      display: inline-block;
+      margin-bottom: 26px;
+      color: var(--coral);
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .route-node strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 16px;
+    }
+
+    .route-node span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .content-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 240px;
+      align-items: start;
+      gap: 64px;
+      padding-bottom: 90px;
+    }
+
+    .steps { min-width: 0; }
+
+    .section-heading {
+      margin-bottom: 34px;
+    }
+
+    .section-heading .eyebrow { margin-bottom: 12px; }
+
+    .section-heading h2 {
+      max-width: 780px;
+      margin-bottom: 10px;
+      font-family: Georgia, "Songti SC", "STSong", serif;
+      font-size: 40px;
+      line-height: 1.16;
+    }
+
+    .section-heading p {
+      max-width: 730px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .step {
+      position: relative;
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr);
+      gap: 24px;
+      padding: 38px 0 46px;
+      border-top: 1px solid var(--line);
+      scroll-margin-top: 100px;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 25px;
+      height: 100%;
+      border-left: 1px dashed #c6d6df;
+    }
+
+    .step:first-of-type { border-top: 0; }
+
+    .step-marker {
+      position: relative;
+      z-index: 1;
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border: 1px solid #b8dfdc;
+      border-radius: 50%;
+      background: #eaf9f7;
+      color: var(--teal-dark);
+      font-family: Consolas, monospace;
+      font-size: 14px;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+
+    .step.is-done .step-marker {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .step.is-done .step-marker::after {
+      content: "✓";
+      font-family: inherit;
+      font-size: 18px;
+    }
+
+    .step.is-done .step-marker { font-size: 0; }
+
+    .step-heading {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 8px;
+    }
+
+    .step-heading h3 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.25;
+    }
+
+    .step-tag {
+      flex: 0 0 auto;
+      padding: 4px 9px;
+      border: 1px solid #f1d797;
+      border-radius: 999px;
+      color: #9c751d;
+      background: #fff9e9;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .step-description {
+      max-width: 760px;
+      margin-bottom: 22px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .step-description strong { color: var(--ink); }
+
+    .step-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.12fr) minmax(240px, .88fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .shot {
+      margin: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #eef2f5;
+      box-shadow: 0 12px 32px rgba(21, 40, 61, .09);
+    }
+
+    .shot button {
+      display: block;
+      width: 100%;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      cursor: zoom-in;
+    }
+
+    .shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      transition: transform .28s ease;
+    }
+
+    .shot button:hover img { transform: scale(1.018); }
+
+    .shot figcaption {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 13px;
+      border-top: 1px solid var(--line);
+      background: var(--paper);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .shot figcaption b {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .instruction {
+      padding: 22px;
+      border-left: 3px solid var(--teal);
+      background: var(--paper);
+    }
+
+    .instruction h4 {
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    .instruction ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .instruction li { padding-left: 4px; }
+    .instruction li + li { margin-top: 8px; }
+    .instruction strong { color: var(--ink); }
+
+    .data-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 18px;
+      padding: 9px 10px 9px 13px;
+      border: 1px solid var(--line);
+      background: #f8fafb;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .data-row code {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-button {
+      flex: 0 0 auto;
+      min-height: 30px;
+      padding: 0 9px;
+      border: 1px solid #b9dfdc;
+      border-radius: 7px;
+      background: #effaf9;
+      color: var(--teal-dark);
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .copy-button:hover { background: #dff4f1; }
+
+    .complete-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 38px;
+      margin-top: 18px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      transition: .2s ease;
+    }
+
+    .complete-button:hover,
+    .step.is-done .complete-button {
+      border-color: #a9dad6;
+      color: var(--teal-dark);
+      background: #effaf9;
+    }
+
+    .side-nav {
+      position: sticky;
+      top: 104px;
+      padding-left: 20px;
+      border-left: 1px solid var(--line);
+    }
+
+    .side-nav h3 {
+      margin: 0 0 16px;
+      font-size: 12px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .side-nav a {
+      position: relative;
+      display: block;
+      padding: 8px 0 8px 16px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: .2s ease;
+    }
+
+    .side-nav a::before {
+      content: "";
+      position: absolute;
+      top: 14px;
+      left: -25px;
+      width: 7px;
+      height: 7px;
+      border: 1px solid #bfcdd7;
+      border-radius: 50%;
+      background: #f8fafb;
+    }
+
+    .side-nav a:hover,
+    .side-nav a.active {
+      color: var(--teal-dark);
+      font-weight: 700;
+    }
+
+    .side-nav a.active::before {
+      border-color: var(--teal);
+      background: var(--teal);
+      box-shadow: 0 0 0 5px rgba(10, 169, 159, .12);
+    }
+
+    .help-band {
+      margin: 8px 0 80px;
+      padding: 34px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 30px;
+      border-top: 2px solid var(--ink);
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .download-band {
+      margin: 0 0 58px 88px;
+      padding: 22px 26px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 24px;
+      border: 1px solid #b9dfdc;
+      border-left: 4px solid var(--teal);
+      background: #effaf9;
+    }
+
+    .download-band h2 {
+      margin: 0 0 4px;
+      font-size: 18px;
+    }
+
+    .download-band p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .download-band p strong { color: var(--ink); }
+
+    .download-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: 9px;
+    }
+
+    .download-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 13px;
+      border: 1px solid #a7d9d5;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--teal-dark);
+      text-decoration: none;
+      font-size: 12px;
+      white-space: nowrap;
+      transition: .2s ease;
+    }
+
+    .download-action:hover {
+      border-color: var(--teal);
+      background: #dff4f1;
+      transform: translateY(-1px);
+    }
+
+    .download-action.primary {
+      border-color: var(--teal);
+      background: var(--teal);
+      color: #fff;
+    }
+
+    .help-band h2 {
+      margin-bottom: 8px;
+      font-family: Georgia, "Songti SC", "STSong", serif;
+      font-size: 28px;
+    }
+
+    .help-band p {
+      max-width: 720px;
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .help-band p:last-child { margin-bottom: 0; }
+
+    .qq-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 8px 8px 14px;
+      border: 1px dashed #d7c48a;
+      background: #fff9e9;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .qq-row b {
+      font-family: Consolas, monospace;
+      font-size: 16px;
+    }
+
+    .help-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: end;
+      gap: 10px;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+      color: var(--ink);
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 13px;
+      transition: .2s ease;
+    }
+
+    .action:hover {
+      border-color: var(--teal);
+      color: var(--teal-dark);
+    }
+
+    .action.dark {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fff;
+    }
+
+    footer {
+      padding: 26px 0 40px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .footer-inner span:last-child {
+      font-family: Consolas, monospace;
+      color: #9ba8b5;
+    }
+
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: none;
+      place-items: center;
+      padding: 30px;
+      background: rgba(8, 18, 29, .84);
+    }
+
+    .lightbox.open { display: grid; }
+
+    .lightbox img {
+      display: block;
+      max-width: min(1400px, 94vw);
+      max-height: 88vh;
+      width: auto;
+      height: auto;
+      border: 1px solid rgba(255, 255, 255, .28);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, .32);
+    }
+
+    .lightbox-close {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, .42);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .1);
+      color: #fff;
+      cursor: pointer;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    @media (max-width: 1100px) {
+      .path-choice-wide { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .hero { padding-top: 40px; }
+      .route-section { padding: 22px; }
+      .route { grid-template-columns: 1fr; }
+      .route-node {
+        min-height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .route-node:last-child { border-bottom: 0; }
+      .route-node:not(:last-child)::after {
+        top: auto;
+        right: auto;
+        bottom: -11px;
+        left: calc(50% - 11px);
+        transform: rotate(90deg);
+      }
+      .content-layout { grid-template-columns: 1fr; gap: 26px; }
+      .path-choice, .path-choice-wide, .fork-grid, .split-screens { grid-template-columns: 1fr; }
+      .split-screens {
+        width: 100%;
+        min-height: 0;
+      }
+      .path-block { max-height: none; overflow: visible; }
+      .route.is-forked { grid-template-columns: 1fr; }
+      .side-nav {
+        position: static;
+        order: -1;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 0 0 12px;
+        border-left: 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .side-nav h3 { display: none; }
+      .side-nav a {
+        flex: 0 0 auto;
+        padding: 7px 11px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 11px;
+      }
+      .side-nav a::before { display: none; }
+      .side-nav a.active {
+        border-color: #a9dad6;
+        background: #effaf9;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .topbar-inner, .page { width: min(100% - 28px, 1220px); }
+      .topbar-inner { min-height: 62px; }
+      .brand > span:not(.brand-mark) { display: none; }
+      .top-link { min-height: 36px; padding: 0 10px; font-size: 11px; }
+      .top-link:first-child { display: none; }
+      .hero { padding: 36px 0 22px; }
+      h1 { font-size: 40px; }
+      .hero-copy { font-size: 15px; }
+      .route-section { margin-bottom: 62px; padding: 16px; }
+      .section-kicker { display: block; }
+      .section-kicker p { margin-top: 8px; text-align: left; }
+      .step {
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 15px;
+        padding: 28px 0 34px;
+      }
+      .step::before { left: 19px; }
+      .step-marker { width: 40px; height: 40px; font-size: 11px; }
+      .step-heading { display: block; }
+      .step-tag { display: inline-block; margin-top: 10px; }
+      .step-heading h3 { font-size: 21px; }
+      .step-grid { grid-template-columns: 1fr; }
+      .instruction { padding: 18px; }
+      .download-band {
+        margin: 0 0 42px;
+        display: block;
+      }
+      .download-actions {
+        justify-content: start;
+        margin-top: 16px;
+      }
+      .help-band { display: block; margin-bottom: 52px; padding: 24px; }
+      .path-block-head { display: block; padding: 16px; }
+      .path-block .step { margin: 0 12px; }
+      .path-block .download-band,
+      .path-download { margin: 0 12px 16px; }
+      .help-actions { justify-content: start; margin-top: 20px; }
+      .footer-inner { display: block; }
+      .footer-inner span:last-child { display: block; margin-top: 6px; }
+      .lightbox { padding: 14px; }
+      .lightbox-close { top: 10px; right: 10px; }
+    }
+
+    @media print {
+      .topbar, .side-nav, .help-actions, .complete-button, .copy-button { display: none !important; }
+      body { background: #fff; }
+      .hero { padding: 16px 0; }
+      .route-section, .help-band { margin-bottom: 30px; }
+      .step { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#top" aria-label="返回教程顶部">
+        <span class="brand-mark"><img src="../logo.svg" alt="key智中转图标"></span>
+        <span>key智中转 <small>CONFIGURATION GUIDE</small></span>
+      </a>
+      <nav class="topbar-actions" aria-label="快捷入口">
+        <a class="top-link" href="https://aitokey.top/home" target="_blank" rel="noreferrer">↗ 打开官网</a>
+        <a class="top-link primary" href="#steps">开始配置 ↓</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="page">
+      <section class="hero" aria-labelledby="page-title">
+        <p class="eyebrow">After login / setup notes</p>
+        <h1 id="page-title">登入之后，这样配置。</h1>
+        <p class="hero-copy">
+          先在 <strong>key智中转</strong> 创建 API 密钥，再按客户端选择：
+          <strong>CC Switch</strong>、<strong>Codex++</strong>、<strong>WorkBuddy</strong>、<strong>ZCode</strong>，
+          或在 ChatGPT 客户端里接入 Grok / DeepSeek / Kimi / GLM。
+        </p>
+      </section>
+
+      <section class="route-section" aria-labelledby="route-title">
+        <div class="section-kicker">
+          <h2 id="route-title">配置流程图</h2>
+          <p>前三步共用。创建密钥后，按你实际使用的客户端选择路径。</p>
+        </div>
+        <div class="route is-forked" aria-label="从登录到客户端的核心流程">
+          <div class="route-node">
+            <span class="route-index">01 / START</span>
+            <strong>登录官网</strong>
+            <span>打开 aitokey.top，进入账号。</span>
+          </div>
+          <div class="route-node">
+            <span class="route-index">02 / KEYS</span>
+            <strong>API 密钥</strong>
+            <span>左侧账户菜单进入“API 密钥”。</span>
+          </div>
+          <div class="route-node">
+            <span class="route-index">03 / CREATE</span>
+            <strong>创建密钥</strong>
+            <span>命名并选择分组后创建。</span>
+          </div>
+          <div class="route-node">
+            <span class="route-index">04 / FORK</span>
+            <strong>选择客户端</strong>
+            <span>按客户端选择后续路径。</span>
+          </div>
+        </div>
+        <div class="path-choice path-choice-wide" aria-label="创建密钥后的路径">
+          <a class="path-card chatgpt" href="#path-chatgpt">
+            <span class="path-kicker">Path E</span>
+            <strong>ChatGPT 客户端</strong>
+            <span>用 Grok / DeepSeek / Kimi / GLM，填请求地址和模型映射。</span>
+          </a>
+          <a class="path-card ccs" href="#path-ccs">
+            <span class="path-kicker">Path A</span>
+            <strong>导入 CC Switch</strong>
+            <span>在密钥行点击“导入到 CCS”，确认供应商后切到“使用中”。</span>
+          </a>
+          <a class="path-card codexpp" href="#path-codexpp">
+            <span class="path-kicker">Path B</span>
+            <strong>添加到 Codex++</strong>
+            <span>在供应商配置里填写名称、纯 API、Base URL 和 Key，保存后启动。</span>
+          </a>
+          <a class="path-card workbuddy" href="#path-workbuddy">
+            <span class="path-kicker">Path C</span>
+            <strong>接入 WorkBuddy</strong>
+            <span>自定义接口地址填 completions，填写模型和 API Key 后保存。</span>
+          </a>
+          <a class="path-card zcode" href="#path-zcode">
+            <span class="path-kicker">Path D</span>
+            <strong>接入 ZCode</strong>
+            <span>模型设置里填写 Base URL、Responses 格式、API Key 和模型后启用。</span>
+          </a>
+        </div>
+      </section>
+
+      <div class="content-layout">
+        <section class="steps" id="steps" aria-labelledby="steps-title">
+          <div class="section-heading">
+            <p class="eyebrow">Visual walkthrough</p>
+            <h2 id="steps-title">按截图，一步一步完成</h2>
+            <p>每一步都配了对应截图和实际操作说明。点击截图可以放大查看红框位置。</p>
+          </div>
+
+          <article class="step" id="step-1">
+            <div class="step-marker" aria-hidden="true">01</div>
+            <div>
+              <div class="step-heading">
+                <h3>打开官网并登录</h3>
+                <span class="step-tag">登录入口</span>
+              </div>
+              <p class="step-description">
+                进入 <strong>aitokey.top</strong> 首页，在页面中间的按钮区域点击“登录”。
+                如果你已经在登录状态，通常会直接进入管理页面。
+              </p>
+              <div class="step-grid">
+                <figure class="shot">
+                  <button type="button" data-lightbox="guide-login-entry.png" aria-label="放大查看官网登录入口截图">
+                    <img src="guide-login-entry.png" alt="key智中转首页，中间红框标出登录按钮">
+                  </button>
+                  <figcaption><b>图 1 · 登录入口</b><span>点击图片放大</span></figcaption>
+                </figure>
+                <div class="instruction">
+                  <h4>这一页要做什么</h4>
+                  <ol>
+                    <li>打开 <strong>aitokey.top/home</strong>。</li>
+                    <li>点击页面中间的“登录”按钮。</li>
+                    <li>完成账号验证后进入后台。</li>
+                  </ol>
+                  <a class="action" href="https://aitokey.top/home" target="_blank" rel="noreferrer">打开登录页 ↗</a>
+                  <button class="complete-button" type="button" data-complete="step-1">○ 标记已完成</button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step" id="step-2">
+            <div class="step-marker" aria-hidden="true">02</div>
+            <div>
+              <div class="step-heading">
+                <h3>进入“API 密钥”页面</h3>
+                <span class="step-tag">账户菜单</span>
+              </div>
+              <p class="step-description">
+                登录后，在左侧“我的账户”区域找到 <strong>API 密钥</strong>。页面顶部会显示
+                API 端点、图片请求地址和 WorkBuddy 等常用入口。
+              </p>
+              <div class="step-grid">
+                <figure class="shot">
+                  <button type="button" data-lightbox="guide-api-key-list.png" aria-label="放大查看 API 密钥页面截图">
+                    <img src="guide-api-key-list.png" alt="key智中转 API 密钥管理页面，右上角创建密钥按钮被标出">
+                  </button>
+                  <figcaption><b>图 2 · API 密钥管理</b><span>点击图片放大</span></figcaption>
+                </figure>
+                <div class="instruction">
+                  <h4>找到创建入口</h4>
+                  <ol>
+                    <li>确认左侧菜单已选中 <strong>API 密钥</strong>。</li>
+                    <li>查看右上角的黑色 <strong>“创建密钥”</strong> 按钮。</li>
+                    <li>如果列表没有刷新，先点击旁边的刷新按钮。</li>
+                  </ol>
+                  <div class="data-row">
+                    <code>https://aitokey.top/keys</code>
+                    <button class="copy-button" type="button" data-copy="https://aitokey.top/keys">复制</button>
+                  </div>
+                  <button class="complete-button" type="button" data-complete="step-2">○ 标记已完成</button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step" id="step-3">
+            <div class="step-marker" aria-hidden="true">03</div>
+            <div>
+              <div class="step-heading">
+                <h3>创建密钥并选择分组</h3>
+                <span class="step-tag">关键配置</span>
+              </div>
+              <p class="step-description">
+                点击“创建密钥”后，先填写一个容易识别的名称，再打开“分组”下拉框。
+                选择与你要使用的模型对应的分组，截图中展示了 GPT、测试模型、gpt6 智商、探针、OpenAI raykey 等选项。
+              </p>
+              <div class="step-grid">
+                <figure class="shot">
+                  <button type="button" data-lightbox="guide-02-create-key.png" aria-label="放大查看创建密钥和选择分组截图">
+                    <img src="guide-02-create-key.png" alt="创建密钥弹窗，分组下拉列表已经展开">
+                  </button>
+                  <figcaption><b>图 3 · 创建密钥 / 选择分组</b><span>点击图片放大</span></figcaption>
+                </figure>
+                <div class="instruction">
+                  <h4>填写方式建议</h4>
+                  <ol>
+                    <li>名称可以写成 <strong>主密钥</strong> 或客户端名称，方便以后识别。</li>
+                    <li>点击“选择分组”，按需要选择模型组。</li>
+                    <li>“密钥有效期”如果不需要自动过期，可以保持关闭。</li>
+                    <li>确认后点击右下角 <strong>“创建”</strong>。</li>
+                  </ol>
+                  <button class="complete-button" type="button" data-complete="step-3">○ 标记已完成</button>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="step" id="step-4">
+            <div class="step-marker" aria-hidden="true">04</div>
+            <div>
+              <div class="step-heading">
+                <h3>创建完成后，选择一条路径</h3>
+                <span class="step-tag">在这里分叉</span>
+              </div>
+              <p class="step-description">
+                密钥列表的操作区可以走两条路：点击 <strong>“导入到 CCS”</strong> 进入 CC Switch，
+                或先复制密钥，再打开对应客户端手动添加。下面五个入口可以直接跳到对应配置。
+              </p>
+              <div class="step-grid">
+                <figure class="shot">
+                  <button type="button" data-lightbox="guide-03-import-ccs.png" aria-label="放大查看密钥列表操作区截图">
+                    <img src="guide-03-import-ccs.png" alt="API 密钥列表操作区，导入到 CCS 被红框标出">
+                  </button>
+                  <figcaption><b>图 4 · 密钥列表操作区</b><span>点击图片放大</span></figcaption>
+                </figure>
+                <div class="instruction">
+                  <h4>先看清操作区</h4>
+                  <ol>
+                    <li><strong>使用密钥</strong>：查看或复制该密钥，走 Codex++、WorkBuddy、ZCode、ChatGPT 客户端时会用到。</li>
+                    <li><strong>导入到 CCS</strong>：把配置发送到 CC Switch。</li>
+                    <li>后面的“禁用、编辑、删除”先不要操作。</li>
+                  </ol>
+                  <button class="complete-button" type="button" data-complete="step-4">○ 标记已完成</button>
+                </div>
+              </div>
+              <div class="path-choice path-choice-wide" aria-label="选择后续路径">
+                <a class="path-card chatgpt" href="#path-chatgpt">
+                  <span class="path-kicker">Path E</span>
+                  <strong>ChatGPT 客户端</strong>
+                  <span>Grok / DeepSeek / Kimi / GLM，方法同理。</span>
+                </a>
+                <a class="path-card ccs" href="#path-ccs">
+                  <span class="path-kicker">Path A · 左屏</span>
+                  <strong>导入 CC Switch</strong>
+                  <span>点击“导入到 CCS”，确认供应商后切到“使用中”。</span>
+                </a>
+                <a class="path-card codexpp" href="#path-codexpp">
+                  <span class="path-kicker">Path B · 右屏</span>
+                  <strong>添加到 Codex++</strong>
+                  <span>复制密钥，到供应商配置里填写、保存并启动。</span>
+                </a>
+                <a class="path-card workbuddy" href="#path-workbuddy">
+                  <span class="path-kicker">Path C</span>
+                  <strong>接入 WorkBuddy</strong>
+                  <span>自定义接口地址和模型后保存。</span>
+                </a>
+                <a class="path-card zcode" href="#path-zcode">
+                  <span class="path-kicker">Path D</span>
+                  <strong>接入 ZCode</strong>
+                  <span>模型设置里填写供应商后启用。</span>
+                </a>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <aside class="side-nav" aria-label="步骤导航">
+          <h3>Steps</h3>
+          <a href="#step-1" class="active">01 登录官网</a>
+          <a href="#step-2">02 API 密钥</a>
+          <a href="#step-3">03 创建密钥</a>
+          <a href="#step-4">04 选择路径</a>
+          <a href="#path-chatgpt">E ChatGPT 客户端</a>
+          <a href="#path-ccs">A 左屏 CCS</a>
+          <a href="#path-codexpp">B 右屏 Codex++</a>
+          <a href="#path-workbuddy">C WorkBuddy</a>
+          <a href="#path-zcode">D ZCode</a>
+        </aside>
+      </div>
+
+      <div class="split-screens" aria-label="两条配置路径并排展示">
+          <section class="path-block ccs" id="path-ccs" aria-labelledby="path-ccs-title">
+            <div class="path-block-head">
+              <div>
+                <h3 id="path-ccs-title">路径 A · 导入 CC Switch</h3>
+                <p>从密钥行的“导入到 CCS”开始，确认供应商配置，再把状态切到“使用中”。</p>
+              </div>
+              <span class="step-tag">CC Switch</span>
+            </div>
+
+            <article class="step" id="step-a1">
+              <div class="step-marker" aria-hidden="true">A1</div>
+              <div>
+                <div class="step-heading">
+                  <h3>在密钥列表导入到 CCS</h3>
+                  <span class="step-tag">连接客户端</span>
+                </div>
+                <p class="step-description">
+                  在刚刚创建的那一行找到操作区，点击 <strong>“导入到 CCS”</strong>。不要点击“禁用”或“删除”。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-03-import-ccs.png" aria-label="放大查看导入到 CCS 按钮截图">
+                      <img src="guide-03-import-ccs.png" alt="API 密钥列表操作区，导入到 CCS 被红框标出">
+                    </button>
+                    <figcaption><b>图 A1 · 导入到 CCS</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>这一步点哪里</h4>
+                    <ol>
+                      <li>确认当前行是刚创建的密钥。</li>
+                      <li>点击操作区里的 <strong>导入到 CCS</strong>。</li>
+                      <li>等待 CC Switch 弹出供应商配置窗口。</li>
+                    </ol>
+                    <div class="quick-note" style="margin-top:18px">如果没有看到按钮，先确认 CC Switch 是否已安装，并刷新密钥列表。</div>
+                    <button class="complete-button" type="button" data-complete="step-a1">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <section class="download-band path-download" aria-labelledby="download-title">
+              <div>
+                <h2 id="download-title">还没有 CC Switch？先下载安装</h2>
+                <p>官方渠道：访问 <strong>ccswitch.io</strong> 了解软件，下载安装包请进入官方 GitHub Releases。</p>
+              </div>
+              <div class="download-actions">
+                <a class="download-action" href="https://ccswitch.io/" target="_blank" rel="noreferrer">访问 CC Switch 官网 ↗</a>
+                <a class="download-action primary" href="https://github.com/farion1231/cc-switch/releases" target="_blank" rel="noreferrer">下载客户端 ↗</a>
+              </div>
+            </section>
+
+            <article class="step" id="step-a2">
+              <div class="step-marker" aria-hidden="true">A2</div>
+              <div>
+                <div class="step-heading">
+                  <h3>确认供应商配置并切换使用</h3>
+                  <span class="step-tag">完成导入</span>
+                </div>
+                <p class="step-description">
+                  点击导入后，CC Switch 会弹出供应商配置确认窗口。核对应用类型、供应商名称、
+                  API 端点、模型和用量查询状态，确认无误后点击右下角蓝色 <strong>“导入”</strong>。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-04-confirm-import.png" aria-label="放大查看确认导入供应商配置截图">
+                      <img src="guide-04-confirm-import.png" alt="CC Switch 确认导入供应商配置弹窗，导入按钮被标出">
+                    </button>
+                    <figcaption><b>图 A2 · 确认导入配置</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>导入前检查</h4>
+                    <ol>
+                      <li>应用类型应为 <strong>Codex</strong>。</li>
+                      <li>供应商名称应为 <strong>key智中转</strong>。</li>
+                      <li>API 端点为 <strong>https://aitokey.top</strong>。</li>
+                      <li>确认信息后点击 <strong>导入</strong>。</li>
+                    </ol>
+                    <button class="complete-button" type="button" data-complete="step-a2">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="step" id="step-a3">
+              <div class="step-marker" aria-hidden="true">A3</div>
+              <div>
+                <div class="step-heading">
+                  <h3>在 CC Switch 中确认“使用中”</h3>
+                  <span class="step-tag">验收状态</span>
+                </div>
+                <p class="step-description">
+                  导入完成后，在 CC Switch 的供应商列表中找到 <strong>key智中转</strong>。
+                  该卡片出现“使用中”状态，并显示余额或剩余额度，说明配置已经生效。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-cc-switch-active.png" aria-label="放大查看 CC Switch 使用中状态截图">
+                      <img src="guide-cc-switch-active.png" alt="CC Switch 供应商列表，key智中转卡片显示使用中">
+                    </button>
+                    <figcaption><b>图 A3 · 配置完成</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>完成标准</h4>
+                    <ol>
+                      <li>列表中能看到 <strong>key智中转</strong>。</li>
+                      <li>卡片状态显示 <strong>使用中</strong>。</li>
+                      <li>余额查询正常，没有显示“查询失败”。</li>
+                      <li>之后即可在 CC Switch 中使用对应模型。</li>
+                    </ol>
+                    <button class="complete-button" type="button" data-complete="step-a3">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="step" id="step-a4">
+              <div class="step-marker" aria-hidden="true">A4</div>
+              <div>
+                <div class="step-heading">
+                  <h3>重启 ChatGPT 客户端</h3>
+                  <span class="step-tag">最后一步</span>
+                </div>
+                <p class="step-description">
+                  CC Switch 显示“使用中”后，完全退出当前的 ChatGPT / Codex 客户端，
+                  再重新打开客户端，让刚导入的供应商配置加载生效。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-restart-chatgpt.png" aria-label="放大查看重启 ChatGPT 客户端截图">
+                      <img src="guide-restart-chatgpt.png" alt="ChatGPT Codex 客户端界面截图">
+                    </button>
+                    <figcaption><b>图 A4 · 重启客户端</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>这样操作就可以了</h4>
+                    <ol>
+                      <li>先完全退出 ChatGPT / Codex 客户端。</li>
+                      <li>重新打开客户端，等待首页加载完成。</li>
+                      <li>新配置加载后，就可以使用 key智中转 的模型了。</li>
+                    </ol>
+                    <div class="quick-note" style="margin-top:18px">
+                      如果重启后仍未生效，请确认 CC Switch 中的 key智中转 仍显示“使用中”，再重新启动一次客户端。
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-a4">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="path-block codexpp" id="path-codexpp" aria-labelledby="path-codexpp-title">
+            <div class="path-block-head">
+              <div>
+                <h3 id="path-codexpp-title">路径 B · 添加到 Codex++</h3>
+                <p>不走“导入到 CCS”。复制密钥后，在 Codex++ 管理工具里手动添加供应商，保存后再启动。</p>
+              </div>
+              <span class="step-tag violet">Codex++</span>
+            </div>
+
+            <article class="step" id="step-b1">
+              <div class="step-marker" aria-hidden="true">B1</div>
+              <div>
+                <div class="step-heading">
+                  <h3>在 Codex++ 填写供应商配置</h3>
+                  <span class="step-tag violet">手动添加</span>
+                </div>
+                <p class="step-description">
+                  打开 <strong>Codex++ 管理工具</strong>，左侧进入 <strong>供应商配置</strong>。
+                  按截图填写名称、接入模式、模型、Base URL 和 Key，确认上游协议后保存。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-codexpp-provider.png" aria-label="放大查看 Codex++ 供应商配置截图">
+                      <img src="guide-codexpp-provider.png" alt="Codex++ 供应商配置页，名称、纯 API、模型、Base URL 和 Key 被标出">
+                    </button>
+                    <figcaption><b>图 B1 · 供应商配置</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>按红箭头填写</h4>
+                    <ol>
+                      <li>左侧点击 <strong>供应商配置</strong>。</li>
+                      <li>名称填写 <strong>key智中转</strong>。</li>
+                      <li>接入模式选择 <strong>纯 API</strong>。</li>
+                      <li>配置模型填写你要使用的模型名，截图示例为 <strong>gpt-5.6-sol</strong>。</li>
+                      <li>Base URL 填写 <strong>https://aitokey.top</strong>。</li>
+                      <li>Key 粘贴刚才在密钥列表复制的 API 密钥。</li>
+                      <li>上游协议选择 <strong>Responses API</strong>，然后点击 <strong>保存此模型</strong>。</li>
+                    </ol>
+                    <div class="data-row">
+                      <code>https://aitokey.top</code>
+                      <button class="copy-button" type="button" data-copy="https://aitokey.top">复制</button>
+                    </div>
+                    <div class="quick-note" style="margin-top:18px">
+                      “启用目标功能”保持关闭即可。Key 只粘贴到 Codex++，不要发到聊天或截图公开。
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-b1">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="step" id="step-b2">
+              <div class="step-marker" aria-hidden="true">B2</div>
+              <div>
+                <div class="step-heading">
+                  <h3>回到概览并启动 Codex++</h3>
+                  <span class="step-tag violet">生效</span>
+                </div>
+                <p class="step-description">
+                  供应商保存后，回到左侧 <strong>概览</strong>。健康检查正常时，点击
+                  <strong>“启动 Codex++”</strong>，让刚保存的供应商配置加载生效。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-codexpp-launch.png" aria-label="放大查看启动 Codex++ 截图">
+                      <img src="guide-codexpp-launch.png" alt="Codex++ 概览页，启动 Codex++ 按钮被红箭头标出">
+                    </button>
+                    <figcaption><b>图 B2 · 启动 Codex++</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>启动前看一眼</h4>
+                    <ol>
+                      <li>左侧回到 <strong>概览</strong>。</li>
+                      <li>确认 Codex 版本、应用和入口都显示正常。</li>
+                      <li>点击蓝色按钮 <strong>启动 Codex++</strong>。</li>
+                    </ol>
+                    <div class="quick-note" style="margin-top:18px">
+                      如果启动后没有走新配置，回到供应商配置确认已点击“保存此模型”，再重新启动一次。
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-b2">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="step" id="step-b3">
+              <div class="step-marker" aria-hidden="true">B3</div>
+              <div>
+                <div class="step-heading">
+                  <h3>重启 ChatGPT 客户端</h3>
+                  <span class="step-tag violet">最后一步</span>
+                </div>
+                <p class="step-description">
+                  Codex++ 启动完成后，完全退出当前的 ChatGPT / Codex 客户端，
+                  再重新打开客户端，让刚保存的供应商配置加载生效。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-restart-chatgpt.png" aria-label="放大查看重启 ChatGPT 客户端截图">
+                      <img src="guide-restart-chatgpt.png" alt="ChatGPT Codex 客户端界面截图">
+                    </button>
+                    <figcaption><b>图 B3 · 重启客户端</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>这样操作就可以了</h4>
+                    <ol>
+                      <li>先完全退出 ChatGPT / Codex 客户端。</li>
+                      <li>重新打开客户端，等待首页加载完成。</li>
+                      <li>新配置加载后，就可以使用 key智中转 的模型了。</li>
+                    </ol>
+                    <div class="quick-note" style="margin-top:18px">
+                      如果重启后仍未生效，请回到 Codex++ 概览再点一次“启动 Codex++”，然后重新打开客户端。
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-b3">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+      </div>
+
+      <div class="split-screens secondary" aria-label="WorkBuddy 与 ZCode 配置">
+          <section class="path-block workbuddy" id="path-workbuddy" aria-labelledby="path-workbuddy-title">
+            <div class="path-block-head">
+              <div>
+                <h3 id="path-workbuddy-title">路径 C · 接入 WorkBuddy</h3>
+                <p>复制密钥后，在 WorkBuddy 的模型设置里用自定义接口添加模型。</p>
+              </div>
+              <span class="step-tag orange">WorkBuddy</span>
+            </div>
+
+            <article class="step" id="step-c1">
+              <div class="step-marker" aria-hidden="true">C1</div>
+              <div>
+                <div class="step-heading">
+                  <h3>编辑模型并填写接口</h3>
+                  <span class="step-tag orange">自定义 API</span>
+                </div>
+                <p class="step-description">
+                  打开 WorkBuddy，进入 <strong>模型</strong> 设置，点击添加或编辑模型。
+                  提供商选自定义，接口地址填 completions，再粘贴 API Key 和模型名称。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-workbuddy-model.png" aria-label="放大查看 WorkBuddy 编辑模型截图">
+                      <img src="guide-workbuddy-model.png" alt="WorkBuddy 编辑模型窗口，接口地址、模型名称和自定义协议被标出">
+                    </button>
+                    <figcaption><b>图 C1 · 编辑模型</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>按红箭头填写</h4>
+                    <ol>
+                      <li>提供商选择 <strong>自定义 / Custom</strong>。</li>
+                      <li>接口地址填写 <strong>https://aitokey.top/v1/chat/completions</strong>。</li>
+                      <li>API Key 粘贴刚才复制的密钥。</li>
+                      <li>模型名称填写你要使用的模型，截图示例为 <strong>gpt-5.6-sol</strong>。</li>
+                      <li>高级配置勾选 <strong>自定义协议</strong>，需要时再打开工具调用、图片输入、推理模式。</li>
+                      <li>确认后点击右下角 <strong>保存</strong>。</li>
+                    </ol>
+                    <div class="data-row">
+                      <code>https://aitokey.top/v1/chat/completions</code>
+                      <button class="copy-button" type="button" data-copy="https://aitokey.top/v1/chat/completions">复制</button>
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-c1">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+
+          <section class="path-block zcode" id="path-zcode" aria-labelledby="path-zcode-title">
+            <div class="path-block-head">
+              <div>
+                <h3 id="path-zcode-title">路径 D · 接入 ZCode</h3>
+                <p>在 ZCode 的模型设置里添加自定义供应商，填写 Base URL、API 格式、Key 和模型后启用。</p>
+              </div>
+              <span class="step-tag navy">ZCode</span>
+            </div>
+
+            <article class="step" id="step-d1">
+              <div class="step-marker" aria-hidden="true">D1</div>
+              <div>
+                <div class="step-heading">
+                  <h3>在模型设置里添加供应商</h3>
+                  <span class="step-tag navy">自定义供应商</span>
+                </div>
+                <p class="step-description">
+                  打开 ZCode，左侧进入 <strong>模型设置</strong>。添加自定义供应商后，
+                  填写 Base URL、API 格式、API Key 和模型列表，确认状态为已启用。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-zcode-model.png" aria-label="放大查看 ZCode 模型设置截图">
+                      <img src="guide-zcode-model.png" alt="ZCode 模型设置页，Base URL、API 格式、API Key 和模型列表被标出">
+                    </button>
+                    <figcaption><b>图 D1 · 模型设置</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>按红箭头填写</h4>
+                    <ol>
+                      <li>左侧点击 <strong>模型设置</strong>，再添加自定义供应商。</li>
+                      <li>Base URL 填写 <strong>https://aitokey.top</strong>。</li>
+                      <li>API 格式选择 <strong>Responses (/responses)</strong>。</li>
+                      <li>API Key 粘贴刚才复制的密钥。</li>
+                      <li>模型列表添加你要使用的模型，截图示例为 <strong>gpt-5.5</strong>。</li>
+                      <li>确认右上角状态为 <strong>已启用</strong>。</li>
+                    </ol>
+                    <div class="data-row">
+                      <code>https://aitokey.top</code>
+                      <button class="copy-button" type="button" data-copy="https://aitokey.top">复制</button>
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-d1">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+      </div>
+
+      <div class="split-screens single" aria-label="ChatGPT 客户端第三方模型配置">
+          <section class="path-block chatgpt" id="path-chatgpt" aria-labelledby="path-chatgpt-title">
+            <div class="path-block-head">
+              <div>
+                <h3 id="path-chatgpt-title">路径 E · ChatGPT 客户端用 Grok / DeepSeek / Kimi / GLM</h3>
+                <p>以 Grok 为例。DeepSeek、Kimi、GLM 的填法完全同理，只换模型名。</p>
+              </div>
+              <span class="step-tag coral">ChatGPT</span>
+            </div>
+            <div class="same-rule">
+              <strong>这几个全部同理：</strong>API 请求地址都填 <strong>https://aitokey.top</strong>，上游格式都选 Responses（原生）。
+              默认模型和映射行换成对应名称即可，比如 <strong>grok-4.6</strong>、<strong>deepseek-chat</strong>、<strong>kimi-k2</strong>、<strong>glm-4.6</strong>。
+            </div>
+
+            <article class="step" id="step-e1">
+              <div class="step-marker" aria-hidden="true">E1</div>
+              <div>
+                <div class="step-heading">
+                  <h3>填写 API Key、请求地址和默认模型</h3>
+                  <span class="step-tag coral">以 Grok 为例</span>
+                </div>
+                <p class="step-description">
+                  打开 ChatGPT / Codex 客户端的供应商编辑页，填好 API Key、请求地址和默认模型。
+                  截图用的是 Grok，其他模型只改这一行名称。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-chatgpt-grok-api.png" aria-label="放大查看 ChatGPT 客户端 Grok 基础配置截图">
+                      <img src="guide-chatgpt-grok-api.png" alt="供应商编辑页，API Key、API 请求地址和默认模型 grok-4.6 被标出">
+                    </button>
+                    <figcaption><b>图 E1 · 基础配置（Grok 示例）</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>先填这三项</h4>
+                    <ol>
+                      <li>API Key 粘贴刚才复制的密钥。</li>
+                      <li>API 请求地址填写 <strong>https://aitokey.top</strong>，不要打开“完整 URL”。</li>
+                      <li>默认模型填写 <strong>grok-4.6</strong>。DeepSeek / Kimi / GLM 换成对应模型名。</li>
+                      <li>上游格式保持 <strong>Responses（原生）</strong>。</li>
+                    </ol>
+                    <div class="data-row">
+                      <code>https://aitokey.top</code>
+                      <button class="copy-button" type="button" data-copy="https://aitokey.top">复制</button>
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-e1">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+
+            <article class="step" id="step-e2">
+              <div class="step-marker" aria-hidden="true">E2</div>
+              <div>
+                <div class="step-heading">
+                  <h3>补上模型映射</h3>
+                  <span class="step-tag coral">菜单显示</span>
+                </div>
+                <p class="step-description">
+                  继续往下找到 <strong>模型映射</strong>。菜单显示名和实际请求模型填同一套名称，
+                  这样客户端里才能选到这些第三方模型。
+                </p>
+                <div class="step-grid">
+                  <figure class="shot">
+                    <button type="button" data-lightbox="guide-chatgpt-grok-map.png" aria-label="放大查看 Grok 模型映射截图">
+                      <img src="guide-chatgpt-grok-map.png" alt="模型映射表，grok-4.5 和 grok-4.6 两行被标出">
+                    </button>
+                    <figcaption><b>图 E2 · 模型映射（Grok 示例）</b><span>点击图片放大</span></figcaption>
+                  </figure>
+                  <div class="instruction">
+                    <h4>映射这样填</h4>
+                    <ol>
+                      <li>Grok 示例：<strong>grok-4.5</strong> → <strong>grok-4.5</strong>，<strong>grok-4.6</strong> → <strong>grok-4.6</strong>。</li>
+                      <li>DeepSeek / Kimi / GLM 同理，左右两列都填对应模型名。</li>
+                      <li>保存后重启 ChatGPT / Codex 客户端，模型列表才会刷新。</li>
+                    </ol>
+                    <div class="quick-note" style="margin-top:18px">
+                      改映射后必须重启客户端，/model 命令才能看到这些第三方模型名。
+                    </div>
+                    <button class="complete-button" type="button" data-complete="step-e2">○ 标记已完成</button>
+                  </div>
+                </div>
+              </div>
+            </article>
+          </section>
+      </div>
+
+      <section class="help-band" aria-labelledby="help-title">
+        <div>
+          <h2 id="help-title">还是不会？上终极办法。</h2>
+          <p>教程看到这里还是卡住，别跟配置死磕了。终极办法很简单：去找站长，把你卡在哪一步说一声就行。</p>
+          <div class="qq-row">
+            <span>站长 QQ</span>
+            <b>819102926</b>
+            <button class="copy-button" type="button" data-copy="819102926">复制</button>
+          </div>
+        </div>
+        <div class="help-actions">
+          <a class="action dark" href="#top">返回顶部 ↑</a>
+          <button class="action" type="button" id="print-button">打印教程</button>
+        </div>
+      </section>
+
+      <footer>
+        <div class="footer-inner">
+          <span>key智中转 · CC Switch / Codex++ / WorkBuddy / ZCode 配置说明</span>
+          <span>STATIC HTML / 2026</span>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="截图大图预览">
+    <button class="lightbox-close" type="button" aria-label="关闭大图预览">×</button>
+    <img id="lightbox-image" src="" alt="">
+  </div>
+
+  <script>
+    const lightbox = document.getElementById("lightbox");
+    const lightboxImage = document.getElementById("lightbox-image");
+    const closeLightbox = () => {
+      lightbox.classList.remove("open");
+      lightboxImage.src = "";
+      document.body.style.overflow = "";
+    };
+
+    document.querySelectorAll("[data-lightbox]").forEach((trigger) => {
+      trigger.addEventListener("click", () => {
+        lightboxImage.src = trigger.dataset.lightbox;
+        lightboxImage.alt = trigger.querySelector("img")?.alt || "教程截图";
+        lightbox.classList.add("open");
+        document.body.style.overflow = "hidden";
+      });
+    });
+
+    lightbox.addEventListener("click", (event) => {
+      if (event.target === lightbox) closeLightbox();
+    });
+    lightbox.querySelector(".lightbox-close").addEventListener("click", closeLightbox);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && lightbox.classList.contains("open")) closeLightbox();
+    });
+
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const value = button.dataset.copy;
+        try {
+          await navigator.clipboard.writeText(value);
+          button.textContent = "已复制";
+        } catch {
+          button.textContent = "请手动复制";
+        }
+        window.setTimeout(() => { button.textContent = "复制"; }, 1800);
+      });
+    });
+
+    document.querySelectorAll("[data-complete]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const step = document.getElementById(button.dataset.complete);
+        const completed = step.classList.toggle("is-done");
+        button.textContent = completed ? "✓ 已完成" : "○ 标记已完成";
+        button.setAttribute("aria-pressed", String(completed));
+      });
+    });
+
+    document.getElementById("print-button").addEventListener("click", () => window.print());
+
+    const navLinks = [...document.querySelectorAll(".side-nav a")];
+    const sections = navLinks.map((link) => document.querySelector(link.getAttribute("href")));
+    const updateActiveNav = () => {
+      const marker = window.scrollY + 150;
+      let activeIndex = 0;
+      sections.forEach((section, index) => {
+        if (section && section.offsetTop <= marker) activeIndex = index;
+      });
+      navLinks.forEach((link, index) => link.classList.toggle("active", index === activeIndex));
+    };
+    window.addEventListener("scroll", updateActiveNav, { passive: true });
+    updateActiveNav();
+  </script>
+</body>
+</html>
+

@@ -1,13 +1,13 @@
 # Codex 部署和使用教程（Windows 版）
 
-> 版本：加入 aitokey API 中转站的预览版  
+> 版本：加入本站 API 中转服务的预览版
 > 适用对象：第一次在 Windows 电脑上安装和使用 Codex 的用户  
 
 ## 1. 教程目标
 
-本教程按原始文档的步骤展开，目标是帮助用户完成 Codex 使用前的环境准备、Codex 安装、CC Switch 配置、aitokey API 中转站接入和基础使用验证。
+本教程按原始文档的步骤展开，目标是帮助用户完成 Codex 使用前的环境准备、Codex 安装、CC Switch 配置、本站 API 中转服务接入和基础使用验证。
 
-完整顺序建议为：安装 Git、安装 Node.js、可选安装 VS Code、安装 Codex、了解 aitokey API 中转站、安装 CC Switch、在 CC Switch 中配置中转站密钥、重启 Codex 验证模型更新。
+完整顺序建议为：安装 Git、安装 Node.js、可选安装 VS Code、安装 Codex、了解本站 API 中转服务、安装 CC Switch、在 CC Switch 中配置中转站密钥、重启 Codex 验证模型更新。
 
 ## 2. 准备材料
 
@@ -16,7 +16,7 @@
 | Git-2.54.0-64-bit (1).exe | 安装 Git，提供代码仓库和命令行能力 | 建议默认路径安装 |
 | node-v24.16.0-x64.msi | 安装 Node.js，提供 npm 和前端/CLI 运行环境 | 安装后用 `node -v` 验证 |
 | CC-Switch-v3.15.0-Windows.msi | 安装 CC Switch，用于更新模型密钥或模型配置 | 安装路径可自定义 |
-| https://aitokey.top | aitokey API 中转站入口 | 进入站内文档查看接入参数 |
+| [本站 API 中转服务](/home) | 本站 API 中转服务入口 | 进入[站内接入说明](/usage-guide)查看接入参数 |
 | VS Code | 代码编辑器 | 编程场景不多可以暂不安装 |
 
 ## 3. 安装 Git
@@ -75,11 +75,11 @@ VS Code 是代码编辑器，不是 Codex 运行的唯一前置条件。原始�
 
 官方入口参考：<https://openai.com/codex/get-started/>
 
-## 7. 接入 aitokey API 中转站
+## 7. 接入本站 API 中转服务
 
-aitokey API 网址：https://aitokey.top
+本站 API 中转服务入口：[/home](/home)
 
-aitokey API 是一个稳定、统一的 AI API 接入平台。根据首页介绍，它提供模型调用、密钥管理、用量统计与迁移支持，适合把不同工具统一接入到一个兼容入口中，方便后续监控用量、切换模型和管理密钥。
+本站 API 中转服务是一个稳定、统一的 AI API 接入平台。它提供模型调用、密钥管理、用量统计与迁移支持，适合把不同工具统一接入到一个兼容入口中，方便后续监控用量、切换模型和管理密钥。
 
 首页展示的接入思路是 3 步：
 
@@ -87,7 +87,7 @@ aitokey API 是一个稳定、统一的 AI API 接入平台。根据首页介绍
 2. 创建 API Key：按项目生成调用密钥，便于权限隔离、用量追踪和风险控制。
 3. 配置调用参数：按站内文档配置 Base URL、模型名称和请求参数，即可发起首次调用。
 
-具体接入步骤以站内文档为准。当前文档入口需要登录后访问，建议登录 aitokey API 后点击顶部“文档”，复制站内给出的 Base URL、模型名称和 API Key，再填入 CC Switch 或对应客户端。
+具体接入步骤以[站内接入说明](/usage-guide)为准。当前文档入口需要登录后访问，建议先打开[网站首页](/home)，登录后进入[API 密钥](/keys)，再复制站内给出的 Base URL、模型名称和 API Key，填入 CC Switch 或对应客户端。
 
 注意：API Key 属于敏感信息，不建议截图、转发或写入教程正文。给他人演示时可以只展示 Key 的前后几位，或使用临时测试密钥。
 
@@ -98,16 +98,16 @@ aitokey API 是一个稳定、统一的 AI API 接入平台。根据首页介绍
 3. 这一项原始文档说明“路径可以改到自己想改的目录里”，因此可以放在常用软件目录，例如 `D:/Tools/CC-Switch`。
 4. 安装完成后启动 CC Switch。
 
-## 9. 在 CC Switch 中配置 aitokey API 并重启 Codex
+## 9. 在 CC Switch 中配置本站 API 中转服务并重启 Codex
 
 原始文档特别提醒：在 CC Switch 更新模型密钥之后，需要关闭 Codex 并重新打开，模型才会自动更新，而且一定要关闭进程。
 
 建议操作：
 
-1. 打开 aitokey API：https://aitokey.top
-2. 登录账号后进入控制台，创建或复制 API Key。
+1. 打开本站 API 中转服务：[网站首页](/home)。
+2. 登录账号后进入[API 密钥](/keys)，创建或复制 API Key。
 3. 查看接入所需的 Base URL、模型名称和请求参数。
-4. 打开 CC Switch，把 aitokey API 的 Base URL、API Key 和模型信息填入对应配置位置。
+4. 打开 CC Switch，把本站 API 中转服务的 Base URL、API Key 和模型信息填入对应配置位置。
 5. 保存配置或执行模型密钥更新。
 6. 关闭 Codex 窗口。
 7. 打开任务管理器，确认 Codex 相关进程已经结束。
@@ -164,9 +164,9 @@ D:/Projects/my-demo-project
 
 重点检查 Codex 是否真的退出。只关闭窗口不一定代表进程完全结束，建议在任务管理器中结束 Codex 相关进程后再重新打开。
 
-### 11.4 aitokey API 配好后仍无法调用
+### 11.4 本站 API 中转服务配好后仍无法调用
 
-优先检查三项：Base URL 是否和站内文档一致，API Key 是否复制完整，模型名称是否和站内可用模型列表一致。如果仍失败，登录 aitokey API 控制台查看调用记录、余额和错误信息。
+优先检查三项：Base URL 是否和站内文档一致，API Key 是否复制完整，模型名称是否和站内可用模型列表一致。如果仍失败，登录本站 API 中转服务控制台查看调用记录、余额和错误信息。
 
 ### 11.5 是否必须安装 VS Code
 
@@ -178,9 +178,9 @@ D:/Projects/my-demo-project
 - [ ] Node.js 安装完成，`node -v` 有版本号。
 - [ ] npm 可用，`npm -v` 有版本号。
 - [ ] Codex App 可以正常打开并登录。
-- [ ] aitokey API 可以正常登录并查看站内文档。
-- [ ] 已在 aitokey API 创建或复制 API Key。
-- [ ] CC Switch 已安装并完成 aitokey API 参数配置。
+- [ ] 本站 API 中转服务可以正常登录并查看站内文档。
+- [ ] 已在本站 API 中转服务的 [API 密钥页](/keys) 创建或复制 API Key。
+- [ ] CC Switch 已安装并完成本站 API 中转服务参数配置。
 - [ ] Codex 已完全关闭并重新打开。
 - [ ] 新建任务后模型配置生效。
 

@@ -22,19 +22,19 @@ function mountGuide() {
 }
 
 describe('GuideView', () => {
-  it('renders the Codex tutorial markdown content', async () => {
+  it('renders the local key智中转 usage guide', async () => {
     const wrapper = mountGuide()
     await flushPromises()
-    expect(wrapper.text()).toContain('Codex 部署和使用教程')
-    expect(wrapper.text()).toContain('教程目标')
-    expect(wrapper.find('.markdown-page-content').exists()).toBe(true)
-    expect(wrapper.find('.markdown-page-content').element.innerHTML).toContain('Codex 部署和使用教程')
+    const frame = wrapper.find('iframe.guide-frame')
+    expect(frame.exists()).toBe(true)
+    expect(frame.attributes('src')).toBe('/usage-guide/index.html')
+    expect(frame.attributes('title')).toBe('key智中转使用说明')
   })
 
-  it('builds a table of contents from the markdown headings', async () => {
+  it('sets the document title for the guide page', async () => {
     const wrapper = mountGuide()
     await flushPromises()
-    const tocLinks = wrapper.findAll('.toc-item')
-    expect(tocLinks.length).toBeGreaterThan(5)
+    expect(document.title).toBe('key智中转使用说明')
+    wrapper.unmount()
   })
 })
