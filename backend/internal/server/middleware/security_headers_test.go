@@ -110,6 +110,25 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Empty(t, w.Header().Get("Content-Security-Policy"))
 	})
 
+	t.Run("usage_guide_allows_same_origin_iframe", func(t *testing.T) {
+		cfg := config.CSPConfig{
+			Enabled: true,
+			Policy:  "default-src 'self'; frame-ancestors 'none'",
+		}
+		middleware := SecurityHeaders(cfg, nil)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/usage-guide/guide.html", nil)
+
+		middleware(c)
+
+		assert.Equal(t, "SAMEORIGIN", w.Header().Get("X-Frame-Options"))
+		csp := w.Header().Get("Content-Security-Policy")
+		assert.Contains(t, csp, "frame-ancestors 'self'")
+		assert.NotContains(t, csp, "frame-ancestors 'none'")
+	})
+
 	t.Run("csp_enabled_sets_csp_header", func(t *testing.T) {
 		cfg := config.CSPConfig{
 			Enabled: true,

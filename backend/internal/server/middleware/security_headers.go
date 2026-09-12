@@ -128,7 +128,15 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 		}
 
 		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
+		if isUsageGuideDocument(c) {
+			// The usage guide is rendered inside the same-origin GuideView iframe.
+			// Keep the exception limited to this static document; all other pages
+			// retain the default clickjacking protection.
+			c.Header("X-Frame-Options", "SAMEORIGIN")
+			finalPolicy = replaceFrameAncestors(finalPolicy, "'self'")
+		} else {
+			c.Header("X-Frame-Options", "DENY")
+		}
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		if isAPIRoutePath(c) {
 			c.Next()
@@ -149,6 +157,24 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 		}
 		c.Next()
 	}
+}
+
+func isUsageGuideDocument(c *gin.Context) bool {
+	if c == nil || c.Request == nil || c.Request.URL == nil {
+		return false
+	}
+	return c.Request.URL.Path == "/usage-guide/guide.html"
+}
+
+func replaceFrameAncestors(policy, value string) string {
+	if end, ok := cspDirectiveEnd(policy, "frame-ancestors"); ok {
+		start := end
+		for start > 0 && policy[start-1] != ';' {
+			start--
+		}
+		return policy[:start] + "frame-ancestors " + value + policy[end:]
+	}
+	return addToDirective(policy, "frame-ancestors", value)
 }
 
 func isAPIRoutePath(c *gin.Context) bool {
