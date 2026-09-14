@@ -80,6 +80,8 @@
             <router-link
               v-else
               :to="item.path"
+              :target="item.newTab ? '_blank' : undefined"
+              :rel="item.newTab ? 'noopener noreferrer' : undefined"
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
@@ -113,6 +115,8 @@
             v-for="item in personalNavItems"
             :key="item.path"
             :to="item.path"
+            :target="item.newTab ? '_blank' : undefined"
+            :rel="item.newTab ? 'noopener noreferrer' : undefined"
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
@@ -133,6 +137,8 @@
             v-for="item in userNavItems"
             :key="item.path"
             :to="item.path"
+            :target="item.newTab ? '_blank' : undefined"
+            :rel="item.newTab ? 'noopener noreferrer' : undefined"
             class="sidebar-link mb-1"
             :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
             :title="sidebarCollapsed ? item.label : undefined"
@@ -204,6 +210,7 @@ interface NavItem {
   label: string
   icon: unknown
   iconSvg?: string
+  newTab?: boolean
   hideInSimpleMode?: boolean
   children?: NavItem[]
   /**
@@ -735,7 +742,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/redeem', label: t('nav.redeem'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
-    { path: '/usage-guide', label: t('nav.guide'), icon: GuideIcon },
+    { path: '/usage-guide/guide.html', label: t('nav.guide'), icon: GuideIcon, newTab: true },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,
       label: item.label,

@@ -108,6 +108,40 @@
       gap: 10px;
     }
 
+    .top-promo {
+      display: inline-flex;
+      flex-direction: column;
+      justify-content: center;
+      min-width: 190px;
+      min-height: 52px;
+      padding: 6px 13px;
+      border: 2px solid #ef6b57;
+      border-radius: 9px;
+      background: #fff0ed;
+      color: #b94736;
+      text-decoration: none;
+      line-height: 1.25;
+      transition: .2s ease;
+    }
+
+    .top-promo:hover {
+      background: #ffe2dc;
+      box-shadow: 0 5px 16px rgba(239, 107, 87, .2);
+      transform: translateY(-1px);
+    }
+
+    .top-promo strong {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .top-promo span {
+      margin-top: 3px;
+      color: #8f5148;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
     .top-link {
       display: inline-flex;
       align-items: center;
@@ -1012,6 +1046,22 @@
       font-size: 16px;
     }
 
+    .help-contact-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .help-contact-row .qq-row,
+    .help-contact-row .help-promo {
+      margin: 0;
+    }
+
+    .help-promo {
+      min-width: 256px;
+    }
+
     .help-actions {
       display: flex;
       flex-wrap: wrap;
@@ -1163,6 +1213,8 @@
       .brand > span:not(.brand-mark) { display: none; }
       .top-link { min-height: 36px; padding: 0 10px; font-size: 11px; }
       .top-link:first-child { display: none; }
+      .top-promo { min-width: 0; padding: 5px 8px; }
+      .top-promo span { font-size: 10px; }
       .hero { padding: 36px 0 22px; }
       h1 { font-size: 40px; }
       .hero-copy { font-size: 15px; }
@@ -1190,6 +1242,8 @@
         margin-top: 16px;
       }
       .help-band { display: block; margin-bottom: 52px; padding: 24px; }
+      .help-contact-row { align-items: stretch; }
+      .help-contact-row .help-promo { min-width: min(256px, 100%); }
       .path-block-head { display: block; padding: 16px; }
       .path-block .step { margin: 0 12px; }
       .path-block .download-band,
@@ -1218,6 +1272,10 @@
         <span>key智中转 <small>CONFIGURATION GUIDE</small></span>
       </a>
       <nav class="topbar-actions" aria-label="快捷入口">
+        <a class="top-promo" href="https://lanpangyun.org/#/register?code=uIZlHGto" target="_blank" rel="noopener noreferrer">
+          <strong>站长同款梯子 ↗</strong>
+          <span>觉得自己梯子不稳可以尝试站长同款</span>
+        </a>
         <a class="top-link" href="https://aitokey.top/home" target="_blank" rel="noreferrer">↗ 打开官网</a>
         <a class="top-link primary" href="#steps">开始配置 ↓</a>
       </nav>
@@ -1932,10 +1990,16 @@
         <div>
           <h2 id="help-title">还是不会？上终极办法。</h2>
           <p>教程看到这里还是卡住，别跟配置死磕了。终极办法很简单：去找站长，把你卡在哪一步说一声就行。</p>
-          <div class="qq-row">
-            <span>站长 QQ</span>
-            <b>819102926</b>
-            <button class="copy-button" type="button" data-copy="819102926">复制</button>
+          <div class="help-contact-row">
+            <div class="qq-row">
+              <span>站长 QQ</span>
+              <b>819102926</b>
+              <button class="copy-button" type="button" data-copy="819102926">复制</button>
+            </div>
+            <a class="top-promo help-promo" href="https://lanpangyun.org/#/register?code=uIZlHGto" target="_blank" rel="noopener noreferrer">
+              <strong>站长同款梯子 ↗</strong>
+              <span>觉得自己梯子不稳可以尝试站长同款</span>
+            </a>
           </div>
         </div>
         <div class="help-actions">
@@ -1958,69 +2022,7 @@
     <img id="lightbox-image" src="" alt="">
   </div>
 
-  <script>
-    const lightbox = document.getElementById("lightbox");
-    const lightboxImage = document.getElementById("lightbox-image");
-    const closeLightbox = () => {
-      lightbox.classList.remove("open");
-      lightboxImage.src = "";
-      document.body.style.overflow = "";
-    };
-
-    document.querySelectorAll("[data-lightbox]").forEach((trigger) => {
-      trigger.addEventListener("click", () => {
-        lightboxImage.src = trigger.dataset.lightbox;
-        lightboxImage.alt = trigger.querySelector("img")?.alt || "教程截图";
-        lightbox.classList.add("open");
-        document.body.style.overflow = "hidden";
-      });
-    });
-
-    lightbox.addEventListener("click", (event) => {
-      if (event.target === lightbox) closeLightbox();
-    });
-    lightbox.querySelector(".lightbox-close").addEventListener("click", closeLightbox);
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && lightbox.classList.contains("open")) closeLightbox();
-    });
-
-    document.querySelectorAll("[data-copy]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const value = button.dataset.copy;
-        try {
-          await navigator.clipboard.writeText(value);
-          button.textContent = "已复制";
-        } catch {
-          button.textContent = "请手动复制";
-        }
-        window.setTimeout(() => { button.textContent = "复制"; }, 1800);
-      });
-    });
-
-    document.querySelectorAll("[data-complete]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const step = document.getElementById(button.dataset.complete);
-        const completed = step.classList.toggle("is-done");
-        button.textContent = completed ? "✓ 已完成" : "○ 标记已完成";
-        button.setAttribute("aria-pressed", String(completed));
-      });
-    });
-
-    document.getElementById("print-button").addEventListener("click", () => window.print());
-
-    const navLinks = [...document.querySelectorAll(".side-nav a")];
-    const sections = navLinks.map((link) => document.querySelector(link.getAttribute("href")));
-    const updateActiveNav = () => {
-      const marker = window.scrollY + 150;
-      let activeIndex = 0;
-      sections.forEach((section, index) => {
-        if (section && section.offsetTop <= marker) activeIndex = index;
-      });
-      navLinks.forEach((link, index) => link.classList.toggle("active", index === activeIndex));
-    };
-    window.addEventListener("scroll", updateActiveNav, { passive: true });
-    updateActiveNav();
-  </script>
+  <script src="guide.js" defer></script>
 </body>
 </html>
 

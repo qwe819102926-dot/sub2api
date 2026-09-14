@@ -14,7 +14,7 @@
           <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer" class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800" :title="t('home.viewDocs')"><Icon name="book" size="md" /></a>
           <button class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800" :title="isDark ? t('home.switchToLight') : t('home.switchToDark')" @click="toggleTheme"><Icon v-if="isDark" name="sun" size="md" /><Icon v-else name="moon" size="md" /></button>
           <router-link :to="isAuthenticated ? dashboardPath : '/login'" class="inline-flex min-h-10 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900">{{ isAuthenticated ? t('home.dashboard') : t('home.login') }}</router-link>
-          <router-link to="/usage-guide" class="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"><Icon name="book" size="md" /><span class="hidden sm:inline">{{ t('nav.guide') }}</span></router-link>
+          <a href="/usage-guide/guide.html" target="_blank" rel="noopener noreferrer" class="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"><Icon name="book" size="md" /><span class="hidden sm:inline">{{ t('nav.guide') }}</span></a>
         </div>
       </nav>
     </header>
@@ -30,7 +30,7 @@
         <router-link to="/home" class="flex min-w-0 items-center gap-3" aria-label="返回首页"><span class="home-logo h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-black/10 bg-white dark:border-white/10 dark:bg-white/10"><img :src="siteLogo || '/logo.svg'" alt="Logo" class="h-full w-full object-contain" /></span><span class="truncate text-base font-semibold tracking-tight">{{ siteName }}</span></router-link>
         <div class="flex shrink-0 items-center gap-1 sm:gap-2">
           <router-link to="/model-plaza" class="home-nav-link hidden sm:inline-flex">{{ t('nav.modelPlaza') }}</router-link>
-          <router-link to="/usage-guide" class="home-nav-link hidden sm:inline-flex">{{ t('nav.guide') }}</router-link>
+          <a href="/usage-guide/guide.html" target="_blank" rel="noopener noreferrer" class="home-nav-link hidden sm:inline-flex">{{ t('nav.guide') }}</a>
           <router-link to="/monitor" class="home-nav-link hidden md:inline-flex">{{ t('nav.channelStatus') }}</router-link>
           <LocaleSwitcher />
           <button class="home-icon-button" :title="isDark ? t('home.switchToLight') : t('home.switchToDark')" @click="toggleTheme"><Icon v-if="isDark" name="sun" size="md" /><Icon v-else name="moon" size="md" /></button>

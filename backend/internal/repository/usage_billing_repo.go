@@ -191,11 +191,13 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost, r.bonusBalanceConsumptionRate(ctx))
+		newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, cmd.UserID, cmd.BalanceCost, r.bonusBalanceConsumptionRate(ctx))
 		if err != nil {
 			return err
 		}
 		result.NewBalance = &newBalance
+		result.BalanceDeducted = bonusDeducted + principalDeducted
+		result.PrincipalDeducted = principalDeducted
 		result.BalanceOverdrafted = !sufficient
 	}
 
@@ -268,8 +270,23 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 }
 
 func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64, rates ...float64) (float64, bool, error) {
+	newBalance, sufficient, _, _, err := deductUsageBillingBalanceDetailed(ctx, tx, userID, amount, rates...)
+	return newBalance, sufficient, err
+}
+
+// deductUsageBillingBalanceDetailed returns the post-deduction principal
+// balance, whether the principal balance was sufficient, and the total number
+// of balance units consumed. Bonus balance is counted at its configured
+// consumption rate, so this value is the amount users see as deducted.
+func deductUsageBillingBalanceDetailed(ctx context.Context, tx *sql.Tx, userID int64, amount float64, rates ...float64) (float64, bool, float64, float64, error) {
 	var newBalance float64
 	var bonusBalance float64
+	// Keep every amount passed to NUMERIC(20,8) columns on the same scale as
+	// the command-level billing fields. This also prevents float residue from
+	// leaking into the principal amount after bonus-rate conversion.
+	amount = service.QuantizeUsageBillingAmount(amount)
+	bonusDeducted := 0.0
+	principalDeducted := 0.0
 	// Promotional balance is consumed first. The principal balance keeps its
 	// existing overdraft behavior after the bonus bucket is exhausted.
 	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&bonusBalance); err == nil {
@@ -277,21 +294,22 @@ func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, am
 		if len(rates) > 0 && rates[0] > 0 && !math.IsNaN(rates[0]) && !math.IsInf(rates[0], 0) {
 			rate = rates[0]
 		}
-		usedBonus := math.Min(amount*rate, math.Max(0, bonusBalance))
+		usedBonus := service.QuantizeUsageBillingAmount(math.Min(amount*rate, math.Max(0, bonusBalance)))
 		if usedBonus > 0 {
 			if _, err := tx.ExecContext(ctx, `UPDATE users SET bonus_balance = bonus_balance - $1, updated_at = NOW() WHERE id = $2`, usedBonus, userID); err != nil {
-				return 0, false, err
+				return 0, false, 0, 0, err
 			}
-			amount -= usedBonus / rate
+			bonusDeducted = usedBonus
+			amount = service.QuantizeUsageBillingAmount(amount - usedBonus/rate)
 		}
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return 0, false, err
+		return 0, false, 0, 0, err
 	}
 	if amount <= 0 {
 		if err := tx.QueryRowContext(ctx, `SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL`, userID).Scan(&newBalance); err != nil {
-			return 0, false, err
+			return 0, false, 0, 0, err
 		}
-		return newBalance, true, nil
+		return newBalance, true, bonusDeducted, 0, nil
 	}
 	err := tx.QueryRowContext(ctx, `
 		UPDATE users
@@ -301,10 +319,11 @@ func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, am
 		RETURNING balance
 	`, amount, userID).Scan(&newBalance)
 	if err == nil {
-		return newBalance, true, nil
+		principalDeducted = service.QuantizeUsageBillingAmount(amount)
+		return newBalance, true, bonusDeducted, principalDeducted, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return 0, false, err
+		return 0, false, 0, 0, err
 	}
 
 	err = tx.QueryRowContext(ctx, `
@@ -315,12 +334,13 @@ func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, am
 		RETURNING balance
 	`, amount, userID).Scan(&newBalance)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, false, service.ErrUserNotFound
+		return 0, false, 0, 0, service.ErrUserNotFound
 	}
 	if err != nil {
-		return 0, false, err
+		return 0, false, 0, 0, err
 	}
-	return newBalance, false, nil
+	principalDeducted = service.QuantizeUsageBillingAmount(amount)
+	return newBalance, false, bonusDeducted, principalDeducted, nil
 }
 
 func reserveUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {

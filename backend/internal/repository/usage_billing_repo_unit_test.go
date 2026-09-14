@@ -165,6 +165,96 @@ func TestDeductUsageBillingBalance_UsesBonusBalanceBeforePrincipal(t *testing.T)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestDeductUsageBillingBalanceDetailed_AppliesBonusRateToTotalDeduction(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(bonusBalanceSelectSQL).
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"bonus_balance"}).AddRow(5.0))
+	mock.ExpectExec(bonusBalanceDeductSQL).
+		WithArgs(5.0, int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(currentBalanceSelectSQL).
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(10.0))
+	mock.ExpectCommit()
+
+	newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, 42, 2.5, 2)
+	require.NoError(t, err)
+	require.True(t, sufficient)
+	require.InDelta(t, 10.0, newBalance, 1e-9)
+	require.InDelta(t, 5.0, bonusDeducted, 1e-9)
+	require.Zero(t, principalDeducted)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeductUsageBillingBalanceDetailed_SplitsBonusAndPrincipalAtRate(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(bonusBalanceSelectSQL).
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"bonus_balance"}).AddRow(3.0))
+	mock.ExpectExec(bonusBalanceDeductSQL).
+		WithArgs(3.0, int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(conditionalBalanceDeductSQL).
+		WithArgs(1.0, int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(9.0))
+	mock.ExpectCommit()
+
+	newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, 42, 2.5, 2)
+	require.NoError(t, err)
+	require.True(t, sufficient)
+	require.InDelta(t, 9.0, newBalance, 1e-9)
+	require.InDelta(t, 3.0, bonusDeducted, 1e-9)
+	require.InDelta(t, 1.0, principalDeducted, 1e-9)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestDeductUsageBillingBalanceDetailed_QuantizesPrincipalAfterBonusConversion(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(bonusBalanceSelectSQL).
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"bonus_balance"}).AddRow(0.00000001))
+	mock.ExpectExec(bonusBalanceDeductSQL).
+		WithArgs(0.00000001, int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery(conditionalBalanceDeductSQL).
+		WithArgs(0.12345679, int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(9.87654321))
+	mock.ExpectCommit()
+
+	newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, 42, 0.12345679, 2)
+	require.NoError(t, err)
+	require.True(t, sufficient)
+	require.InDelta(t, 9.87654321, newBalance, 1e-9)
+	require.InDelta(t, 0.00000001, bonusDeducted, 1e-12)
+	require.InDelta(t, 0.12345679, principalDeducted, 1e-12)
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestReserveUsageBillingBatchImageBalance_MovesAvailableToFrozen(t *testing.T) {
 	ctx := context.Background()
 	db, mock, err := sqlmock.New()

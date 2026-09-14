@@ -354,6 +354,12 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 		return false, nil
 	}
+	// actual_cost is the user-facing billed amount. The pricing cost remains
+	// available as total_cost, while bonus-balance consumption can deduct more
+	// balance units than the request's pricing cost.
+	if !p.IsSubscriptionBill && result.BalanceDeducted > 0 && usageLog != nil {
+		usageLog.ActualCost = result.BalanceDeducted
+	}
 
 	if result.APIKeyQuotaExhausted {
 		if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok && p.APIKey != nil && p.APIKey.Key != "" {
@@ -439,7 +445,13 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 		}
 		return
 	}
-	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+	// The cache tracks principal balance only. Bonus balance has its own bucket
+	// and may be consumed at a different rate, so only enqueue the principal
+	// portion of this deduction.
+	principalDeducted := resolvePrincipalDeducted(p, result)
+	if principalDeducted > 0 {
+		deps.billingCacheService.QueueDeductBalance(p.User.ID, principalDeducted)
+	}
 }
 
 // notifyBalanceLow sends balance low notification after deduction.
@@ -451,10 +463,12 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 			slog.Error("panic in notifyBalanceLow", "recover", r)
 		}
 	}()
-	if p.IsSubscriptionBill || p.Cost.ActualCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
+	principalDeducted := resolvePrincipalDeducted(p, result)
+	if p.IsSubscriptionBill || principalDeducted <= 0 || p.User == nil || deps.balanceNotifyService == nil {
 		slog.Debug("notifyBalanceLow: skipped",
 			"is_subscription", p.IsSubscriptionBill,
 			"actual_cost", p.Cost.ActualCost,
+			"principal_deducted", principalDeducted,
 			"user_nil", p.User == nil,
 			"service_nil", deps.balanceNotifyService == nil,
 		)
@@ -465,19 +479,37 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 	slog.Debug("notifyBalanceLow: calling CheckBalanceAfterDeduction",
 		"user_id", p.User.ID,
 		"old_balance", oldBalance,
-		"cost", p.Cost.ActualCost,
+		"cost", principalDeducted,
 		"notify_enabled", p.User.BalanceNotifyEnabled,
 		"threshold", p.User.BalanceNotifyThreshold,
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
-	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, p.Cost.ActualCost)
+	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, principalDeducted)
+}
+
+// resolvePrincipalDeducted returns the amount removed from the principal
+// balance. Bonus balance may be charged at a multiplier, but must not affect
+// principal-balance notifications.
+func resolvePrincipalDeducted(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
+	if p == nil || p.Cost == nil {
+		return 0
+	}
+	if result != nil {
+		// Results produced by the current repository always populate at least
+		// one deduction field. Preserve the legacy fallback for older repository
+		// implementations and lightweight test doubles.
+		if result.PrincipalDeducted != 0 || result.BalanceDeducted != 0 {
+			return result.PrincipalDeducted
+		}
+	}
+	return p.Cost.ActualCost
 }
 
 // resolveOldBalance returns the pre-deduction balance.
 // Prefers the DB transaction result (newBalance + cost) over snapshot.
 func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
 	if result != nil && result.NewBalance != nil {
-		return *result.NewBalance + p.Cost.ActualCost
+		return *result.NewBalance + resolvePrincipalDeducted(p, result)
 	}
 	// Legacy fallback: snapshot balance from request context
 	return p.User.Balance
