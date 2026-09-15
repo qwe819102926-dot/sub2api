@@ -64,7 +64,7 @@ until docker exec "${PREFIX}-postgres" pg_isready -h 127.0.0.1 -p 5432 -U sub2ap
     docker logs "${PREFIX}-postgres" >&2 || true
     exit 1
   fi
-  sleep 2
+  sleep 1
 done
 
 say "Waiting for Redis to be ready"
@@ -76,7 +76,7 @@ until [ "$(docker exec "${PREFIX}-redis" redis-cli ping 2>/dev/null)" = "PONG" ]
     docker logs "${PREFIX}-redis" >&2 || true
     exit 1
   fi
-  sleep 2
+  sleep 1
 done
 
 # ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ until curl -fsS -o /dev/null "${BASE}/health" 2>/dev/null; do
     docker logs "${PREFIX}-sub2api" >&2 || true
     exit 1
   fi
-  sleep 2
+  sleep 1
 done
 
 # ---------------------------------------------------------------------------

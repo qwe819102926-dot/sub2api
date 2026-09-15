@@ -11,6 +11,8 @@ GREEN_PORT="${GREEN_PORT:-}"
 GREEN_PORT_BASE="${GREEN_PORT_BASE:-18080}"
 GREEN_PORT_SCAN_LIMIT="${GREEN_PORT_SCAN_LIMIT:-100}"
 DRAIN_SECONDS="${DRAIN_SECONDS:-120}"
+DRAIN_POLL_SECONDS="${DRAIN_POLL_SECONDS:-1}"
+HEALTH_POLL_SECONDS="${HEALTH_POLL_SECONDS:-1}"
 KEEP_OLD=0
 GREEN_PORT_EXPLICIT=0
 if [[ -n "$GREEN_PORT" ]]; then
@@ -28,6 +30,8 @@ Usage: blue-green-update.sh --image IMAGE --public-health-url URL [options]
   --blue-port PORT          Existing application host port (default: 8080)
   --green-port PORT         Force green host port (default: auto-select)
   --drain-seconds N         Keep blue alive before stopping it (default: 120)
+  --drain-poll-seconds N    Poll interval while draining (default: 1)
+  --health-poll-seconds N   Poll interval for local/public health (default: 1)
   --keep-old                Leave blue running for manual rollback
 EOF
 }
@@ -44,6 +48,8 @@ while (($#)); do
     --blue-port) BLUE_PORT="${2:?missing value for --blue-port}"; shift 2 ;;
     --green-port) GREEN_PORT="${2:?missing value for --green-port}"; GREEN_PORT_EXPLICIT=1; shift 2 ;;
     --drain-seconds) DRAIN_SECONDS="${2:?missing value for --drain-seconds}"; shift 2 ;;
+    --drain-poll-seconds) DRAIN_POLL_SECONDS="${2:?missing value for --drain-poll-seconds}"; shift 2 ;;
+    --health-poll-seconds) HEALTH_POLL_SECONDS="${2:?missing value for --health-poll-seconds}"; shift 2 ;;
     --keep-old) KEEP_OLD=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown option: $1" ;;
@@ -53,6 +59,8 @@ done
 [[ -n "$IMAGE" ]] || die "--image is required"
 [[ -n "$PUBLIC_HEALTH_URL" ]] || die "--public-health-url is required"
 [[ "$DRAIN_SECONDS" =~ ^[0-9]+$ ]] || die "--drain-seconds must be a non-negative integer"
+[[ "$DRAIN_POLL_SECONDS" =~ ^[0-9]+$ ]] || die "DRAIN_POLL_SECONDS must be a non-negative integer"
+[[ "$HEALTH_POLL_SECONDS" =~ ^[0-9]+$ ]] || die "HEALTH_POLL_SECONDS must be a non-negative integer"
 [[ "$GREEN_PORT_SCAN_LIMIT" =~ ^[0-9]+$ ]] || die "GREEN_PORT_SCAN_LIMIT must be a non-negative integer"
 [[ -f "$ENV_FILE" ]] || die "environment file not found: $ENV_FILE"
 [[ -f "$CADDY_CONFIG" ]] || die "Caddyfile not found: $CADDY_CONFIG"
@@ -66,6 +74,7 @@ exec 9>"$DEPLOY_DIR/.blue-green-update.lock"
 flock -n 9 || die "another blue-green deployment is already running"
 
 TS="${TS:-$(date +%Y%m%d_%H%M%S)}"
+STARTED_AT=$SECONDS
 WORKDIR="$DEPLOY_DIR/.blue-green/$TS"
 STATE_FILE="$DEPLOY_DIR/.blue-green-active"
 mkdir -p "$WORKDIR"
@@ -152,7 +161,15 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 cp "$CADDY_CONFIG" "$WORKDIR/caddy.backup"
 cp "$ENV_FILE" "$WORKDIR/env.backup"
-docker pull "$IMAGE"
+PULL_STARTED=$SECONDS
+if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+  echo "image already present locally; skipping pull: $IMAGE"
+  echo "pull_skipped=1"
+else
+  docker pull "$IMAGE"
+  echo "pull_skipped=0"
+fi
+echo "pull_duration_seconds=$((SECONDS - PULL_STARTED))"
 
 GREEN_CONTAINER="sub2api-green-$TS"
 PROXY_EDITED=0
@@ -184,6 +201,7 @@ rollback() {
 trap rollback EXIT
 
 port_is_available "$GREEN_PORT" || die "green port became occupied before container start: $GREEN_PORT"
+START_GREEN_STARTED=$SECONDS
 docker run -d --name "$GREEN_CONTAINER" --restart unless-stopped \
   --security-opt no-new-privileges:true \
   --publish "127.0.0.1:$GREEN_PORT:8080" \
@@ -191,14 +209,17 @@ docker run -d --name "$GREEN_CONTAINER" --restart unless-stopped \
   --volumes-from "$ACTIVE_CONTAINER" \
   --env-file "$WORKDIR/green.env" \
   "$IMAGE" >/dev/null
+echo "green_start_duration_seconds=$((SECONDS - START_GREEN_STARTED))"
 
 GREEN_HEALTH="$WORKDIR/green-health.txt"
 GREEN_OK=0
+GREEN_HEALTH_STARTED=$SECONDS
 for _ in $(seq 1 24); do
   if curl -fsS --max-time 5 "http://127.0.0.1:$GREEN_PORT/health" > "$GREEN_HEALTH"; then GREEN_OK=1; break; fi
-  sleep 5
+  sleep "$HEALTH_POLL_SECONDS"
 done
 [[ "$GREEN_OK" == "1" ]] || { docker logs --tail 160 "$GREEN_CONTAINER" >&2 || true; die "green health check failed"; }
+echo "green_health_duration_seconds=$((SECONDS - GREEN_HEALTH_STARTED))"
 
 python3 - "$CADDY_CONFIG" "$ACTIVE_PORT" "$GREEN_PORT" <<'PY'
 from pathlib import Path
@@ -214,16 +235,20 @@ if count != 1:
 path.write_text(updated, encoding="utf-8")
 PY
 PROXY_EDITED=1
+PROXY_RELOAD_STARTED=$SECONDS
 caddy validate --config "$CADDY_CONFIG" --adapter caddyfile
 caddy reload --config "$CADDY_CONFIG" --adapter caddyfile
+echo "proxy_reload_duration_seconds=$((SECONDS - PROXY_RELOAD_STARTED))"
 
 PUBLIC_HEALTH="$WORKDIR/public-health.txt"
 PUBLIC_OK=0
+PUBLIC_HEALTH_STARTED=$SECONDS
 for _ in $(seq 1 6); do
   if curl -fsS --max-time 10 "$PUBLIC_HEALTH_URL" > "$PUBLIC_HEALTH"; then PUBLIC_OK=1; break; fi
-  sleep 3
+  sleep "$HEALTH_POLL_SECONDS"
 done
 [[ "$PUBLIC_OK" == "1" ]] || die "public health check failed after Caddy switch"
+echo "public_health_duration_seconds=$((SECONDS - PUBLIC_HEALTH_STARTED))"
 
 python3 - "$ENV_FILE" "$IMAGE" <<'PY'
 from pathlib import Path
@@ -247,12 +272,20 @@ mv "$WORKDIR/active-state" "$STATE_FILE"
 if [[ "$KEEP_OLD" == "1" ]]; then
   echo "old container kept for manual rollback: $ACTIVE_CONTAINER"
 else
-  echo "draining old container for $DRAIN_SECONDS""s"
-  sleep "$DRAIN_SECONDS"
-  docker stop --time 30 "$ACTIVE_CONTAINER" >/dev/null
+  echo "gracefully stopping old container (max ${DRAIN_SECONDS}s)"
+  docker kill --signal=TERM "$ACTIVE_CONTAINER" >/dev/null
+  drain_deadline=$((SECONDS + DRAIN_SECONDS))
+  while [[ "$(docker inspect -f '{{.State.Running}}' "$ACTIVE_CONTAINER" 2>/dev/null || echo false)" == "true" ]] && (( SECONDS < drain_deadline )); do
+    sleep "$DRAIN_POLL_SECONDS"
+  done
+  if [[ "$(docker inspect -f '{{.State.Running}}' "$ACTIVE_CONTAINER" 2>/dev/null || echo false)" == "true" ]]; then
+    echo "graceful shutdown exceeded ${DRAIN_SECONDS}s; force stopping old container" >&2
+    docker stop --time 0 "$ACTIVE_CONTAINER" >/dev/null
+  fi
 fi
 COMPLETED=1
 echo "BLUE_GREEN_SUCCESS=1"
+echo "DEPLOY_DURATION_SECONDS=$((SECONDS - STARTED_AT))"
 echo "ACTIVE_CONTAINER=$GREEN_CONTAINER"
 echo "ACTIVE_PORT=$GREEN_PORT"
 echo "ACTIVE_IMAGE=$IMAGE"

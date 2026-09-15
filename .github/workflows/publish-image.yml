@@ -3,6 +3,15 @@ name: Build and publish Docker image
 on:
   push:
     branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'docs/legal/**'
+      - 'deploy/docker-entrypoint.sh'
+      - 'deploy/smoke-test.sh'
+      - '.github/workflows/publish-image.yml'
   workflow_dispatch:
 
 permissions:
@@ -69,4 +78,6 @@ jobs:
         run: sh deploy/smoke-test.sh sub2api:smoke 8080
 
       - name: Push tested image
-        run: docker push --all-tags ghcr.io/qwe819102926-dot/sub2api
+        run: |
+          docker push ghcr.io/qwe819102926-dot/sub2api:latest
+          docker push ghcr.io/qwe819102926-dot/sub2api:sha-${GITHUB_SHA::7}

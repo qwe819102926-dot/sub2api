@@ -28,16 +28,18 @@ chmod +x blue-green-update.sh
 
 脚本会：
 
-1. 拉取目标镜像并复制当前容器的环境变量、网络和所有挂载。
+1. 检查目标不可变镜像是否已在本地；未缓存时才拉取，然后复制当前容器的环境变量、网络和所有挂载。
 2. 自动选择与 active 端口不同且未被占用的 loopback 端口，再启动 green；默认优先尝试 `18080`、当前 blue 端口，然后扫描后续端口。也可通过 `--green-port` 强制指定。
 3. 等待 green `/health` 成功。
 4. 校验并 reload Caddy，将流量切换到 green。
 5. 检查公网 `/health`。
 6. 更新 `.env` 中的 `SUB2API_IMAGE`。
-7. 默认等待 120 秒后停止旧容器。
+7. 立即向旧容器发送 `SIGTERM`，等待应用优雅退出；最长由 `--drain-seconds`
+   （默认 120 秒）限制，超时才强制停止。
 
-第一次切换建议使用 `--keep-old`，验证一段时间后再停止旧容器。等待时间可用
-`--drain-seconds 300` 调大，长连接较多时建议这样做。
+第一次切换建议使用 `--keep-old`，验证一段时间后再停止旧容器。长连接较多时可用
+`--drain-seconds 300` 调大；健康检查轮询间隔可通过 `HEALTH_POLL_SECONDS` 调整。
+也可用 `--health-poll-seconds 1` 和 `--drain-poll-seconds 1` 在命令行显式设置轮询间隔。
 
 ## 回滚
 
