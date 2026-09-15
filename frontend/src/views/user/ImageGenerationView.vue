@@ -7,8 +7,8 @@
           <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">{{ t('imageGeneration.title') }}</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('imageGeneration.description') }}</p>
         </div>
-        <button type="button" class="btn btn-secondary btn-sm" :disabled="loadingAccess" @click="refreshImageGenerationAccess(true)">
-          <Icon name="refresh" size="sm" class="mr-1.5" :class="loadingAccess ? 'animate-spin' : ''" />{{ t('common.refresh') }}
+        <button type="button" class="btn btn-secondary btn-sm" :disabled="loadingAccess || loadingModels" @click="refreshPage">
+          <Icon name="refresh" size="sm" class="mr-1.5" :class="loadingAccess || loadingModels ? 'animate-spin' : ''" />{{ t('common.refresh') }}
         </button>
       </div>
 
@@ -29,8 +29,16 @@
           </div>
 
           <div class="grid gap-4 md:grid-cols-2">
-            <label class="field"><span>{{ t('imageGeneration.apiKey') }}</span><select v-model="selectedKeyId" class="input"><option :value="0">{{ t('imageGeneration.selectKey') }}</option><option v-for="key in imageKeys" :key="key.id" :value="key.id">{{ key.name }} · {{ key.group?.name || key.group?.platform }}</option></select></label>
-            <label class="field"><span>{{ t('imageGeneration.model') }}</span><input v-model="form.model" class="input" list="image-models" spellcheck="false" /><datalist id="image-models"><option value="gpt-image-1" /><option value="gpt-image-2" /><option value="grok-imagine-image" /></datalist></label>
+            <label class="field"><span>{{ t('imageGeneration.apiKey') }}</span><select v-model="selectedKeyId" class="input" @change="loadAvailableModels"><option :value="0">{{ t('imageGeneration.selectKey') }}</option><option v-for="key in imageKeys" :key="key.id" :value="key.id">{{ key.name }} · {{ key.group?.name || key.group?.platform }}</option></select></label>
+            <label class="field">
+              <span>{{ t('imageGeneration.model') }}</span>
+              <select v-model="form.model" class="input" :disabled="loadingModels || availableModels.length === 0">
+                <option v-if="loadingModels" value="">{{ t('imageGeneration.loadingModels') }}</option>
+                <option v-else-if="availableModels.length === 0" value="">{{ t('imageGeneration.noModels') }}</option>
+                <option v-for="model in availableModels" :key="model" :value="model">{{ model }}</option>
+              </select>
+              <small v-if="modelLoadError" class="!text-left !text-amber-600 dark:!text-amber-400">{{ modelLoadError }}</small>
+            </label>
           </div>
 
           <label class="field mt-5"><span>{{ t('imageGeneration.prompt') }}</span><textarea v-model="form.prompt" rows="7" class="input resize-y" :placeholder="t('imageGeneration.promptPlaceholder')" maxlength="4000" /><small>{{ form.prompt.length }} / 4000</small></label>
@@ -67,23 +75,55 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { Icon } from '@/components/icons'
 import { useImageGenerationAccess } from '@/composables/useImageGenerationAccess'
-import { generateImages, downloadGeneratedImage, type GeneratedImage } from '@/api/imageGeneration'
+import { generateImages, downloadGeneratedImage, listImageGenerationModels, type GeneratedImage } from '@/api/imageGeneration'
 
 const { t } = useI18n()
 const { imageGenerationKeys: imageKeys, loadingImageGenerationAccess: loadingAccess, refreshImageGenerationAccess } = useImageGenerationAccess()
 const selectedKeyId = ref(0)
 const mode = ref<'generate' | 'edit'>('generate')
 const submitting = ref(false)
+const loadingModels = ref(false)
 const errorMessage = ref('')
+const modelLoadError = ref('')
+const availableModels = ref<string[]>([])
 const images = ref<GeneratedImage[]>([])
 const sourceImage = ref<File | null>(null)
 const sourcePreview = ref('')
-const form = ref({ model: 'gpt-image-1', prompt: '', size: '1024x1024', quality: 'auto', n: 1, output_format: 'png' })
+const form = ref({ model: '', prompt: '', size: '1024x1024', quality: 'auto', n: 1, output_format: 'png' })
 const selectedKey = computed(() => imageKeys.value.find(key => key.id === selectedKeyId.value))
-const canSubmit = computed(() => Boolean(selectedKey.value?.key && form.value.model.trim() && form.value.prompt.trim() && (mode.value === 'generate' || sourceImage.value)))
+const canSubmit = computed(() => Boolean(selectedKey.value?.key && availableModels.value.includes(form.value.model) && form.value.prompt.trim() && (mode.value === 'generate' || sourceImage.value)))
+let modelRequestSeq = 0
 
-onMounted(async () => { await refreshImageGenerationAccess(); if (!selectedKeyId.value) selectedKeyId.value = imageKeys.value[0]?.id || 0 })
+onMounted(refreshPage)
 onBeforeUnmount(() => { if (sourcePreview.value) URL.revokeObjectURL(sourcePreview.value) })
+
+async function refreshPage() {
+  await refreshImageGenerationAccess(true)
+  if (!imageKeys.value.some(key => key.id === selectedKeyId.value)) selectedKeyId.value = imageKeys.value[0]?.id || 0
+  await loadAvailableModels()
+}
+
+async function loadAvailableModels() {
+  const key = selectedKey.value
+  const requestId = ++modelRequestSeq
+  availableModels.value = []
+  form.value.model = ''
+  modelLoadError.value = ''
+  if (!key) return
+
+  loadingModels.value = true
+  try {
+    const models = await listImageGenerationModels(key.key, key.group?.platform)
+    if (requestId !== modelRequestSeq) return
+    availableModels.value = models
+    form.value.model = models[0] || ''
+  } catch (error) {
+    if (requestId !== modelRequestSeq) return
+    modelLoadError.value = error instanceof Error ? error.message : t('imageGeneration.loadModelsFailed')
+  } finally {
+    if (requestId === modelRequestSeq) loadingModels.value = false
+  }
+}
 
 function onSourceImage(event: Event) { const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return; if (sourcePreview.value) URL.revokeObjectURL(sourcePreview.value); sourceImage.value = file; sourcePreview.value = URL.createObjectURL(file) }
 function clearSourceImage() { if (sourcePreview.value) URL.revokeObjectURL(sourcePreview.value); sourceImage.value = null; sourcePreview.value = '' }

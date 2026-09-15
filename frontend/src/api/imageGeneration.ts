@@ -17,6 +17,15 @@ export interface GeneratedImage {
   index: number
 }
 
+export interface ImageGenerationModel {
+  id: string
+}
+
+export interface ImageGenerationModelsResponse {
+  object: string
+  data: ImageGenerationModel[]
+}
+
 async function parseError(response: Response): Promise<Error> {
   try {
     const body = await response.json()
@@ -29,6 +38,35 @@ async function parseError(response: Response): Promise<Error> {
 
 function authHeaders(apiKey: string): HeadersInit {
   return { Authorization: `Bearer ${apiKey}` }
+}
+
+export function isImageGenerationModel(model: string, platform?: string): boolean {
+  const id = model.trim().toLowerCase()
+  if (!id) return false
+  if (platform === 'openai') return id.startsWith('gpt-image-') || id.startsWith('dall-e-')
+  if (platform === 'grok') return id.startsWith('grok-imagine') && !id.includes('video')
+  return (
+    id.startsWith('gpt-image-') ||
+    id.startsWith('dall-e-') ||
+    (id.startsWith('grok-imagine') && !id.includes('video'))
+  )
+}
+
+export async function listImageGenerationModels(apiKey: string, platform?: string): Promise<string[]> {
+  const response = await fetch(buildGatewayUrl('/v1/models'), {
+    headers: { ...authHeaders(apiKey), Accept: 'application/json' },
+  })
+  if (!response.ok) throw await parseError(response)
+
+  const body = await response.json() as ImageGenerationModelsResponse
+  const seen = new Set<string>()
+  return (Array.isArray(body?.data) ? body.data : [])
+    .map(item => String(item?.id || '').trim())
+    .filter(model => {
+      if (!isImageGenerationModel(model, platform) || seen.has(model)) return false
+      seen.add(model)
+      return true
+    })
 }
 
 function normalizeImages(body: any): GeneratedImage[] {
