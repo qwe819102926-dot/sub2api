@@ -9,6 +9,15 @@ const componentSource = readFileSync(componentPath, 'utf8')
 const stylePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../style.css')
 const styleSource = readFileSync(stylePath, 'utf8')
 
+describe('AppSidebar image generation navigation', () => {
+  it('stays discoverable before the user has a compatible key', () => {
+    expect(componentSource).toContain(
+      "{ path: '/image-generation', label: t('nav.imageGeneration'), icon: BatchImageIcon, hideInSimpleMode: true }"
+    )
+    expect(componentSource).not.toContain('flagImageGenerationAccess')
+  })
+})
+
 describe('AppSidebar custom SVG styles', () => {
   it('does not override uploaded SVG fill or stroke colors', () => {
     expect(componentSource).toContain('.sidebar-svg-icon {')
