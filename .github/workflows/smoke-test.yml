@@ -1,4 +1,4 @@
-name: Smoke test and dev image
+name: Build and smoke-test dev image
 
 on:
   push:
@@ -11,6 +11,7 @@ on:
       - 'docs/legal/**'
       - 'deploy/smoke-test.sh'
       - 'deploy/docker-entrypoint.sh'
+      - '.github/workflows/publish-image.yml'
       - '.github/workflows/smoke-test.yml'
   workflow_dispatch:
 
@@ -23,19 +24,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  smoke:
-    # Use the persistent builder so Docker/Go/pnpm caches survive runs.
-    # Only trusted commits that have landed on dev use this runner.
-    runs-on: [self-hosted, linux, x64, sub2api-builder]
+  build-smoke-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      IMAGE_NAME: ghcr.io/qwe819102926-dot/sub2api
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          name: sub2api-builder
-          cleanup: false
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -44,29 +44,66 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build image (no push)
+      # Push the immutable candidate first so the smoke test runs the exact
+      # registry artifact that can later be promoted. A failed candidate is
+      # never tagged as dev or production.
+      - name: Build and push candidate image
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
-          push: false
-          load: true
-          tags: sub2api:smoke
-          # Keep a separate registry cache from the production workflow while
-          # retaining intermediate frontend and Go builder layers locally.
-          cache-from: type=registry,ref=ghcr.io/qwe819102926-dot/sub2api:buildcache-dev
-          cache-to: type=registry,ref=ghcr.io/qwe819102926-dot/sub2api:buildcache-dev,mode=max
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:candidate-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
-            NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
+            COMMIT=${{ github.sha }}
+            NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+            GOPROXY=https://proxy.golang.org,direct
+            GOSUMDB=sum.golang.org
+          cache-from: type=gha,scope=sub2api-linux-amd64
+          cache-to: type=gha,scope=sub2api-linux-amd64,mode=max
 
       - name: Run smoke tests
-        run: sh deploy/smoke-test.sh sub2api:smoke 8080
+        run: sh deploy/smoke-test.sh "${IMAGE_NAME}@${{ steps.build.outputs.digest }}" 8080
 
-      - name: Push dev image
+      - name: Save tested image digest
+        env:
+          CANDIDATE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s\n' "${CANDIDATE_DIGEST}" > tested-image-digest.txt
+
+      - name: Upload tested image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: tested-image-${{ github.sha }}
+          path: tested-image-digest.txt
+          if-no-files-found: error
+          retention-days: 30
+          overwrite: true
+
+      - name: Promote tested candidate to dev tags
+        env:
+          CANDIDATE_DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           SHA="${GITHUB_SHA::7}"
-          docker tag sub2api:smoke ghcr.io/qwe819102926-dot/sub2api:dev
-          docker tag sub2api:smoke ghcr.io/qwe819102926-dot/sub2api:dev-${SHA}
-          docker push ghcr.io/qwe819102926-dot/sub2api:dev
-          docker push ghcr.io/qwe819102926-dot/sub2api:dev-${SHA}
+          docker buildx imagetools create \
+            --prefer-index=false \
+            --tag "${IMAGE_NAME}:dev" \
+            --tag "${IMAGE_NAME}:dev-${SHA}" \
+            "${IMAGE_NAME}@${CANDIDATE_DIGEST}"
+
+      - name: Record tested image
+        env:
+          CANDIDATE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          {
+            echo "### Tested dev image"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Digest: \`${CANDIDATE_DIGEST}\`"
+            echo "- Tag: \`${IMAGE_NAME}:dev-${SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

@@ -1,4 +1,4 @@
-name: Build and publish Docker image
+name: Promote tested Docker image
 
 on:
   push:
@@ -12,10 +12,12 @@ on:
       - 'deploy/docker-entrypoint.sh'
       - 'deploy/smoke-test.sh'
       - '.github/workflows/publish-image.yml'
+      - '.github/workflows/smoke-test.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
   packages: write
 
 concurrency:
@@ -23,23 +25,68 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Build once, test the loaded image, then push that exact image. This avoids
-  # rebuilding the same Dockerfile in a second runner after the smoke gate.
-  build-smoke-publish:
-    # Build on the persistent Docker host so Go, pnpm and BuildKit caches
-    # survive between workflow runs. This runner is reserved for trusted main
-    # branch builds; untrusted pull requests stay on GitHub-hosted runners.
-    runs-on: [self-hosted, linux, x64, sub2api-builder]
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      IMAGE_NAME: ghcr.io/qwe819102926-dot/sub2api
 
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
+      # Production must receive the exact commit and image already exercised
+      # by the dev smoke workflow. Creating a new merge SHA on main will be
+      # rejected; create and test any merge commit on dev, then fast-forward
+      # main to that already-tested SHA.
+      - name: Verify this commit passed the dev workflow
+        id: verify
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const workflow = 'smoke-test.yml';
+            const { owner, repo } = context.repo;
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: workflow,
+              branch: 'dev',
+              head_sha: context.sha,
+              status: 'success',
+              per_page: 10,
+            });
+
+            const run = response.data.workflow_runs.find(candidate =>
+              candidate.head_sha === context.sha &&
+              candidate.head_branch === 'dev' &&
+              candidate.event === 'push' &&
+              candidate.conclusion === 'success'
+            );
+
+            if (!run) {
+              core.setFailed(
+                `Commit ${context.sha} has no successful dev push run for ${workflow}. ` +
+                'Merge main into dev first, wait for the dev image to pass, then fast-forward main.'
+              );
+              return;
+            }
+
+            core.info(`Using tested dev run: ${run.html_url}`);
+            core.setOutput('run-id', run.id);
+            await core.summary
+              .addHeading('Verified dev artifact')
+              .addRaw(`Commit: \`${context.sha}\`\n\n`)
+              .addLink(`Successful dev run ${run.id}`, run.html_url)
+              .write();
+
+      - name: Download tested image digest
+        uses: actions/download-artifact@v4
+        with:
+          name: tested-image-${{ github.sha }}
+          path: .promotion
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ steps.verify.outputs.run-id }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-        with:
-          name: sub2api-builder
-          cleanup: false
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -48,36 +95,42 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set image metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/qwe819102926-dot/sub2api
-          tags: |
-            type=raw,value=latest
-            type=sha,prefix=sha-
-
-      - name: Build image once (no push)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/amd64
-          push: false
-          load: true
-          tags: |
-            sub2api:smoke
-            ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
-          cache-from: type=registry,ref=ghcr.io/qwe819102926-dot/sub2api:buildcache
-          cache-to: type=registry,ref=ghcr.io/qwe819102926-dot/sub2api:buildcache,mode=max
-
-      - name: Run smoke tests
-        run: sh deploy/smoke-test.sh sub2api:smoke 8080
-
-      - name: Push tested image
+      - name: Load and verify tested image digest
+        id: image
         run: |
-          docker push ghcr.io/qwe819102926-dot/sub2api:latest
-          docker push ghcr.io/qwe819102926-dot/sub2api:sha-${GITHUB_SHA::7}
+          DIGEST="$(tr -d '\r\n' < .promotion/tested-image-digest.txt)"
+          if [[ ! "${DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid image digest: ${DIGEST}" >&2
+            exit 1
+          fi
+          docker buildx imagetools inspect "${IMAGE_NAME}@${DIGEST}"
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+
+      - name: Promote tested image to production tags
+        env:
+          TESTED_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          docker buildx imagetools create \
+            --prefer-index=false \
+            --tag "${IMAGE_NAME}:sha-${SHA}" \
+            --tag "${IMAGE_NAME}:latest" \
+            "${IMAGE_NAME}@${TESTED_DIGEST}"
+
+      - name: Verify promoted image
+        env:
+          TESTED_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          SHA="${GITHUB_SHA::7}"
+          PROMOTED_DIGEST="sha256:$(docker buildx imagetools inspect --raw "${IMAGE_NAME}:sha-${SHA}" | sha256sum | awk '{print $1}')"
+          if [ "${PROMOTED_DIGEST}" != "${TESTED_DIGEST}" ]; then
+            echo "Promoted digest ${PROMOTED_DIGEST} does not match tested digest ${TESTED_DIGEST}" >&2
+            exit 1
+          fi
+          {
+            echo "### Production image promoted without rebuilding"
+            echo ""
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Digest: \`${TESTED_DIGEST}\`"
+            echo "- Image: \`${IMAGE_NAME}:sha-${SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

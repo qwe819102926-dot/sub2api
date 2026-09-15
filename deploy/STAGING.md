@@ -1,27 +1,28 @@
 # Sub2API 发布前测试方案(方案一 + 方案二)
 
-本文档说明如何在本项目现有的「推 main → GitHub Actions 构建 ghcr.io 镜像 → 服务器手动更新」流程上,增加一道**先测试、后上线**的闸门。
+本文档说明如何用 GitHub 托管 Runner **只构建一次**,先测试镜像 digest,再把同一
+digest 提升为生产 tag。生产发布不重新编译镜像。
 
 ```
-改代码 → 推到 dev/任意分支
+改代码 → 推到 dev
    │
    ▼
-GitHub Actions: 构建镜像 + 冒烟测试(方案一)
+GitHub Actions: 构建 candidate-<完整 SHA> + 按 digest 冒烟(方案一)
    │ 通过
    ▼
-推送 ghcr.io/.../sub2api:dev 镜像
+保存 tested digest artifact,提升 :dev / :dev-<短 SHA>
    │
    ▼
 服务器 staging 实例(方案二,与生产完全隔离)
    │ 你验证通过
    ▼
-合并 dev → main
+fast-forward dev → main(SHA 必须相同)
    │
    ▼
-GitHub Actions: 冒烟测试通过后 才发布 latest(方案一闸门)
+GitHub Actions: 校验 dev 成功记录和 digest artifact
    │
    ▼
-服务器手动 docker compose pull && up -d 更新生产(保持不变)
+远程提升同一 digest 为 :sha-<短 SHA> / :latest,再执行蓝绿发布
 ```
 
 ---
@@ -30,22 +31,26 @@ GitHub Actions: 冒烟测试通过后 才发布 latest(方案一闸门)
 
 新增/修改的两个 workflow:
 
-### `.github/workflows/smoke-test.yml`(新)
-- 触发:推送 `main` 之外的任意分支(即你的日常修改分支)
+### `.github/workflows/smoke-test.yml`
+- 触发:推送 `dev` 或手动触发
+- Runner:`ubuntu-latest`,不依赖自托管构建机
 - 内容:
-  1. 构建镜像(带 BuildKit 缓存,速度快)
+  1. 使用 BuildKit + GitHub Actions cache 构建并推送 `candidate-<完整 SHA>`
   2. 在 GitHub runner 里临时启动 Postgres + Redis + Sub2API 容器
   3. 依次检查:`/health`、`/setup/status`、前端首页、管理员登录、带 token 的认证接口
-  4. **全部通过**才推送 `ghcr.io/qwe819102926-dot/sub2api:dev` 和 `dev-<sha>` 镜像
+  4. 冒烟测试直接使用构建输出的 digest,并上传 `tested-image-<完整 SHA>` artifact
+  5. **全部通过**才把同一 digest 提升为 `:dev` 和 `:dev-<短 SHA>`
 - 冒烟逻辑在 `deploy/smoke-test.sh`,CI 和服务器都可以复用
 
-### `.github/workflows/publish-image.yml`(修改)
-- 在发布 `latest` 之前新增了 `smoke` 前置任务(`build` 任务 `needs: smoke`)
-- 效果:**main 分支推送后,如果冒烟测试失败,`latest` 不会发布**,生产就不会拉到坏镜像
-- 生产更新仍然保持你现在的「服务器手动 pull + up」,没有变化
+### `.github/workflows/publish-image.yml`
+- 不构建镜像,只接受在 dev 上成功测试过的同一个提交 SHA
+- 下载对应 dev run 保存的 digest artifact,按 digest 提升为 `:sha-<短 SHA>` 和 `:latest`
+- 在 main 上新产生、且未在 dev 测试过的 merge/rebase/direct commit SHA 会保护性失败
+- 发布 dev 到 main 前,先把 main 的变化同步进 dev,再使用 fast-forward 保持 SHA 不变
 
 ### 手动触发冒烟
-在 GitHub 仓库的 **Actions → Smoke test and dev image → Run workflow**,可以直接对任意分支/提交跑一次。
+在 GitHub 仓库的 **Actions → Build and smoke-test dev image → Run workflow** 可以手动执行。
+生产提升只认可 `dev` 分支 `push` 事件成功的结果,手动运行不能绕过发布闸门。
 
 ---
 
@@ -144,7 +149,7 @@ staging.aitokey.top {
 
 ```bash
 # 本地
-git push origin dev          # 或你随便开的分支
+git push origin dev
 
 # GitHub Actions 会自动: 构建 + 冒烟测试 → 推送 :dev 镜像
 
@@ -154,7 +159,9 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging pull sub2ap
 docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
 ```
 
-在 `https://staging.aitokey.top` 验证通过后,把分支合并进 `main` 走正常生产发布即可。
+在 `https://staging.aitokey.top` 验证通过后,先确认 dev 已包含 main 的全部提交,再将
+main fast-forward 到该 dev SHA。可以先在 dev 合入 main 并测试该 merge commit,但不要在
+main 上临时创建一个未经 dev 测试的新 merge commit,否则生产提升会拒绝执行。
 
 ### 停止 / 清理 staging(不要的时候)
 
@@ -182,7 +189,7 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging down -v
 
 ## 需要留意的点
 
-1. **镜像保留策略**:dev 镜像会随每次分支推送增长(dev + dev-<sha>)。可在
+1. **镜像保留策略**:dev 镜像会随每次推送增长(candidate-<完整 SHA> + dev-<短 SHA>)。可在
    GitHub → Packages → sub2api → Package settings 里开启自动清理/保留策略,只保留最近 N 个。
 2. **staging 与生产共用服务器资源**:staging 默认只占 8081 端口 + 少量内存。
    如果服务器很紧张,可以只在要测试时启动 staging,测完 `down`。
@@ -211,10 +218,10 @@ docker compose -f docker-compose.staging.yml --env-file .env.staging down -v
 
 ### 发布闸门(必须先测后发)
 
-1. 新功能只推 **dev(或任意非 main 分支)** → CI 自动构建 + 冒烟 → 推 `:dev` 镜像 → staging 更新。
+1. 新功能推 **dev** → CI 构建候选镜像 → 按 digest 冒烟 → 提升 `:dev` 镜像 → staging 更新。
 2. 在 `https://staging.aitokey.top` 登录验证,确认无误。
-3. 验证通过后,才把 dev **合并到 main** → 触发 publish-image 的冒烟门禁 → 冒烟通过才发布 `:latest`。
-4. 生产更新由你手动 `docker compose pull sub2api && docker compose up -d sub2api`,生产数据全程用 `sub2api` 库,与 staging 无关。
+3. 验证通过后,将 dev **fast-forward 到 main** → 校验相同 SHA 的成功 dev run → 将同一 digest 提升为生产 tag。
+4. 使用 `sha-<短 SHA>` 不可变镜像执行蓝绿发布,生产数据全程使用现有 `sub2api` 数据库和 Redis。
 
 ### 防呆(避免误操作)
 
