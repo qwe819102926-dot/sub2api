@@ -269,11 +269,6 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
-func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64, rates ...float64) (float64, bool, error) {
-	newBalance, sufficient, _, _, err := deductUsageBillingBalanceDetailed(ctx, tx, userID, amount, rates...)
-	return newBalance, sufficient, err
-}
-
 // deductUsageBillingBalanceDetailed returns the post-deduction principal
 // balance, whether the principal balance was sufficient, and the total number
 // of balance units consumed. Bonus balance is counted at its configured
