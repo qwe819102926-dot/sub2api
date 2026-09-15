@@ -12,4 +12,11 @@ describe('ImageGenerationView data loading', () => {
     expect(viewSource).toContain('listImageGenerationModels(key.key, key.group?.platform)')
     expect(viewSource).toContain('@change="loadAvailableModels"')
   })
+
+  it('labels request sizes with their 1K, 2K and 4K billing tiers', () => {
+    expect(viewSource).toContain('<option value="1024x1024">1K · 1024x1024</option>')
+    expect(viewSource).toContain('<option value="2048x2048">2K · 2048x2048</option>')
+    expect(viewSource).toContain('<option value="3840x2160">4K · 3840x2160')
+    expect(viewSource).toContain('<option value="2160x3840">4K · 2160x3840')
+  })
 })

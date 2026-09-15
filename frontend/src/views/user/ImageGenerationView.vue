@@ -49,7 +49,18 @@
           </div>
 
           <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <label class="field"><span>{{ t('imageGeneration.size') }}</span><select v-model="form.size" class="input"><option value="1024x1024">1024x1024</option><option value="1536x1024">1536x1024</option><option value="1024x1536">1024x1536</option><option value="auto">{{ t('imageGeneration.auto') }}</option></select></label>
+            <label class="field">
+              <span>{{ t('imageGeneration.size') }}</span>
+              <select v-model="form.size" class="input">
+                <option value="1024x1024">1K · 1024x1024</option>
+                <option value="1536x1024">2K · 1536x1024 ({{ t('imageGeneration.landscape') }})</option>
+                <option value="1024x1536">2K · 1024x1536 ({{ t('imageGeneration.portrait') }})</option>
+                <option value="2048x2048">2K · 2048x2048</option>
+                <option value="3840x2160">4K · 3840x2160 ({{ t('imageGeneration.landscape') }})</option>
+                <option value="2160x3840">4K · 2160x3840 ({{ t('imageGeneration.portrait') }})</option>
+                <option value="auto">{{ t('imageGeneration.auto') }} · {{ t('imageGeneration.autoSizeBillingHint') }}</option>
+              </select>
+            </label>
             <label class="field"><span>{{ t('imageGeneration.quality') }}</span><select v-model="form.quality" class="input"><option value="auto">{{ t('imageGeneration.auto') }}</option><option value="low">{{ t('imageGeneration.low') }}</option><option value="medium">{{ t('imageGeneration.medium') }}</option><option value="high">{{ t('imageGeneration.high') }}</option></select></label>
             <label class="field"><span>{{ t('imageGeneration.count') }}</span><select v-model.number="form.n" class="input"><option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option></select></label>
             <label class="field"><span>{{ t('imageGeneration.format') }}</span><select v-model="form.output_format" class="input"><option value="png">PNG</option><option value="jpeg">JPEG</option><option value="webp">WebP</option></select></label>
