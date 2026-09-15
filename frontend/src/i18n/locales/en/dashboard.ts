@@ -58,19 +58,21 @@ export default {
     viewUsage: 'View Usage',
     checkDetailedLogs: 'Check detailed usage logs',
     redeemCode: 'Redeem Code',
-    addBalanceWithCode: 'Add balance with a code'
-  },
-
-  // Contact QR codes
-  contactQr: {
-    title: 'Scan to Join / Contact Us',
-    subtitle: 'Get the latest news, technical support and dedicated service',
-    group: 'Official Group',
-    groupDesc: 'Join the official group chat',
-    support: 'Customer Service',
-    supportDesc: 'Online chat · Fast response',
-    groupQrAlt: 'Official group QR code',
-    supportQrAlt: 'Customer service QR code'
+    addBalanceWithCode: 'Add balance with a code',
+    contactQr: {
+      hello: 'Hello, welcome back!',
+      tagline: 'Start a more efficient AI development experience',
+      title: 'Scan to Join / Contact Us',
+      subtitle: 'Get the latest news, technical support and dedicated service',
+      cta: 'Join community · Get help · Contact us',
+      promo: 'Join the group to claim a welcome bonus. New and existing users can all participate!',
+      group: 'Official Group',
+      groupDesc: 'Join the official group chat',
+      support: 'Customer Service',
+      supportDesc: 'Online chat · Fast response',
+      groupQrAlt: 'Official group QR code',
+      supportQrAlt: 'Customer service QR code'
+    }
   },
 
   // Groups (shared)

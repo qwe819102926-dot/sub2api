@@ -58,19 +58,21 @@ export default {
     viewUsage: '查看使用记录',
     checkDetailedLogs: '查看详细的使用日志',
     redeemCode: '兑换码',
-    addBalanceWithCode: '使用兑换码充值'
-  },
-
-  // Contact QR codes
-  contactQr: {
-    title: '扫码加入 / 联系我们',
-    subtitle: '获取最新资讯、技术支持和专属服务',
-    group: '官方群',
-    groupDesc: '加入官方交流群',
-    support: '客服咨询',
-    supportDesc: '在线咨询 · 快速响应',
-    groupQrAlt: '官方群二维码',
-    supportQrAlt: '客服二维码'
+    addBalanceWithCode: '使用兑换码充值',
+    contactQr: {
+      hello: 'Hello，欢迎回来！',
+      tagline: '开启更高效的 AI 开发体验',
+      title: '扫码加入 / 联系我们',
+      subtitle: '获取最新资讯、技术支持和专属服务',
+      cta: '加入社区 · 获取帮助 · 与我们联系',
+      promo: '首次进群即可领取福利，新用户、老用户均可参与，进群就能领！',
+      group: '官方群',
+      groupDesc: '加入官方交流群',
+      support: '客服咨询',
+      supportDesc: '在线咨询 · 快速响应',
+      groupQrAlt: '官方群二维码',
+      supportQrAlt: '客服二维码'
+    }
   },
 
   // Groups (shared)
