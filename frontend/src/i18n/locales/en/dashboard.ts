@@ -61,6 +61,18 @@ export default {
     addBalanceWithCode: 'Add balance with a code'
   },
 
+  // Contact QR codes
+  contactQr: {
+    title: 'Scan to Join / Contact Us',
+    subtitle: 'Get the latest news, technical support and dedicated service',
+    group: 'Official Group',
+    groupDesc: 'Join the official group chat',
+    support: 'Customer Service',
+    supportDesc: 'Online chat · Fast response',
+    groupQrAlt: 'Official group QR code',
+    supportQrAlt: 'Customer service QR code'
+  },
+
   // Groups (shared)
   groups: {
     subscription: 'Sub'

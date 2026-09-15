@@ -61,6 +61,18 @@ export default {
     addBalanceWithCode: '使用兑换码充值'
   },
 
+  // Contact QR codes
+  contactQr: {
+    title: '扫码加入 / 联系我们',
+    subtitle: '获取最新资讯、技术支持和专属服务',
+    group: '官方群',
+    groupDesc: '加入官方交流群',
+    support: '客服咨询',
+    supportDesc: '在线咨询 · 快速响应',
+    groupQrAlt: '官方群二维码',
+    supportQrAlt: '客服二维码'
+  },
+
   // Groups (shared)
   groups: {
     subscription: '订阅'
