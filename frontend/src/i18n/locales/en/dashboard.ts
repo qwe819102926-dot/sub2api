@@ -8,6 +8,7 @@ export default {
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
     todayCost: 'Today Cost',
+    todayCostHint: 'Counts principal-balance deductions only; bonus balance is excluded. Usage records still show the billed price.',
     todayTokens: 'Today Tokens',
     totalTokens: 'Total Tokens',
     cacheToday: 'Cache (Today)',

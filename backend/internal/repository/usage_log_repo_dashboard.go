@@ -377,7 +377,9 @@ type UserDashboardStats = usagestats.UserDashboardStats
 // PlatformDashboardStats 单平台用量明细
 type PlatformDashboardStats = usagestats.PlatformDashboardStats
 
-// GetUserDashboardStats 获取用户专属的仪表盘统计
+// GetUserDashboardStats 获取用户专属的仪表盘统计。
+// today_actual_cost / total_actual_cost 按本金余额实扣汇总（COALESCE(wallet_cost, actual_cost)），
+// 不计入赠送余额扣减；历史行 wallet_cost 为空时回退账单价 actual_cost。
 func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID int64) (*UserDashboardStats, error) {
 	stats := &UserDashboardStats{}
 	today := timezone.Today()
@@ -411,7 +413,7 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(COALESCE(wallet_cost, actual_cost)), 0) as total_actual_cost,
 			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE user_id = $1
@@ -443,7 +445,7 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			COALESCE(SUM(cache_creation_tokens), 0) as today_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as today_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as today_cost,
-			COALESCE(SUM(actual_cost), 0) as today_actual_cost
+			COALESCE(SUM(COALESCE(wallet_cost, actual_cost)), 0) as today_actual_cost
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2
 	`
@@ -483,10 +485,10 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			` + usageLogEffectivePlatformExpr + ` as platform,
 			COUNT(*) as total_requests,
 			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(ul.actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(COALESCE(ul.wallet_cost, ul.actual_cost)), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE ul.created_at >= $2) as today_requests,
 			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens) FILTER (WHERE ul.created_at >= $2), 0) as today_tokens,
-			COALESCE(SUM(ul.actual_cost) FILTER (WHERE ul.created_at >= $2), 0) as today_actual_cost
+			COALESCE(SUM(COALESCE(ul.wallet_cost, ul.actual_cost)) FILTER (WHERE ul.created_at >= $2), 0) as today_actual_cost
 		FROM usage_logs ul
 		LEFT JOIN groups g ON g.id = ul.group_id
 		LEFT JOIN accounts a ON a.id = ul.account_id
@@ -563,7 +565,7 @@ func (r *usageLogRepository) GetAPIKeyDashboardStats(ctx context.Context, apiKey
 			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(COALESCE(wallet_cost, actual_cost)), 0) as total_actual_cost,
 			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE api_key_id = $1
@@ -595,7 +597,7 @@ func (r *usageLogRepository) GetAPIKeyDashboardStats(ctx context.Context, apiKey
 			COALESCE(SUM(cache_creation_tokens), 0) as today_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as today_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as today_cost,
-			COALESCE(SUM(actual_cost), 0) as today_actual_cost
+			COALESCE(SUM(COALESCE(wallet_cost, actual_cost)), 0) as today_actual_cost
 		FROM usage_logs
 		WHERE api_key_id = $1 AND created_at >= $2
 	`

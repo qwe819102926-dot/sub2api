@@ -8,6 +8,7 @@ export default {
     apiKeys: 'API 密钥',
     todayRequests: '今日请求',
     todayCost: '今日消费',
+    todayCostHint: '仅统计本金余额实扣，不含赠送余额。使用记录仍显示账单价。',
     todayTokens: '今日 Token',
     totalTokens: '累计 Token',
     cacheToday: '今日缓存',

@@ -439,7 +439,7 @@ export default {
     },
     activities: {
       bonusConsumptionRateTitle: '赠送余额消费速率',
-      bonusConsumptionRateHint: '每消费 1 美元，扣除多少赠送余额。1.0 为当前的 1:1；数值越小，赠送余额消耗越慢。',
+      bonusConsumptionRateHint: '每消费 1 美元，扣除多少赠送余额。只影响赠送余额实际扣减，不会改写用户使用记录，也不计入今日消费。1.0 为 1:1；大于 1 消耗更快，小于 1 消耗更慢。',
       bonusConsumptionRate: '消费倍率',
       bonusConsumptionRateSave: '保存速率',
       rechargeTitle: '充值赠送活动',

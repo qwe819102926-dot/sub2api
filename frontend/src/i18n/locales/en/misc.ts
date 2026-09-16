@@ -415,7 +415,7 @@ export default {
     },
     activities: {
       bonusConsumptionRateTitle: 'Bonus Balance Consumption Rate',
-      bonusConsumptionRateHint: 'Bonus balance deducted per $1 spent. 1.0 keeps the current 1:1 behavior; lower values make it last longer.',
+      bonusConsumptionRateHint: 'Bonus balance deducted per $1 spent. This only changes the bonus-wallet deduction; it is not shown in usage records and is excluded from today cost. 1.0 keeps 1:1; values above 1 consume faster.',
       bonusConsumptionRate: 'Consumption multiplier',
       bonusConsumptionRateSave: 'Save rate',
       rechargeTitle: 'Recharge Bonus Campaign',

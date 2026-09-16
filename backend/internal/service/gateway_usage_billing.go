@@ -354,11 +354,16 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 		return false, nil
 	}
-	// actual_cost is the user-facing billed amount. The pricing cost remains
-	// available as total_cost, while bonus-balance consumption can deduct more
-	// balance units than the request's pricing cost.
-	if !p.IsSubscriptionBill && result.BalanceDeducted > 0 && usageLog != nil {
-		usageLog.ActualCost = result.BalanceDeducted
+	// Keep usageLog.ActualCost as the billed pricing amount. Dashboard spend
+	// uses WalletCost, which records principal-balance deductions only so
+	// bonus-wallet movement (including consumption multipliers) stays out of
+	// both usage records and today/total cost.
+	if usageLog != nil {
+		walletCost := usageLog.ActualCost
+		if !p.IsSubscriptionBill {
+			walletCost = result.PrincipalDeducted
+		}
+		usageLog.WalletCost = &walletCost
 	}
 
 	if result.APIKeyQuotaExhausted {

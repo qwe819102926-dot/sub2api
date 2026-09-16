@@ -270,9 +270,10 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 }
 
 // deductUsageBillingBalanceDetailed returns the post-deduction principal
-// balance, whether the principal balance was sufficient, and the total number
-// of balance units consumed. Bonus balance is counted at its configured
-// consumption rate, so this value is the amount users see as deducted.
+// balance, whether the principal balance was sufficient, the bonus-wallet
+// units consumed (already multiplied by the configured consumption rate),
+// and the principal-wallet units consumed. Usage records keep the original
+// billed amount; this helper only reports wallet movement.
 func deductUsageBillingBalanceDetailed(ctx context.Context, tx *sql.Tx, userID int64, amount float64, rates ...float64) (float64, bool, float64, float64, error) {
 	var newBalance float64
 	var bonusBalance float64
