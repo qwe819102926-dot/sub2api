@@ -19,6 +19,7 @@ type AdminService interface {
 	UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
+	UpdateUserBonusBalance(ctx context.Context, userID int64, amount float64, operation string, notes string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
@@ -698,6 +699,13 @@ type adminRechargeAffiliateAccruer interface {
 
 type userGroupRateBatchReader interface {
 	GetByUserIDs(ctx context.Context, userIDs []int64) (map[int64]map[int64]float64, error)
+}
+
+// BonusBalanceStore 读写 users.bonus_balance。该列不在 Ent schema 中，生产实现走 raw SQL。
+type BonusBalanceStore interface {
+	GetBonusBalancesByUserIDs(ctx context.Context, userIDs []int64) (map[int64]float64, error)
+	AdjustBonusBalance(ctx context.Context, id int64, delta float64) (BalanceChange, error)
+	SetBonusBalance(ctx context.Context, id int64, value float64) (BalanceChange, error)
 }
 
 // NewAdminService creates a new AdminService

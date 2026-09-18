@@ -417,6 +417,9 @@ func (h *UsageHandler) Stats(c *gin.Context) {
 		return
 	}
 	stats.TotalAccountCost = nil
+	stats.TotalWalletCost = nil
+	stats.TotalBonusCost = nil
+	stats.TotalProfit = nil
 	stats.UpstreamEndpoints = nil
 	stats.EndpointPaths = nil
 

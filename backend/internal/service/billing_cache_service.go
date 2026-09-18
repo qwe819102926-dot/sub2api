@@ -889,11 +889,30 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 		s.circuitBreaker.OnSuccess()
 	}
 
-	if s.balanceBelowEligibilityThreshold(balance) {
-		return ErrInsufficientBalance
+	if !s.balanceBelowEligibilityThreshold(balance) {
+		return nil
+	}
+	if bonus, ok := s.lookupBonusBalance(ctx, userID); ok && !s.balanceBelowEligibilityThreshold(balance+bonus) {
+		return nil
 	}
 
-	return nil
+	return ErrInsufficientBalance
+}
+
+func (s *BillingCacheService) lookupBonusBalance(ctx context.Context, userID int64) (float64, bool) {
+	if s == nil || s.userRepo == nil {
+		return 0, false
+	}
+	store, ok := s.userRepo.(BonusBalanceStore)
+	if !ok {
+		return 0, false
+	}
+	balances, err := store.GetBonusBalancesByUserIDs(ctx, []int64{userID})
+	if err != nil {
+		logger.LegacyPrintf("service.billing_cache", "failed to load bonus_balance for eligibility: user_id=%d err=%v", userID, err)
+		return 0, false
+	}
+	return balances[userID], true
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格

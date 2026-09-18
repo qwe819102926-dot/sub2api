@@ -446,6 +446,26 @@
             </div>
           </template>
 
+          <template #cell-bonus_balance="{ value, row }">
+            <div class="flex items-center gap-2">
+              <span
+                data-test="bonus-balance-value"
+                class="font-medium"
+                :class="formatBonusBalance(value) == null ? 'text-gray-400 dark:text-dark-400' : 'text-gray-900 dark:text-white'"
+                :title="formatBonusBalance(value) == null ? t('admin.users.bonusBalanceUnavailable') : undefined"
+              >
+                {{ formatBonusBalance(value) == null ? '—' : `$${formatBonusBalance(value)}` }}
+              </span>
+              <button
+                @click.stop="handleAdjustBonusBalance(row)"
+                class="rounded px-2 py-0.5 text-xs font-medium text-primary-600 transition-colors hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-900/20"
+                :title="t('admin.users.adjustBonusBalance')"
+              >
+                {{ t('admin.users.adjustBonusBalanceAction') }}
+              </button>
+            </div>
+          </template>
+
           <template #cell-balance_platform_quota="{ row }">
             <button
               type="button"
@@ -701,6 +721,15 @@
                 {{ t('admin.users.deposit') }}
               </button>
 
+              <!-- Adjust bonus balance -->
+              <button
+                @click="handleAdjustBonusBalance(user); closeActionMenu()"
+                class="flex w-full items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+              >
+                <Icon name="gift" size="sm" class="text-primary-500" :stroke-width="2" />
+                {{ t('admin.users.adjustBonusBalance') }}
+              </button>
+
               <!-- Withdraw -->
               <button
                 @click="handleWithdraw(user); closeActionMenu()"
@@ -774,6 +803,7 @@
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
     <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
+    <UserBonusBalanceModal :show="showBonusBalanceModal" :user="bonusBalanceUser" @close="closeBonusBalanceModal" @success="loadUsers" />
     <UserLotteryChancesModal :show="showLotteryChancesModal" :user="lotteryChancesUser" @close="closeLotteryChancesModal" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
@@ -818,6 +848,7 @@ import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaMod
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
+import UserBonusBalanceModal from '@/components/admin/user/UserBonusBalanceModal.vue'
 import UserLotteryChancesModal from '@/components/admin/user/UserLotteryChancesModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
@@ -882,6 +913,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'groups', label: t('admin.users.columns.groups'), sortable: false },
   { key: 'subscriptions', label: t('admin.users.columns.subscriptions'), sortable: false },
   { key: 'balance', label: t('admin.users.columns.balance'), sortable: true },
+  { key: 'bonus_balance', label: t('admin.users.columns.bonusBalance'), sortable: true },
   { key: 'balance_platform_quota', label: t('admin.users.columns.balancePlatformQuota'), sortable: false },
   { key: 'usage', label: t('admin.users.columns.usage'), sortable: false },
   { key: 'usage_anthropic', label: t('admin.users.columns.usageAnthropic'), sortable: false },
@@ -1036,7 +1068,7 @@ const searchQuery = ref('')
 const USER_SORT_STORAGE_KEY = 'admin-users-table-sort'
 const loadInitialSortState = (): { sort_by: string; sort_order: 'asc' | 'desc' } => {
   const fallback = { sort_by: 'created_at', sort_order: 'desc' as 'asc' | 'desc' }
-  const sortable = new Set(['email', 'id', 'username', 'role', 'balance', 'concurrency', 'status', 'last_used_at', 'last_active_at', 'created_at'])
+  const sortable = new Set(['email', 'id', 'username', 'role', 'balance', 'bonus_balance', 'concurrency', 'status', 'last_used_at', 'last_active_at', 'created_at'])
   try {
     const raw = localStorage.getItem(USER_SORT_STORAGE_KEY)
     if (!raw) return fallback
@@ -1815,6 +1847,25 @@ const handleWithdraw = (user: AdminUser) => {
 const closeBalanceModal = () => {
   showBalanceModal.value = false
   balanceUser.value = null
+}
+
+const showBonusBalanceModal = ref(false)
+const bonusBalanceUser = ref<AdminUser | null>(null)
+
+const formatBonusBalance = (value: unknown) => {
+  if (value === null || value === undefined || value === '') return null
+  const amount = Number(value)
+  return Number.isFinite(amount) ? amount.toFixed(2) : null
+}
+
+const handleAdjustBonusBalance = (user: AdminUser) => {
+  bonusBalanceUser.value = user
+  showBonusBalanceModal.value = true
+}
+
+const closeBonusBalanceModal = () => {
+  showBonusBalanceModal.value = false
+  bonusBalanceUser.value = null
 }
 
 const handleLotteryChances = (user: AdminUser) => {

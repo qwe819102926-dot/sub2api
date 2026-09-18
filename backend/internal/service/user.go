@@ -19,10 +19,13 @@ type User struct {
 	PasswordHash   string
 	Role           string
 	Balance        float64
-	FrozenBalance  float64
-	Concurrency    int
-	Status         string
-	AllowedGroups  []int64
+	BonusBalance   float64
+	// BonusBalanceKnown 表示 BonusBalance 已从 bonus_balance 列回填。未置位时前端不得把 0 当成真实余额。
+	BonusBalanceKnown bool
+	FrozenBalance     float64
+	Concurrency       int
+	Status            string
+	AllowedGroups     []int64
 	// RestrictPublicGroups narrows the public groups this user may bind to the
 	// ones listed in AllowedGroups. False keeps the default, where every public
 	// group is bindable.

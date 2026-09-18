@@ -169,7 +169,11 @@ type UsageLog struct {
 	// WalletCost is the principal-balance amount actually deducted for this
 	// request. Bonus-balance deductions are excluded so user dashboard spend
 	// can ignore promotional wallet movement. Nil means historical rows.
+	// BonusCost is the bonus-balance amount actually deducted, including any
+	// consumption multiplier. Nil means historical rows that should fall back
+	// to billed bonus-equivalent.
 	WalletCost                *float64
+	BonusCost                 *float64
 	RateMultiplier            float64
 	LongContextBillingApplied bool
 	// AccountRateMultiplier 账号计费倍率快照（nil 表示历史数据，按 1.0 处理）

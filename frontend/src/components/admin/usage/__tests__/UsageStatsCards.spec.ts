@@ -17,6 +17,11 @@ const messages: Record<string, string> = {
   'usage.accountCost': 'Cost',
   'usage.standardCost': 'Standard',
   'usage.avgDuration': 'Avg Duration',
+  'usage.walletSpend': 'Wallet spend',
+  'usage.bonusSpend': 'Bonus spend',
+  'usage.rangeProfit': 'Range profit',
+  'usage.profitFormula': 'Profit = wallet spend − cost',
+  'usage.profitHint': 'Wallet spend is principal balance only.',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -40,6 +45,9 @@ const stats = {
   total_cost: 0.001,
   total_actual_cost: 0.001,
   total_account_cost: 0.001,
+  total_wallet_cost: 0.0008,
+  total_bonus_cost: 0.0002,
+  total_profit: -0.0002,
   average_duration_ms: 250,
 }
 
@@ -85,5 +93,47 @@ describe('UsageStatsCards', () => {
     // narrow screens. `hidden` (display: none) takes it out of the flow.
     expect(tooltip?.classes()).toContain('hidden')
     expect(tooltip?.classes()).not.toContain('opacity-0')
+  })
+
+  it('shows admin profit breakdown by default', () => {
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).toContain('Range profit')
+    expect(text).toContain('Wallet spend')
+    expect(text).toContain('$0.0008')
+    expect(text).toContain('Bonus spend')
+    expect(text).toContain('$0.0002')
+    expect(text).toContain('-$0.0002')
+    expect(text).toContain('Profit = wallet spend − cost')
+  })
+
+  it('hides admin profit breakdown for user usage', () => {
+    const wrapper = mount(UsageStatsCards, {
+      props: {
+        stats,
+        showAccountCost: false,
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    const text = wrapper.text()
+    expect(text).not.toContain('Range profit')
+    expect(text).not.toContain('Wallet spend')
+    expect(text).not.toContain('Bonus spend')
+    expect(text).toContain('Total Cost')
   })
 })

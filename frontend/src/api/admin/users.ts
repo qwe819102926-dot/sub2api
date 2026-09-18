@@ -189,6 +189,28 @@ export async function updateBalance(
   return data
 }
 
+/**
+ * Update user bonus balance
+ * @param id - User ID
+ * @param balance - Adjustment amount
+ * @param operation - Operation type ('set', 'add', 'subtract')
+ * @param notes - Optional notes for the bonus balance adjustment
+ * @returns Updated user
+ */
+export async function updateBonusBalance(
+  id: number,
+  balance: number,
+  operation: 'set' | 'add' | 'subtract' = 'add',
+  notes?: string
+): Promise<AdminUser> {
+  const { data } = await apiClient.post<AdminUser>(`/admin/users/${id}/bonus-balance`, {
+    balance,
+    operation,
+    notes: notes || ''
+  })
+  return data
+}
+
 /** Get and set a user's remaining recharge lottery chances. */
 export async function getLotteryChances(id: number): Promise<LotteryChancesResponse> {
   const { data } = await apiClient.get<LotteryChancesResponse>(`/admin/users/${id}/lottery-chances`)
@@ -294,7 +316,7 @@ export interface BalanceHistoryResponse extends PaginatedResponse<BalanceHistory
  * @param id - User ID
  * @param page - Page number
  * @param pageSize - Items per page
- * @param type - Optional type filter (balance, affiliate_balance, admin_balance, concurrency, admin_concurrency, subscription)
+ * @param type - Optional type filter (balance, affiliate_balance, admin_balance, admin_bonus, concurrency, admin_concurrency, subscription)
  * @returns Paginated balance history with total_recharged
  */
 export async function getUserBalanceHistory(
@@ -421,6 +443,7 @@ export const usersAPI = {
   update,
   delete: deleteUser,
   updateBalance,
+  updateBonusBalance,
   getLotteryChances,
   updateLotteryChances,
   updateConcurrency,

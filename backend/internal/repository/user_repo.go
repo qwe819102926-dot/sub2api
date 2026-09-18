@@ -33,6 +33,7 @@ type userRepository struct {
 }
 
 var _ service.RedeemUserAdjustmentRepository = (*userRepository)(nil)
+var _ service.BonusBalanceStore = (*userRepository)(nil)
 
 func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
 	return newUserRepositoryWithSQL(client, sqlDB)
@@ -653,6 +654,9 @@ func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) 
 	if sortBy == "last_used_at" {
 		return userLastUsedAtOrder(sortOrder)
 	}
+	if sortBy == "bonus_balance" {
+		return userBonusBalanceOrder(sortOrder)
+	}
 
 	var field string
 	defaultField := true
@@ -774,6 +778,21 @@ func userLastUsedAtOrder(sortOrder string) []func(*entsql.Selector) {
 	}
 	return []func(*entsql.Selector){
 		orderExpr("DESC", "LAST", entsql.Desc),
+	}
+}
+
+func userBonusBalanceOrder(sortOrder string) []func(*entsql.Selector) {
+	direction := "DESC"
+	tie := entsql.Desc
+	if sortOrder == pagination.SortOrderAsc {
+		direction = "ASC"
+		tie = entsql.Asc
+	}
+	return []func(*entsql.Selector){
+		func(s *entsql.Selector) {
+			s.OrderExpr(entsql.Expr("bonus_balance " + direction))
+			s.OrderBy(tie(s.C(dbuser.FieldID)))
+		},
 	}
 }
 
@@ -994,6 +1013,107 @@ func (r *userRepository) SetBalance(ctx context.Context, id int64, value float64
 func (r *userRepository) currentBalance(ctx context.Context, id int64) (balance float64, err error) {
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx,
 		`SELECT balance FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return 0, rowsErr
+		}
+		return 0, service.ErrUserNotFound
+	}
+	if err := rows.Scan(&balance); err != nil {
+		return 0, err
+	}
+	return balance, rows.Err()
+}
+
+func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs []int64) (result map[int64]float64, err error) {
+	result = make(map[int64]float64, len(userIDs))
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	var rows *sql.Rows
+	rows, err = clientFromContext(ctx, r.client).QueryContext(ctx,
+		`SELECT id, COALESCE(bonus_balance, 0) FROM users WHERE id = ANY($1)`, pq.Array(userIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	for rows.Next() {
+		var (
+			userID int64
+			bonus  float64
+		)
+		if err = rows.Scan(&userID, &bonus); err != nil {
+			return nil, err
+		}
+		result[userID] = bonus
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *userRepository) AdjustBonusBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
+	const updateSQL = `
+		UPDATE users
+		SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL AND COALESCE(bonus_balance, 0) + $1 >= 0
+		RETURNING COALESCE(bonus_balance, 0) - $1, COALESCE(bonus_balance, 0)
+	`
+	change, ok, err := scanBalanceChange(ctx, clientFromContext(ctx, r.client), updateSQL, delta, id)
+	if err != nil {
+		return service.BalanceChange{}, err
+	}
+	if ok {
+		return change, nil
+	}
+	current, err := r.currentBonusBalance(ctx, id)
+	if err != nil {
+		return service.BalanceChange{}, err
+	}
+	return service.BalanceChange{Old: current, New: current + delta}, service.ErrBalanceNegative
+}
+
+func (r *userRepository) SetBonusBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
+	if value < 0 {
+		current, err := r.currentBonusBalance(ctx, id)
+		if err != nil {
+			return service.BalanceChange{}, err
+		}
+		return service.BalanceChange{Old: current, New: value}, service.ErrBalanceNegative
+	}
+	const updateSQL = `
+		UPDATE users AS u
+		SET bonus_balance = $1, updated_at = NOW()
+		FROM (SELECT id, COALESCE(bonus_balance, 0) AS bonus_balance FROM users WHERE id = $2 AND deleted_at IS NULL) AS prev
+		WHERE u.id = prev.id AND u.deleted_at IS NULL
+		RETURNING prev.bonus_balance, u.bonus_balance
+	`
+	change, ok, err := scanBalanceChange(ctx, clientFromContext(ctx, r.client), updateSQL, value, id)
+	if err != nil {
+		return service.BalanceChange{}, err
+	}
+	if !ok {
+		return service.BalanceChange{}, service.ErrUserNotFound
+	}
+	return change, nil
+}
+
+func (r *userRepository) currentBonusBalance(ctx context.Context, id int64) (balance float64, err error) {
+	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx,
+		`SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1 AND deleted_at IS NULL`, id)
 	if err != nil {
 		return 0, err
 	}

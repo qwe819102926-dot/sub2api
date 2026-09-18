@@ -71,10 +71,19 @@ func UserFromServiceAdmin(u *service.User) *AdminUser {
 	return &AdminUser{
 		User:                 *base,
 		Notes:                u.Notes,
+		BonusBalance:         adminBonusBalancePtr(u),
 		LastUsedAt:           u.LastUsedAt,
 		GroupRates:           u.GroupRates,
 		RestrictPublicGroups: u.RestrictPublicGroups,
 	}
+}
+
+func adminBonusBalancePtr(u *service.User) *float64 {
+	if u == nil || !u.BonusBalanceKnown {
+		return nil
+	}
+	v := u.BonusBalance
+	return &v
 }
 
 func APIKeyFromService(k *service.APIKey) *APIKey {
@@ -653,9 +662,9 @@ func redeemCodeFromServiceBase(rc *service.RedeemCode) RedeemCode {
 		out.Status = service.StatusExpired
 	}
 
-	// For admin_balance/admin_concurrency types, include notes so users can see
+	// For admin adjustment types, include notes so users can see
 	// why they were charged or credited by admin
-	if (rc.Type == "admin_balance" || rc.Type == "admin_concurrency") && rc.Notes != "" {
+	if (rc.Type == "admin_balance" || rc.Type == "admin_concurrency" || rc.Type == "admin_bonus") && rc.Notes != "" {
 		out.Notes = &rc.Notes
 	}
 

@@ -39,6 +39,7 @@ func (s *adminServiceImpl) ListUsers(ctx context.Context, page, pageSize int, fi
 			}
 		}
 	}
+	s.attachBonusBalances(ctx, users)
 	// 批量加载用户专属分组倍率
 	if s.userGroupRateRepo != nil && len(users) > 0 {
 		if batchRepo, ok := s.userGroupRateRepo.(userGroupRateBatchReader); ok {
@@ -98,11 +99,50 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 			user.GroupRates = rates
 		}
 	}
+	s.attachBonusBalance(ctx, user)
 	return user, nil
 }
 
 func (s *adminServiceImpl) GetUserIncludeDeleted(ctx context.Context, id int64) (*User, error) {
-	return s.userRepo.GetByIDIncludeDeleted(ctx, id)
+	user, err := s.userRepo.GetByIDIncludeDeleted(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.attachBonusBalance(ctx, user)
+	return user, nil
+}
+
+func (s *adminServiceImpl) attachBonusBalance(ctx context.Context, user *User) {
+	if user == nil {
+		return
+	}
+	users := []User{*user}
+	s.attachBonusBalances(ctx, users)
+	user.BonusBalance = users[0].BonusBalance
+	user.BonusBalanceKnown = users[0].BonusBalanceKnown
+}
+
+func (s *adminServiceImpl) attachBonusBalances(ctx context.Context, users []User) {
+	if len(users) == 0 {
+		return
+	}
+	store, ok := s.userRepo.(BonusBalanceStore)
+	if !ok {
+		return
+	}
+	userIDs := make([]int64, 0, len(users))
+	for i := range users {
+		userIDs = append(userIDs, users[i].ID)
+	}
+	balances, err := store.GetBonusBalancesByUserIDs(ctx, userIDs)
+	if err != nil {
+		logger.LegacyPrintf("service.admin", "failed to load user bonus_balance in batch: err=%v", err)
+		return
+	}
+	for i := range users {
+		users[i].BonusBalance = balances[users[i].ID]
+		users[i].BonusBalanceKnown = true
+	}
 }
 
 // normalizeUserRole 校验并归一化角色输入。
@@ -577,6 +617,68 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 
 		if err := s.redeemCodeRepo.Create(ctx, adjustmentRecord); err != nil {
 			logger.LegacyPrintf("service.admin", "failed to create balance adjustment redeem code: %v", err)
+		}
+	}
+
+	return user, nil
+}
+
+func (s *adminServiceImpl) UpdateUserBonusBalance(ctx context.Context, userID int64, amount float64, operation string, notes string) (*User, error) {
+	store, ok := s.userRepo.(BonusBalanceStore)
+	if !ok {
+		return nil, fmt.Errorf("bonus balance store is not configured")
+	}
+
+	var (
+		change BalanceChange
+		err    error
+	)
+	switch operation {
+	case "set":
+		change, err = store.SetBonusBalance(ctx, userID, amount)
+	case "add":
+		change, err = store.AdjustBonusBalance(ctx, userID, amount)
+	case "subtract":
+		change, err = store.AdjustBonusBalance(ctx, userID, -amount)
+	default:
+		return nil, fmt.Errorf("unsupported bonus balance operation: %q", operation)
+	}
+	if errors.Is(err, ErrBalanceNegative) {
+		return nil, fmt.Errorf("bonus balance cannot be negative, current bonus balance: %.2f, requested operation would result in: %.2f", change.Old, change.New)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	// Ent GetByID 读不到 bonus_balance，必须用原子变更结果回填。
+	user.BonusBalance = change.New
+	user.BonusBalanceKnown = true
+
+	balanceDiff := change.New - change.Old
+	if balanceDiff != 0 {
+		code, genErr := GenerateRedeemCode()
+		if genErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to generate bonus adjustment redeem code: %v", genErr)
+			return user, nil
+		}
+
+		adjustmentRecord := &RedeemCode{
+			Code:   code,
+			Type:   AdjustmentTypeAdminBonusBalance,
+			Value:  balanceDiff,
+			Status: StatusUsed,
+			UsedBy: &user.ID,
+			Notes:  notes,
+		}
+		now := time.Now()
+		adjustmentRecord.UsedAt = &now
+
+		if createErr := s.redeemCodeRepo.Create(ctx, adjustmentRecord); createErr != nil {
+			logger.LegacyPrintf("service.admin", "failed to create bonus balance adjustment redeem code: %v", createErr)
 		}
 	}
 

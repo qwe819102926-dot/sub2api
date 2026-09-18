@@ -198,6 +198,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.NewBalance = &newBalance
 		result.BalanceDeducted = bonusDeducted + principalDeducted
 		result.PrincipalDeducted = principalDeducted
+		result.BonusDeducted = bonusDeducted
 		result.BalanceOverdrafted = !sufficient
 	}
 

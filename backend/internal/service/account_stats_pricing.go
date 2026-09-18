@@ -10,13 +10,17 @@ import (
 //
 // 优先级（先命中为准）：
 //  1. 自定义规则（始终尝试，不依赖 ApplyPricingToAccountStats 开关）
-//  2. ApplyPricingToAccountStats 启用时，直接使用本次请求的客户计费（倍率前的 totalCost）
+//  2. ApplyPricingToAccountStats 启用，且用户计费模型与上游模型相同（或 billedModel 为空）时，
+//     直接使用本次请求的客户计费（倍率前的 totalCost）。
+//     若请求已映射到不同上游模型，跳过复制，改按上游模型走优先级 3，
+//     使管理员成本价与上游扣费口径对齐。
 //  3. 模型定价文件（LiteLLM）中上游模型的默认价格
 //  4. nil → 走默认公式（total_cost × account_rate_multiplier）
 //
 // upstreamModel 是最终发往上游的模型 ID。
 // totalCost 是本次请求的客户计费（倍率前），用于优先级 2。
 // serviceTier 是最终参与用户计费的 OpenAI 服务层级，用于优先级 3。
+// billedModel 是实际用于用户计费的模型 ID。为空时保持历史行为（可复用 totalCost）。
 // reasoningEffort 是最终转发等级；Fable 5.1 max 默认按 3 倍额度消耗。
 func resolveAccountStatsCost(
 	ctx context.Context,
@@ -29,6 +33,7 @@ func resolveAccountStatsCost(
 	requestCount int,
 	totalCost float64,
 	serviceTier string,
+	billedModel string,
 	reasoningEfforts ...string,
 ) *float64 {
 	reasoningEffort := ""
@@ -50,8 +55,9 @@ func resolveAccountStatsCost(
 		return cost
 	}
 
-	// 优先级 2：渠道开启"应用模型定价到账号统计"时，直接使用客户计费（倍率前）
-	if channel.ApplyPricingToAccountStats {
+	// 优先级 2：渠道开启"应用模型定价到账号统计"时，直接使用客户计费（倍率前）。
+	// 计费模型与上游模型不同时不复制：用户价按请求模型算，管理员成本应按映射后上游模型算。
+	if channel.ApplyPricingToAccountStats && accountStatsShouldReuseUserTotalCost(upstreamModel, billedModel) {
 		cost := totalCost
 		if cost <= 0 {
 			return nil
@@ -65,6 +71,16 @@ func resolveAccountStatsCost(
 	}
 
 	return nil
+}
+
+// accountStatsShouldReuseUserTotalCost reports whether account stats may copy the
+// pre-multiplier user total. Empty billedModel keeps the historical copy path.
+func accountStatsShouldReuseUserTotalCost(upstreamModel, billedModel string) bool {
+	billedModel = strings.TrimSpace(billedModel)
+	if billedModel == "" {
+		return true
+	}
+	return strings.EqualFold(strings.TrimSpace(upstreamModel), billedModel)
 }
 
 // tryModelFilePricing 使用模型定价文件（LiteLLM/fallback）中的价格计算费用。
@@ -245,6 +261,9 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 // applyAccountStatsCost resolves the account stats cost for a usage log entry.
 // It resolves the upstream model (falling back to the requested model) and calls
 // the 4-level priority chain via resolveAccountStatsCost.
+// billedModel is the model actually used for user billing. When it differs from
+// the upstream/mapped model, account stats skip copying user total_cost and
+// price the upstream model instead.
 func applyAccountStatsCost(
 	ctx context.Context,
 	usageLog *UsageLog,
@@ -253,10 +272,14 @@ func applyAccountStatsCost(
 	upstreamModel, requestedModel string,
 	tokens UsageTokens,
 	totalCost float64,
+	billedModel string,
 ) {
 	model := upstreamModel
 	if model == "" {
 		model = requestedModel
+	}
+	if strings.TrimSpace(billedModel) == "" {
+		billedModel = requestedModel
 	}
 	requestCount := 1
 	if usageLog != nil && usageLog.ImageCount > 0 {
@@ -271,6 +294,6 @@ func applyAccountStatsCost(
 		reasoningEffort = *usageLog.ReasoningEffort
 	}
 	usageLog.AccountStatsCost = resolveAccountStatsCost(
-		ctx, cs, bs, accountID, groupID, model, tokens, requestCount, totalCost, serviceTier, reasoningEffort,
+		ctx, cs, bs, accountID, groupID, model, tokens, requestCount, totalCost, serviceTier, billedModel, reasoningEffort,
 	)
 }

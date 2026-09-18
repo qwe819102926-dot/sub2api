@@ -55,6 +55,8 @@ func TestApplyUsageBilling_KeepsBilledActualCostAndRecordsPrincipalWalletCost(t 
 	require.InDelta(t, 1.25, usageLog.TotalCost, 1e-12)
 	require.NotNil(t, usageLog.WalletCost)
 	require.InDelta(t, 0, *usageLog.WalletCost, 1e-12)
+	require.NotNil(t, usageLog.BonusCost)
+	require.InDelta(t, 2.50, *usageLog.BonusCost, 1e-12)
 }
 
 func TestApplyUsageBilling_WalletCostUsesPrincipalWhenBonusAndBalanceMix(t *testing.T) {
@@ -81,6 +83,37 @@ func TestApplyUsageBilling_WalletCostUsesPrincipalWhenBonusAndBalanceMix(t *test
 	require.InDelta(t, 1.25, usageLog.ActualCost, 1e-12)
 	require.NotNil(t, usageLog.WalletCost)
 	require.InDelta(t, 0.75, *usageLog.WalletCost, 1e-12)
+	require.NotNil(t, usageLog.BonusCost)
+	require.InDelta(t, 1.25, *usageLog.BonusCost, 1e-12)
+}
+
+func TestApplyUsageBilling_BonusCostPrefersBonusDeductedOverBalanceDifference(t *testing.T) {
+	usageLog := &UsageLog{ActualCost: 1.25, TotalCost: 1.25}
+	repo := &usageBillingApplyStub{
+		result: &UsageBillingApplyResult{
+			Applied:           true,
+			BalanceDeducted:   2.00,
+			PrincipalDeducted: 0.75,
+			BonusDeducted:     2.50,
+		},
+	}
+
+	applied, err := applyUsageBilling(context.Background(), "req-bonus-deducted", usageLog, &postUsageBillingParams{
+		Cost:    &CostBreakdown{ActualCost: 1.25, TotalCost: 1.25},
+		User:    &User{ID: 11},
+		APIKey:  &APIKey{ID: 22},
+		Account: &Account{ID: 33},
+	}, &billingDeps{
+		deferredService: NewDeferredService(nil, nil, time.Second),
+	}, repo)
+
+	require.NoError(t, err)
+	require.True(t, applied)
+	require.InDelta(t, 1.25, usageLog.ActualCost, 1e-12)
+	require.NotNil(t, usageLog.WalletCost)
+	require.InDelta(t, 0.75, *usageLog.WalletCost, 1e-12)
+	require.NotNil(t, usageLog.BonusCost)
+	require.InDelta(t, 2.50, *usageLog.BonusCost, 1e-12)
 }
 
 func TestApplyUsageBilling_SubscriptionKeepsBilledAmountAsWalletCost(t *testing.T) {
@@ -108,4 +141,6 @@ func TestApplyUsageBilling_SubscriptionKeepsBilledAmountAsWalletCost(t *testing.
 	require.InDelta(t, 1.25, usageLog.ActualCost, 1e-12)
 	require.NotNil(t, usageLog.WalletCost)
 	require.InDelta(t, 1.25, *usageLog.WalletCost, 1e-12)
+	require.NotNil(t, usageLog.BonusCost)
+	require.InDelta(t, 0, *usageLog.BonusCost, 1e-12)
 }

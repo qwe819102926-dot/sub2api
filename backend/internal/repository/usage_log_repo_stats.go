@@ -707,6 +707,8 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 				total_cost,
 				actual_cost,
 				COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1) AS account_cost,
+				CASE WHEN billing_type = 0 THEN COALESCE(wallet_cost, actual_cost) ELSE 0 END AS wallet_cost,
+				CASE WHEN billing_type = 0 THEN COALESCE(bonus_cost, GREATEST(actual_cost - COALESCE(wallet_cost, actual_cost), 0)) ELSE 0 END AS bonus_cost,
 				duration_ms
 			FROM usage_logs
 			%s
@@ -724,6 +726,8 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 			COALESCE(SUM(total_cost), 0) AS cost,
 			COALESCE(SUM(actual_cost), 0) AS actual_cost,
 			COALESCE(SUM(account_cost), 0) AS account_cost,
+			COALESCE(SUM(wallet_cost), 0) AS wallet_cost,
+			COALESCE(SUM(bonus_cost), 0) AS bonus_cost,
 			COALESCE(AVG(duration_ms), 0) AS avg_duration_ms
 		FROM scoped
 		GROUP BY GROUPING SETS (
@@ -735,7 +739,7 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 	`, buildWhere(conditions))
 
 	stats := &UsageStats{}
-	var totalAccountCost float64
+	var totalAccountCost, totalWalletCost, totalBonusCost float64
 	useAccountCostForEndpoint := filters.AccountID > 0 && filters.UserID == 0 && filters.APIKeyID == 0
 	rows, err := r.sql.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -745,10 +749,10 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 
 	for rows.Next() {
 		var (
-			inboundGrouped, upstreamGrouped                                      int
-			inboundEndpoint, upstreamEndpoint                                    sql.NullString
-			requests, inputTokens, outputTokens, cacheCreationTokens, cacheReads int64
-			cost, actualCost, accountCost, averageDurationMs                     float64
+			inboundGrouped, upstreamGrouped                                         int
+			inboundEndpoint, upstreamEndpoint                                       sql.NullString
+			requests, inputTokens, outputTokens, cacheCreationTokens, cacheReads    int64
+			cost, actualCost, accountCost, walletCost, bonusCost, averageDurationMs float64
 		)
 		if err := rows.Scan(
 			&inboundGrouped,
@@ -763,6 +767,8 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 			&cost,
 			&actualCost,
 			&accountCost,
+			&walletCost,
+			&bonusCost,
 			&averageDurationMs,
 		); err != nil {
 			return nil, err
@@ -785,6 +791,8 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 			stats.TotalCost = cost
 			stats.TotalActualCost = actualCost
 			totalAccountCost = accountCost
+			totalWalletCost = walletCost
+			totalBonusCost = bonusCost
 			stats.AverageDurationMs = averageDurationMs
 		case inboundGrouped == 0 && upstreamGrouped == 1:
 			stats.Endpoints = append(stats.Endpoints, EndpointStat{
@@ -820,6 +828,10 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 	sortEndpointStats(stats.EndpointPaths)
 
 	stats.TotalAccountCost = &totalAccountCost
+	stats.TotalWalletCost = &totalWalletCost
+	stats.TotalBonusCost = &totalBonusCost
+	profit := totalWalletCost - totalAccountCost
+	stats.TotalProfit = &profit
 	stats.TotalTokens = stats.TotalInputTokens + stats.TotalOutputTokens + stats.TotalCacheTokens
 
 	return stats, nil

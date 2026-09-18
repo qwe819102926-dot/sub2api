@@ -140,7 +140,83 @@ func TestUsageLog_GetStatsWithFilters_AggregatesAndEndpoints(t *testing.T) {
 	require.Equal(t, int64(12), stats.TotalCacheCreationTokens)
 	require.Equal(t, int64(15), stats.TotalCacheReadTokens)
 	require.InDelta(t, 1.2, stats.TotalActualCost, 1e-9)
+	require.NotNil(t, stats.TotalWalletCost)
+	require.NotNil(t, stats.TotalBonusCost)
+	require.NotNil(t, stats.TotalAccountCost)
+	require.NotNil(t, stats.TotalProfit)
+	require.InDelta(t, 1.2, *stats.TotalWalletCost, 1e-9)
+	require.InDelta(t, 0, *stats.TotalBonusCost, 1e-9)
+	require.InDelta(t, 1.5, *stats.TotalAccountCost, 1e-9)
+	require.InDelta(t, -0.3, *stats.TotalProfit, 1e-9)
 	require.NotEmpty(t, stats.Endpoints)
 	require.NotEmpty(t, stats.UpstreamEndpoints)
 	require.NotEmpty(t, stats.EndpointPaths)
+}
+
+func TestUsageLog_GetStatsWithFilters_WalletBonusProfit(t *testing.T) {
+	ctx := context.Background()
+	tx := testEntTx(t)
+	client := tx.Client()
+	repo := newUsageLogRepositoryWithSQL(client, tx)
+
+	user := mustCreateUser(t, client, &service.User{Email: "profit-stats@test.com"})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{UserID: user.ID, Key: "sk-profit-stats", Name: "profit"})
+	account := mustCreateAccount(t, client, &service.Account{Name: "acc-profit-stats"})
+	now := time.Now().UTC()
+
+	mixedWallet := 0.75
+	mixedBonus := 0.50 // billed equivalent would be actual-wallet=0.25
+	zeroWallet := 0.0
+	allBonus := 0.15 // billed equivalent would be 0.40
+	legacyWallet := 0.60 // bonus_cost NULL -> billed difference 0.40
+	subscriptionWallet := 2.0
+	logs := []*service.UsageLog{
+		{ // mixed principal + bonus: stored bonus_cost wins over billed difference
+			UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID,
+			Model: "profit-mix", InputTokens: 1, OutputTokens: 1,
+			TotalCost: 0.5, ActualCost: 1.0, WalletCost: &mixedWallet, BonusCost: &mixedBonus,
+			BillingType: service.BillingTypeBalance, CreatedAt: now,
+		},
+		{ // all bonus: stored bonus_cost wins over billed difference
+			UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID,
+			Model: "profit-bonus", InputTokens: 1, OutputTokens: 1,
+			TotalCost: 0.3, ActualCost: 0.4, WalletCost: &zeroWallet, BonusCost: &allBonus,
+			BillingType: service.BillingTypeBalance, CreatedAt: now,
+		},
+		{ // historical wallet_cost/bonus_cost NULL -> principal actual_cost, bonus 0
+			UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID,
+			Model: "profit-legacy", InputTokens: 1, OutputTokens: 1,
+			TotalCost: 0.1, ActualCost: 0.2, CreatedAt: now,
+		},
+		{ // historical bonus_cost NULL with wallet_cost set -> billed bonus equivalent
+			UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID,
+			Model: "profit-legacy-wallet", InputTokens: 1, OutputTokens: 1,
+			TotalCost: 0.2, ActualCost: 1.0, WalletCost: &legacyWallet,
+			BillingType: service.BillingTypeBalance, CreatedAt: now,
+		},
+		{ // subscription is excluded from wallet/bonus but still counted in account cost
+			UserID: user.ID, APIKeyID: apiKey.ID, AccountID: account.ID,
+			Model: "profit-sub", InputTokens: 1, OutputTokens: 1,
+			TotalCost: 1.0, ActualCost: 2.0, WalletCost: &subscriptionWallet,
+			BillingType: service.BillingTypeSubscription, CreatedAt: now,
+		},
+	}
+	for _, log := range logs {
+		_, err := repo.Create(ctx, log)
+		require.NoError(t, err)
+	}
+
+	start := now.Add(-time.Hour)
+	end := now.Add(time.Hour)
+	stats, err := repo.GetStatsWithFilters(ctx, usagestats.UsageLogFilters{UserID: user.ID, StartTime: &start, EndTime: &end})
+	require.NoError(t, err)
+	require.Equal(t, int64(5), stats.TotalRequests)
+	require.NotNil(t, stats.TotalWalletCost)
+	require.NotNil(t, stats.TotalBonusCost)
+	require.NotNil(t, stats.TotalAccountCost)
+	require.NotNil(t, stats.TotalProfit)
+	require.InDelta(t, 1.55, *stats.TotalWalletCost, 1e-9)
+	require.InDelta(t, 1.05, *stats.TotalBonusCost, 1e-9)
+	require.InDelta(t, 2.1, *stats.TotalAccountCost, 1e-9)
+	require.InDelta(t, -0.55, *stats.TotalProfit, 1e-9)
 }

@@ -355,15 +355,18 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 	// Keep usageLog.ActualCost as the billed pricing amount. Dashboard spend
-	// uses WalletCost, which records principal-balance deductions only so
-	// bonus-wallet movement (including consumption multipliers) stays out of
-	// both usage records and today/total cost.
+	// uses WalletCost for principal-balance deductions and BonusCost for
+	// bonus-balance deductions (including consumption multipliers). Usage
+	// records still expose actual_cost, not these insert-only fields.
 	if usageLog != nil {
 		walletCost := usageLog.ActualCost
+		bonusCost := 0.0
 		if !p.IsSubscriptionBill {
 			walletCost = result.PrincipalDeducted
+			bonusCost = resolveBonusDeducted(result)
 		}
 		usageLog.WalletCost = &walletCost
+		usageLog.BonusCost = &bonusCost
 	}
 
 	if result.APIKeyQuotaExhausted {
@@ -490,6 +493,24 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
 	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, principalDeducted)
+}
+
+// resolveBonusDeducted returns bonus-wallet units actually removed.
+// Prefer BonusDeducted when the repository populated it. Lightweight test
+// doubles and older repository implementations only fill BalanceDeducted /
+// PrincipalDeducted, so fall back to their difference.
+func resolveBonusDeducted(result *UsageBillingApplyResult) float64 {
+	if result == nil {
+		return 0
+	}
+	if result.BonusDeducted != 0 {
+		return result.BonusDeducted
+	}
+	remaining := result.BalanceDeducted - result.PrincipalDeducted
+	if remaining > 0 {
+		return remaining
+	}
+	return 0
 }
 
 // resolvePrincipalDeducted returns the amount removed from the principal
@@ -821,6 +842,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	// 计算费用
 	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, pricingAt)
+	statsBilledModel := billingModel
 	// response_model：按上游成功响应自报的模型计费（渠道显式开启才生效）。
 	// 采纳条件见 responseModelBillingDeclaration + hasIdentifiedResponseModelPricing
 	// + responseModelBillingAdoptable。任一条件不满足都静默回落基线，即开启本模式前的
@@ -839,6 +861,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				// 因此这里不改写它，改由日志记录实际生效的计费基准。
 				logResponseModelBillingApplied("service.gateway", account, result.RequestID, billingModel, responseModel, cost, responseCost)
 				cost = responseCost
+				statsBilledModel = responseModel
 			}
 		}
 	}
@@ -855,7 +878,8 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	usageLog := s.buildRecordUsageLog(ctx, input, result, apiKey, user, account, subscription,
 		requestedModel, multiplier, imageMultiplier, accountRateMultiplier, billingType, cacheTTLOverridden, cost)
 
-	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）
+	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）。
+	// 用户计费模型与上游映射模型不同时，管理员成本按映射后的上游模型计价。
 	if apiKey.GroupID != nil {
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
 			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
@@ -869,6 +893,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 				ImageOutputTokens:   result.Usage.ImageOutputTokens,
 			},
 			cost.TotalCost,
+			statsBilledModel,
 		)
 	}
 

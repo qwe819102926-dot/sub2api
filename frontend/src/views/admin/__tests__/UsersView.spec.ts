@@ -61,6 +61,7 @@ const createAdminUser = (overrides: Partial<AdminUser> = {}): AdminUser => ({
   email: 'scoped@example.com',
   role: 'user',
   balance: 0,
+  bonus_balance: 0,
   concurrency: 1,
   status: 'active',
   allowed_groups: [],
@@ -98,6 +99,7 @@ const DataTableStub = {
       </template>
       <div v-for="row in data" :key="row.id">
         <slot name="cell-last_used_at" :value="row.last_used_at" :row="row" />
+        <slot name="cell-bonus_balance" :value="row.bonus_balance" :row="row" />
       </div>
     </div>
   `
@@ -170,6 +172,7 @@ describe('admin UsersView', () => {
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
           UserBalanceModal: true,
+          UserBonusBalanceModal: true,
           UserBalanceHistoryModal: true,
           GroupReplaceModal: true,
           Icon: true,
@@ -182,6 +185,9 @@ describe('admin UsersView', () => {
 
     const columns = wrapper.get('[data-test="columns"]').text()
     const visibleColumns = columns.split(',')
+    const balanceIdx = visibleColumns.indexOf('balance')
+    expect(balanceIdx).toBeGreaterThanOrEqual(0)
+    expect(visibleColumns[balanceIdx + 1]).toBe('bonus_balance')
     expect(visibleColumns.slice(-4, -1)).toEqual(['last_active_at', 'last_used_at', 'created_at'])
     expect(visibleColumns).not.toContain('last_login_at')
 
@@ -256,6 +262,7 @@ describe('admin UsersView', () => {
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
           UserBalanceModal: true,
+          UserBonusBalanceModal: true,
           UserBalanceHistoryModal: true,
           GroupReplaceModal: true,
           Icon: true,
@@ -334,6 +341,7 @@ describe('admin UsersView', () => {
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
           UserBalanceModal: true,
+          UserBonusBalanceModal: true,
           UserBalanceHistoryModal: true,
           GroupReplaceModal: true,
           Icon: true,
@@ -368,5 +376,57 @@ describe('admin UsersView', () => {
     expect(wrapper.get('[data-test="row-order"]').text()).toBe('refreshed-page-two@example.com')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  it('shows an unavailable marker when bonus_balance is missing instead of $0.00', async () => {
+    listUsers.mockResolvedValue({
+      items: [
+        createAdminUser({ id: 1, email: 'known@example.com', bonus_balance: 0 }),
+        createAdminUser({ id: 2, email: 'unknown@example.com', bonus_balance: undefined })
+      ],
+      total: 2,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    })
+
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: BulkEditUserModalStub,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBonusBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const cells = wrapper.findAll('[data-test="bonus-balance-value"]')
+    expect(cells).toHaveLength(2)
+    expect(cells[0].text()).toBe('$0.00')
+    expect(cells[1].text()).toBe('—')
+    expect(cells[1].attributes('title')).toBe('admin.users.bonusBalanceUnavailable')
   })
 })

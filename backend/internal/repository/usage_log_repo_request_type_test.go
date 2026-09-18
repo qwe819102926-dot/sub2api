@@ -103,6 +103,7 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // session_id
 			log.NativeCompactionV2,
 			sqlmock.AnyArg(), // wallet_cost
+			sqlmock.AnyArg(), // bonus_cost
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
@@ -199,6 +200,7 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // session_id
 			log.NativeCompactionV2,
 			sqlmock.AnyArg(), // wallet_cost
+			sqlmock.AnyArg(), // bonus_cost
 			createdAt,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
@@ -280,8 +282,8 @@ func TestPrepareUsageLogInsert_PersistsNativeCompactionV2WithoutChangingRequestT
 	prepared := prepareUsageLogInsert(log)
 
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
-	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-3])
-	require.Equal(t, true, prepared.args[len(prepared.args)-3])
+	require.Equal(t, "boolean", usageLogInsertArgTypes[len(usageLogInsertArgTypes)-4])
+	require.Equal(t, true, prepared.args[len(prepared.args)-4])
 	require.Equal(t, int16(service.RequestTypeStream), prepared.args[30])
 	require.Equal(t, service.RequestTypeStream, log.RequestType)
 	require.True(t, log.Stream)
@@ -521,7 +523,7 @@ func TestUsageLogRepositoryUsageAggregatesFilterNativeCompactionV2(t *testing.T)
 			WillReturnRows(sqlmock.NewRows([]string{
 				"inbound_grouped", "upstream_grouped", "inbound_endpoint", "upstream_endpoint",
 				"requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens",
-				"cost", "actual_cost", "account_cost", "avg_duration_ms",
+				"cost", "actual_cost", "account_cost", "wallet_cost", "bonus_cost", "avg_duration_ms",
 			}))
 
 		_, err := repo.GetStatsWithFilters(context.Background(), filters)
@@ -640,12 +642,14 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestedModelSource(t *testing.T)
 			"cost",
 			"actual_cost",
 			"account_cost",
+			"wallet_cost",
+			"bonus_cost",
 			"avg_duration_ms",
 		}).
-			AddRow(1, 1, nil, nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0).
-			AddRow(0, 1, "/v1/responses", nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0).
-			AddRow(1, 0, nil, "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0).
-			AddRow(0, 0, "/v1/responses", "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0))
+			AddRow(1, 1, nil, nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 0.0, 0.0, 20.0).
+			AddRow(0, 1, "/v1/responses", nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 0.0, 0.0, 20.0).
+			AddRow(1, 0, nil, "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 0.0, 0.0, 20.0).
+			AddRow(0, 0, "/v1/responses", "/v1/responses", int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 0.0, 0.0, 20.0))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -681,8 +685,10 @@ func TestUsageLogRepositoryGetStatsWithFiltersRequestTypePriority(t *testing.T) 
 			"cost",
 			"actual_cost",
 			"account_cost",
+			"wallet_cost",
+			"bonus_cost",
 			"avg_duration_ms",
-		}).AddRow(1, 1, nil, nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 20.0))
+		}).AddRow(1, 1, nil, nil, int64(1), int64(2), int64(3), int64(1), int64(3), 1.2, 1.0, 1.2, 0.0, 0.0, 20.0))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
@@ -807,13 +813,37 @@ func TestUsageLogRepositoryGetStatsWithFiltersAlwaysReturnsAccountCost(t *testin
 		WillReturnRows(sqlmock.NewRows([]string{
 			"inbound_grouped", "upstream_grouped", "inbound_endpoint", "upstream_endpoint",
 			"requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens",
-			"cost", "actual_cost", "account_cost", "avg_duration_ms",
-		}).AddRow(1, 1, nil, nil, int64(50), int64(1000), int64(2000), int64(60), int64(40), 15.0, 12.5, 11.0, 100.0))
+			"cost", "actual_cost", "account_cost", "wallet_cost", "bonus_cost", "avg_duration_ms",
+		}).AddRow(1, 1, nil, nil, int64(50), int64(1000), int64(2000), int64(60), int64(40), 15.0, 12.5, 11.0, 0.0, 0.0, 100.0))
 
 	stats, err := repo.GetStatsWithFilters(context.Background(), filters)
 	require.NoError(t, err)
 	require.NotNil(t, stats.TotalAccountCost, "TotalAccountCost must always be returned, even without AccountID filter")
 	require.Equal(t, 11.0, *stats.TotalAccountCost)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUsageLogRepositoryGetStatsWithFiltersWalletBonusProfit(t *testing.T) {
+	db, mock := newSQLMock(t)
+	repo := &usageLogRepository{sql: db}
+
+	mock.ExpectQuery("(?s)COALESCE\\(bonus_cost, GREATEST\\(actual_cost - COALESCE\\(wallet_cost, actual_cost\\), 0\\)\\).*GROUP BY GROUPING SETS").
+		WillReturnRows(sqlmock.NewRows([]string{
+			"inbound_grouped", "upstream_grouped", "inbound_endpoint", "upstream_endpoint",
+			"requests", "input_tokens", "output_tokens", "cache_creation_tokens", "cache_read_tokens",
+			"cost", "actual_cost", "account_cost", "wallet_cost", "bonus_cost", "avg_duration_ms",
+		}).AddRow(1, 1, nil, nil, int64(4), int64(10), int64(20), int64(1), int64(2), 3.0, 2.4, 1.5, 0.95, 0.65, 80.0))
+
+	stats, err := repo.GetStatsWithFilters(context.Background(), usagestats.UsageLogFilters{})
+	require.NoError(t, err)
+	require.NotNil(t, stats.TotalWalletCost)
+	require.NotNil(t, stats.TotalBonusCost)
+	require.NotNil(t, stats.TotalAccountCost)
+	require.NotNil(t, stats.TotalProfit)
+	require.InDelta(t, 0.95, *stats.TotalWalletCost, 1e-9)
+	require.InDelta(t, 0.65, *stats.TotalBonusCost, 1e-9)
+	require.InDelta(t, 1.5, *stats.TotalAccountCost, 1e-9)
+	require.InDelta(t, -0.55, *stats.TotalProfit, 1e-9)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

@@ -661,7 +661,7 @@ func TestResolveAccountStatsCost_NilChannelService(t *testing.T) {
 		nil, // channelService is nil
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
 		1, 1, "claude-sonnet-4",
-		UsageTokens{InputTokens: 100}, 1, 0.5, "",
+		UsageTokens{InputTokens: 100}, 1, 0.5, "", "",
 	)
 	require.Nil(t, result)
 }
@@ -677,7 +677,7 @@ func TestResolveAccountStatsCost_EmptyUpstreamModel(t *testing.T) {
 		cs,
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
 		1, 1, "", // empty upstream model
-		UsageTokens{InputTokens: 100}, 1, 0.5, "",
+		UsageTokens{InputTokens: 100}, 1, 0.5, "", "",
 	)
 	require.Nil(t, result)
 }
@@ -694,7 +694,7 @@ func TestResolveAccountStatsCost_GetChannelForGroupReturnsNil(t *testing.T) {
 		cs,
 		newTestBillingServiceWithPrices(map[string]*ModelPricing{}),
 		1, 99, "claude-sonnet-4", // groupID 99 has no channel
-		UsageTokens{InputTokens: 100}, 1, 0.5, "",
+		UsageTokens{InputTokens: 100}, 1, 0.5, "", "",
 	)
 	require.Nil(t, result)
 }
@@ -725,7 +725,7 @@ func TestResolveAccountStatsCost_HitsCustomRule(t *testing.T) {
 		context.Background(),
 		cs, nil, // billingService not needed when custom rule hits
 		1, 10, "claude-sonnet-4",
-		tokens, 1, 999.0, "priority", // 自定义账号价格不叠加服务层级倍率
+		tokens, 1, 999.0, "priority", "", // 自定义账号价格不叠加服务层级倍率
 	)
 	require.NotNil(t, result)
 	// 100*0.01 + 50*0.02 = 1.0 + 1.0 = 2.0
@@ -747,7 +747,7 @@ func TestResolveAccountStatsCost_ApplyPricingToAccountStats_UsesTotalCost(t *tes
 		context.Background(),
 		cs, nil,
 		1, 10, "claude-sonnet-4",
-		tokens, 1, 0.75, "priority", // 已完成用户计费，不再重复应用服务层级倍率
+		tokens, 1, 0.75, "priority", "", // 已完成用户计费，不再重复应用服务层级倍率
 	)
 	require.NotNil(t, result)
 	require.InDelta(t, 0.75, *result, 1e-12)
@@ -765,7 +765,7 @@ func TestResolveAccountStatsCost_ApplyPricingToAccountStats_ZeroTotalCost_Return
 		context.Background(),
 		cs, nil,
 		1, 10, "claude-sonnet-4",
-		UsageTokens{}, 1, 0.0, "", // totalCost = 0
+		UsageTokens{}, 1, 0.0, "", "", // totalCost = 0
 	)
 	require.Nil(t, result)
 }
@@ -792,7 +792,7 @@ func TestResolveAccountStatsCost_FallsBackToLiteLLM(t *testing.T) {
 		context.Background(),
 		cs, bs,
 		1, 10, "claude-sonnet-4",
-		tokens, 1, 999.0, "", // totalCost ignored
+		tokens, 1, 999.0, "", "", // totalCost ignored
 	)
 	require.NotNil(t, result)
 	// 100*0.001 + 50*0.002 = 0.1 + 0.1 = 0.2
@@ -813,7 +813,7 @@ func TestResolveAccountStatsCost_FallbackHonorsAnthropicFast(t *testing.T) {
 		context.Background(), cs, bs,
 		1, 10, "claude-opus-5",
 		UsageTokens{InputTokens: 1_000_000, OutputTokens: 1_000_000},
-		1, 0, "fast",
+		1, 0, "fast", "",
 	)
 	require.NotNil(t, result)
 	require.InDelta(t, 60, *result, 1e-12)
@@ -832,7 +832,7 @@ func TestResolveAccountStatsCost_Gemini36FlashTierUsesFallbackPricing(t *testing
 		context.Background(),
 		cs, bs,
 		1, 10, "gemini-3.6-flash-low",
-		UsageTokens{InputTokens: 1_000_000, OutputTokens: 1_000_000, CacheReadTokens: 1_000_000}, 1, 0, "",
+		UsageTokens{InputTokens: 1_000_000, OutputTokens: 1_000_000, CacheReadTokens: 1_000_000}, 1, 0, "", "",
 	)
 	require.NotNil(t, result)
 	require.InDelta(t, 9.15, *result, 1e-12)
@@ -856,7 +856,7 @@ func TestResolveAccountStatsCost_AllMiss_ReturnsNil(t *testing.T) {
 		context.Background(),
 		cs, bs,
 		1, 10, "totally-unknown-model",
-		tokens, 1, 0.0, "",
+		tokens, 1, 0.0, "", "",
 	)
 	require.Nil(t, result)
 }
@@ -873,7 +873,7 @@ func TestResolveAccountStatsCost_NilBillingService_SkipsLiteLLM(t *testing.T) {
 		context.Background(),
 		cs, nil, // billingService is nil
 		1, 10, "claude-sonnet-4",
-		UsageTokens{InputTokens: 100}, 1, 0.0, "",
+		UsageTokens{InputTokens: 100}, 1, 0.0, "", "",
 	)
 	require.Nil(t, result)
 }
@@ -906,7 +906,7 @@ func TestResolveAccountStatsCost_CustomRulePriorityOverApplyPricing(t *testing.T
 		context.Background(),
 		cs, nil,
 		1, 10, "claude-sonnet-4",
-		tokens, 1, 99.0, "", // totalCost = 99.0 (would be used if ApplyPricing wins)
+		tokens, 1, 99.0, "", "", // totalCost = 99.0 (would be used if ApplyPricing wins)
 	)
 	require.NotNil(t, result)
 	// Custom rule: 100*0.05 = 5.0 (NOT 99.0 from totalCost)
@@ -934,11 +934,135 @@ func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 	applyAccountStatsCost(
 		context.Background(), usageLog, cs, bs,
 		1, 10, "gpt-5.6-sol", "gpt-5.6-sol",
-		UsageTokens{InputTokens: 100, OutputTokens: 50}, 999,
+		UsageTokens{InputTokens: 100, OutputTokens: 50}, 999, "gpt-5.6-sol",
 	)
 
 	require.NotNil(t, usageLog.AccountStatsCost)
 	require.InDelta(t, 0.4, *usageLog.AccountStatsCost, 1e-12)
+}
+
+func TestAccountStatsShouldReuseUserTotalCost(t *testing.T) {
+	require.True(t, accountStatsShouldReuseUserTotalCost("gpt-5.6-terra", ""))
+	require.True(t, accountStatsShouldReuseUserTotalCost("gpt-5.6-sol", "gpt-5.6-sol"))
+	require.True(t, accountStatsShouldReuseUserTotalCost("GPT-5.6-SOL", "gpt-5.6-sol"))
+	require.False(t, accountStatsShouldReuseUserTotalCost("gpt-5.6-terra", "gpt-5.6-sol"))
+}
+
+func TestResolveAccountStatsCost_MappedModel_DoesNotReuseUserTotalCost(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+	tokens := UsageTokens{InputTokens: 1000, OutputTokens: 100, CacheReadTokens: 50}
+
+	result := resolveAccountStatsCost(
+		context.Background(),
+		cs, bs,
+		1, 10, "gpt-5.6-terra",
+		tokens, 1, 99.0, "", "gpt-5.6-sol",
+	)
+	require.NotNil(t, result)
+	// terra file prices: 1000*2e-6 + 100*12e-6 + 50*0.2e-6 = 0.00321
+	require.InDelta(t, 0.00321, *result, 1e-12)
+	require.NotEqual(t, 99.0, *result)
+}
+
+func TestResolveAccountStatsCost_MappedModel_UserExampleSolToTerra(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+	tokens := UsageTokens{InputTokens: 71462, OutputTokens: 49, CacheReadTokens: 3800}
+	solTotalCost := 0.36068
+
+	result := resolveAccountStatsCost(
+		context.Background(),
+		cs, bs,
+		1, 10, "gpt-5.6-terra",
+		tokens, 1, solTotalCost, "", "gpt-5.6-sol",
+	)
+	require.NotNil(t, result)
+	// terra: 71462*2e-6 + 49*12e-6 + 3800*0.2e-6 = 0.144272
+	require.InDelta(t, 0.144272, *result, 1e-9)
+}
+
+func TestResolveAccountStatsCost_ApplyPricing_SameBilledAndUpstream_UsesTotalCost(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+
+	result := resolveAccountStatsCost(
+		context.Background(),
+		cs, bs,
+		1, 10, "gpt-5.6-terra",
+		UsageTokens{InputTokens: 100, OutputTokens: 50}, 1, 0.75, "", "gpt-5.6-terra",
+	)
+	require.NotNil(t, result)
+	require.InDelta(t, 0.75, *result, 1e-12)
+}
+
+func TestResolveAccountStatsCost_MappedModel_CustomUpstreamRuleWins(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+		AccountStatsPricingRules: []AccountStatsPricingRule{
+			{
+				GroupIDs: []int64{10},
+				Pricing: []ChannelModelPricing{
+					{
+						ID:         100,
+						Models:     []string{"gpt-5.6-terra"},
+						InputPrice: testPtrFloat64(0.01),
+					},
+				},
+			},
+		},
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+
+	result := resolveAccountStatsCost(
+		context.Background(),
+		cs, bs,
+		1, 10, "gpt-5.6-terra",
+		UsageTokens{InputTokens: 100}, 1, 99.0, "", "gpt-5.6-sol",
+	)
+	require.NotNil(t, result)
+	// Custom terra rule: 100*0.01 = 1.0, not user totalCost and not LiteLLM file price.
+	require.InDelta(t, 1.0, *result, 1e-12)
+}
+
+func TestApplyAccountStatsCost_MappedModelUsesUpstreamFilePrice(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+	usageLog := &UsageLog{}
+
+	applyAccountStatsCost(
+		context.Background(), usageLog, cs, bs,
+		1, 10, "gpt-5.6-terra", "gpt-5.6-sol",
+		UsageTokens{InputTokens: 71462, OutputTokens: 49, CacheReadTokens: 3800},
+		0.36068,
+		"gpt-5.6-sol",
+	)
+
+	require.NotNil(t, usageLog.AccountStatsCost)
+	require.InDelta(t, 0.144272, *usageLog.AccountStatsCost, 1e-9)
 }
 
 // ---------------------------------------------------------------------------

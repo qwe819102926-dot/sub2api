@@ -301,6 +301,9 @@ type UsageStats struct {
 	TotalCost                float64        `json:"total_cost"`
 	TotalActualCost          float64        `json:"total_actual_cost"`
 	TotalAccountCost         *float64       `json:"total_account_cost,omitempty"`
+	TotalWalletCost          *float64       `json:"total_wallet_cost,omitempty"` // 本金余额实扣（不含赠送、不含订阅）
+	TotalBonusCost           *float64       `json:"total_bonus_cost,omitempty"`  // 赠送余额实扣（含消费倍率，不含订阅）
+	TotalProfit              *float64       `json:"total_profit,omitempty"`      // 本金 − 账号成本
 	AverageDurationMs        float64        `json:"average_duration_ms"`
 	Endpoints                []EndpointStat `json:"endpoints,omitempty"`
 	UpstreamEndpoints        []EndpointStat `json:"upstream_endpoints,omitempty"`

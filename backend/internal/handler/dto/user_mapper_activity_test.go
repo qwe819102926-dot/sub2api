@@ -16,18 +16,34 @@ func TestUserFromServiceAdmin_MapsActivityTimestamps(t *testing.T) {
 	lastUsedAt := lastLoginAt.Add(45 * time.Minute)
 
 	out := UserFromServiceAdmin(&service.User{
-		ID:           42,
-		Email:        "admin@example.com",
-		Username:     "admin",
-		Role:         service.RoleAdmin,
-		Status:       service.StatusActive,
-		LastActiveAt: &lastActiveAt,
-		LastUsedAt:   &lastUsedAt,
+		ID:                42,
+		Email:             "admin@example.com",
+		Username:          "admin",
+		Role:              service.RoleAdmin,
+		Status:            service.StatusActive,
+		BonusBalance:      12.5,
+		BonusBalanceKnown: true,
+		LastActiveAt:      &lastActiveAt,
+		LastUsedAt:        &lastUsedAt,
 	})
 
 	require.NotNil(t, out)
+	require.NotNil(t, out.BonusBalance)
+	require.Equal(t, 12.5, *out.BonusBalance)
 	require.NotNil(t, out.LastActiveAt)
 	require.NotNil(t, out.LastUsedAt)
 	require.WithinDuration(t, lastActiveAt, *out.LastActiveAt, time.Second)
 	require.WithinDuration(t, lastUsedAt, *out.LastUsedAt, time.Second)
+}
+
+func TestUserFromServiceAdmin_OmitsUnknownBonusBalance(t *testing.T) {
+	t.Parallel()
+
+	out := UserFromServiceAdmin(&service.User{
+		ID:           42,
+		BonusBalance: 12.5,
+	})
+
+	require.NotNil(t, out)
+	require.Nil(t, out.BonusBalance)
 }

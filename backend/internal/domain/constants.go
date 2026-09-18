@@ -73,8 +73,9 @@ const (
 
 // Admin adjustment type constants
 const (
-	AdjustmentTypeAdminBalance     = "admin_balance"     // 管理员调整余额
-	AdjustmentTypeAdminConcurrency = "admin_concurrency" // 管理员调整并发数
+	AdjustmentTypeAdminBalance      = "admin_balance"     // 管理员调整余额
+	AdjustmentTypeAdminConcurrency  = "admin_concurrency" // 管理员调整并发数
+	AdjustmentTypeAdminBonusBalance = "admin_bonus"       // 管理员调整赠送余额
 )
 
 // Group subscription type constants

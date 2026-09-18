@@ -43,8 +43,9 @@ type User struct {
 type AdminUser struct {
 	User
 
-	Notes      string     `json:"notes"`
-	LastUsedAt *time.Time `json:"last_used_at"`
+	Notes        string     `json:"notes"`
+	BonusBalance *float64   `json:"bonus_balance"`
+	LastUsedAt   *time.Time `json:"last_used_at"`
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]rateMultiplier
 	GroupRates map[int64]float64 `json:"group_rates,omitempty"`
@@ -514,7 +515,7 @@ type RedeemCode struct {
 	GroupID      *int64 `json:"group_id"`
 	ValidityDays int    `json:"validity_days"`
 
-	// Notes is only populated for admin_balance/admin_concurrency types
+	// Notes is only populated for admin_balance/admin_concurrency/admin_bonus types
 	// so users can see why they were charged or credited
 	Notes *string `json:"notes,omitempty"`
 

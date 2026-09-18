@@ -158,8 +158,9 @@ const (
 
 // Admin adjustment type constants
 const (
-	AdjustmentTypeAdminBalance     = domain.AdjustmentTypeAdminBalance     // 管理员调整余额
-	AdjustmentTypeAdminConcurrency = domain.AdjustmentTypeAdminConcurrency // 管理员调整并发数
+	AdjustmentTypeAdminBalance      = domain.AdjustmentTypeAdminBalance      // 管理员调整余额
+	AdjustmentTypeAdminConcurrency  = domain.AdjustmentTypeAdminConcurrency  // 管理员调整并发数
+	AdjustmentTypeAdminBonusBalance = domain.AdjustmentTypeAdminBonusBalance // 管理员调整赠送余额
 )
 
 // Group subscription type constants

@@ -480,6 +480,37 @@ func (h *UserHandler) UpdateBalance(c *gin.Context) {
 	})
 }
 
+// UpdateBonusBalance handles updating user bonus balance
+// POST /api/v1/admin/users/:id/bonus-balance
+func (h *UserHandler) UpdateBonusBalance(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
+	}
+
+	var req UpdateBalanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	idempotencyPayload := struct {
+		UserID int64                `json:"user_id"`
+		Body   UpdateBalanceRequest `json:"body"`
+	}{
+		UserID: userID,
+		Body:   req,
+	}
+	executeAdminIdempotentJSON(c, "admin.users.bonus-balance.update", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		user, execErr := h.adminService.UpdateUserBonusBalance(ctx, userID, req.Balance, req.Operation, req.Notes)
+		if execErr != nil {
+			return nil, execErr
+		}
+		return dto.UserFromServiceAdmin(user), nil
+	})
+}
+
 // GetUserAPIKeys handles getting user's API keys
 // GET /api/v1/admin/users/:id/api-keys
 func (h *UserHandler) GetUserAPIKeys(c *gin.Context) {
@@ -529,7 +560,7 @@ func (h *UserHandler) GetUserUsage(c *gin.Context) {
 // GetBalanceHistory handles getting user's balance/concurrency change history
 // GET /api/v1/admin/users/:id/balance-history
 // Query params:
-//   - type: filter by record type (balance, affiliate_balance, admin_balance, concurrency, admin_concurrency, subscription)
+//   - type: filter by record type (balance, affiliate_balance, admin_balance, admin_bonus, concurrency, admin_concurrency, subscription)
 func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
