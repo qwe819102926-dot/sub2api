@@ -469,10 +469,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）。
-	// 用户计费模型与上游映射模型不同时，管理员成本按映射后的上游模型计价。
+	// /v1/responses 透传经常让 result.UpstreamModel 为空或仍是请求模型，
+	// 管理员成本必须按映射链/渠道映射后的上游模型计价，用户计费保持不变。
 	if apiKey.GroupID != nil {
 		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
-			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model,
+			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model, input.ChannelMappedModel,
 			tokens, cost.TotalCost, firstUsageBillingModel(billingModels),
 		)
 	}

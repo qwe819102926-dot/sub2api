@@ -933,7 +933,7 @@ func TestApplyAccountStatsCost_UsesUsageLogServiceTier(t *testing.T) {
 
 	applyAccountStatsCost(
 		context.Background(), usageLog, cs, bs,
-		1, 10, "gpt-5.6-sol", "gpt-5.6-sol",
+		1, 10, "gpt-5.6-sol", "gpt-5.6-sol", "",
 		UsageTokens{InputTokens: 100, OutputTokens: 50}, 999, "gpt-5.6-sol",
 	)
 
@@ -1055,7 +1055,7 @@ func TestApplyAccountStatsCost_MappedModelUsesUpstreamFilePrice(t *testing.T) {
 
 	applyAccountStatsCost(
 		context.Background(), usageLog, cs, bs,
-		1, 10, "gpt-5.6-terra", "gpt-5.6-sol",
+		1, 10, "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-terra",
 		UsageTokens{InputTokens: 71462, OutputTokens: 49, CacheReadTokens: 3800},
 		0.36068,
 		"gpt-5.6-sol",
@@ -1063,6 +1063,144 @@ func TestApplyAccountStatsCost_MappedModelUsesUpstreamFilePrice(t *testing.T) {
 
 	require.NotNil(t, usageLog.AccountStatsCost)
 	require.InDelta(t, 0.144272, *usageLog.AccountStatsCost, 1e-9)
+}
+
+func TestResolveAccountStatsCostModel(t *testing.T) {
+	tests := []struct {
+		name, upstream, mapped, original, requested, chain, want string
+	}{
+		{
+			name:      "empty upstream uses mapping chain",
+			mapped:    "gpt-5.6-terra",
+			original:  "gpt-5.5",
+			requested: "gpt-5.5",
+			chain:     "gpt-5.5→gpt-5.6-terra",
+			want:      "gpt-5.6-terra",
+		},
+		{
+			name:      "trailing original hop still uses mapped",
+			upstream:  "gpt-5.5",
+			mapped:    "gpt-5.6-terra",
+			original:  "gpt-5.5",
+			requested: "gpt-5.5",
+			chain:     "gpt-5.5→gpt-5.6-terra→gpt-5.5",
+			want:      "gpt-5.6-terra",
+		},
+		{
+			name:      "passthrough client upstream uses chain",
+			upstream:  "gpt-5.5",
+			mapped:    "gpt-5.6-terra",
+			original:  "gpt-5.5",
+			requested: "gpt-5.5",
+			chain:     "gpt-5.5→gpt-5.6-terra",
+			want:      "gpt-5.6-terra",
+		},
+		{
+			name:      "no mapping falls back to upstream",
+			upstream:  "gpt-5.5",
+			mapped:    "gpt-5.5",
+			original:  "gpt-5.5",
+			requested: "gpt-5.5",
+			want:      "gpt-5.5",
+		},
+		{
+			name:      "mapped without chain",
+			mapped:    "gpt-5.6-terra",
+			original:  "gpt-5.5",
+			requested: "gpt-5.5",
+			want:      "gpt-5.6-terra",
+		},
+		{
+			name:      "empty original falls back to requested for trailing hop",
+			upstream:  "gpt-5.5",
+			mapped:    "gpt-5.6-terra",
+			requested: "gpt-5.5",
+			chain:     "gpt-5.5→gpt-5.6-terra→gpt-5.5",
+			want:      "gpt-5.6-terra",
+		},
+		{
+			name:      "empty original mapped without chain uses requested",
+			mapped:    "gpt-5.6-terra",
+			requested: "gpt-5.5",
+			want:      "gpt-5.6-terra",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, resolveAccountStatsCostModel(
+				tt.upstream, tt.mapped, tt.original, tt.requested, tt.chain,
+			))
+		})
+	}
+}
+
+func TestApplyAccountStatsCost_MappingUsesUpstreamFilePrice(t *testing.T) {
+	channel := &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cs := newTestChannelServiceForStats(t, channel, 10, "openai")
+	bs := NewBillingService(&config.Config{}, nil)
+	tokens := UsageTokens{InputTokens: 1247, OutputTokens: 10, CacheReadTokens: 8000}
+	const userTotalCost = 0.010535
+	const terraFileCost = 0.004214 // 1247*2e-6 + 10*12e-6 + 8000*0.2e-6
+
+	tests := []struct {
+		name, upstream, requested, mapped, chain, logRequested string
+	}{
+		{
+			name:         "passthrough client upstream uses mapping chain",
+			upstream:     "gpt-5.5",
+			requested:    "gpt-5.5",
+			mapped:       "gpt-5.6-terra",
+			chain:        "gpt-5.5→gpt-5.6-terra",
+			logRequested: "gpt-5.5",
+		},
+		{
+			name:         "empty upstream uses mapping chain",
+			requested:    "gpt-5.5",
+			mapped:       "gpt-5.6-terra",
+			chain:        "gpt-5.5→gpt-5.6-terra",
+			logRequested: "gpt-5.5",
+		},
+		{
+			name:      "empty log original trailing hop falls back to requested",
+			upstream:  "gpt-5.5",
+			requested: "gpt-5.5",
+			mapped:    "gpt-5.6-terra",
+			chain:     "gpt-5.5→gpt-5.6-terra→gpt-5.5",
+		},
+		{
+			name:      "mapped without chain does not copy user total cost",
+			upstream:  "gpt-5.5",
+			requested: "gpt-5.5",
+			mapped:    "gpt-5.6-terra",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			usageLog := &UsageLog{
+				RequestedModel: tt.logRequested,
+				Model:          "gpt-5.5",
+			}
+			if tt.chain != "" {
+				chain := tt.chain
+				usageLog.ModelMappingChain = &chain
+			}
+
+			applyAccountStatsCost(
+				context.Background(), usageLog, cs, bs,
+				1, 10, tt.upstream, tt.requested, tt.mapped,
+				tokens, userTotalCost, "gpt-5.5",
+			)
+
+			require.NotNil(t, usageLog.AccountStatsCost)
+			require.InDelta(t, terraFileCost, *usageLog.AccountStatsCost, 1e-9)
+			require.NotEqual(t, userTotalCost, *usageLog.AccountStatsCost)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

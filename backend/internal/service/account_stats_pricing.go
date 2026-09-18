@@ -258,9 +258,59 @@ func calculateTokenStatsCost(pricing *ChannelModelPricing, tokens UsageTokens) *
 	return &cost
 }
 
+// resolveAccountStatsCostModel picks the model whose file/custom price should
+// be used for admin account cost. Cost must follow the model actually sent
+// upstream, not the client-billed model.
+//
+// /v1/responses passthrough often leaves result.UpstreamModel empty (or still
+// the client model) while ChannelMappedModel / ModelMappingChain already record
+// the rewrite shown in the admin UI as "gpt-5.5 -> gpt-5.6-terra".
+func resolveAccountStatsCostModel(upstreamModel, channelMappedModel, originalModel, requestedModel, mappingChain string) string {
+	original := firstNonEmpty(originalModel, requestedModel)
+	if hop := lastDistinctMappingHop(mappingChain, original); hop != "" {
+		return hop
+	}
+	mapped := strings.TrimSpace(channelMappedModel)
+	if mapped != "" && original != "" && !strings.EqualFold(mapped, original) {
+		return mapped
+	}
+	if upstream := strings.TrimSpace(upstreamModel); upstream != "" {
+		return upstream
+	}
+	if mapped != "" {
+		return mapped
+	}
+	if requested := strings.TrimSpace(requestedModel); requested != "" {
+		return requested
+	}
+	return original
+}
+
+// lastDistinctMappingHop returns the last mapping-chain hop that is not the
+// client-requested model. Walking backwards skips a trailing hop that wrongly
+// repeats the original model (passthrough recording gpt-5.5->terra->gpt-5.5).
+func lastDistinctMappingHop(chain, original string) string {
+	chain = strings.TrimSpace(chain)
+	if chain == "" || !strings.Contains(chain, "→") {
+		return ""
+	}
+	original = strings.TrimSpace(original)
+	parts := strings.Split(chain, "→")
+	for i := len(parts) - 1; i >= 0; i-- {
+		hop := strings.TrimSpace(parts[i])
+		if hop == "" {
+			continue
+		}
+		if original == "" || !strings.EqualFold(hop, original) {
+			return hop
+		}
+	}
+	return ""
+}
+
 // applyAccountStatsCost resolves the account stats cost for a usage log entry.
-// It resolves the upstream model (falling back to the requested model) and calls
-// the 4-level priority chain via resolveAccountStatsCost.
+// It prefers the mapped upstream model (mapping chain / channel mapped model)
+// over a passthrough UpstreamModel that is empty or still the client model.
 // billedModel is the model actually used for user billing. When it differs from
 // the upstream/mapped model, account stats skip copying user total_cost and
 // price the upstream model instead.
@@ -269,15 +319,28 @@ func applyAccountStatsCost(
 	usageLog *UsageLog,
 	cs *ChannelService, bs *BillingService,
 	accountID int64, groupID int64,
-	upstreamModel, requestedModel string,
+	upstreamModel, requestedModel, channelMappedModel string,
 	tokens UsageTokens,
 	totalCost float64,
 	billedModel string,
 ) {
-	model := upstreamModel
-	if model == "" {
-		model = requestedModel
+	original := requestedModel
+	chain := ""
+	mapped := channelMappedModel
+	if usageLog != nil {
+		if strings.TrimSpace(usageLog.RequestedModel) != "" {
+			original = usageLog.RequestedModel
+		}
+		chain = optionalStringValue(usageLog.ModelMappingChain)
+		if strings.TrimSpace(upstreamModel) == "" {
+			upstreamModel = optionalStringValue(usageLog.UpstreamModel)
+		}
+		if strings.TrimSpace(requestedModel) == "" {
+			requestedModel = usageLog.Model
+		}
 	}
+	original = firstNonEmpty(original, requestedModel)
+	model := resolveAccountStatsCostModel(upstreamModel, mapped, original, requestedModel, chain)
 	if strings.TrimSpace(billedModel) == "" {
 		billedModel = requestedModel
 	}

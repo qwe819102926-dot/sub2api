@@ -1620,6 +1620,52 @@ func TestOpenAIGatewayServiceRecordUsage_PreservesChannelMappedUpstreamModel(t *
 	require.Equal(t, "gpt-5.6-terra", *usageRepo.lastLog.UpstreamModel)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_EmptyUpstreamUsesMappedModelAccountStatsCost(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+	groupID := int64(10)
+	channelService := &ChannelService{}
+	cache := newEmptyChannelCache()
+	cache.channelByGroupID[groupID] = &Channel{
+		ID:                         1,
+		Status:                     StatusActive,
+		ApplyPricingToAccountStats: true,
+	}
+	cache.groupPlatform[groupID] = "openai"
+	cache.loadedAt = time.Now()
+	channelService.cache.Store(cache)
+	svc.channelService = channelService
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_empty_upstream_mapped_cost",
+			Model:     "gpt-5.5",
+			Usage: OpenAIUsage{
+				InputTokens:          9247,
+				OutputTokens:         10,
+				CacheReadInputTokens: 8000,
+			},
+			Duration: time.Second,
+		},
+		APIKey:  &APIKey{ID: 10, GroupID: i64p(groupID), Group: &Group{ID: groupID}},
+		User:    &User{ID: 20},
+		Account: &Account{ID: 30},
+		ChannelUsageFields: ChannelUsageFields{
+			ChannelMappedModel: "gpt-5.6-terra",
+			ModelMappingChain:  "gpt-5.5→gpt-5.6-terra→gpt-5.5",
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, usageRepo.lastLog.AccountStatsCost)
+	// terra file prices: 1247*2e-6 + 10*12e-6 + 8000*0.2e-6 = 0.004214
+	require.InDelta(t, 0.004214, *usageRepo.lastLog.AccountStatsCost, 1e-9)
+	require.NotEqual(t, usageRepo.lastLog.TotalCost, *usageRepo.lastLog.AccountStatsCost)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_PreservesLoopedChannelAndAccountUpstreamModel(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}
