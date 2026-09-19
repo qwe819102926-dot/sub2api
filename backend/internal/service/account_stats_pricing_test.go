@@ -699,6 +699,34 @@ func TestResolveAccountStatsCost_GetChannelForGroupReturnsNil(t *testing.T) {
 	require.Nil(t, result)
 }
 
+func TestResolveAccountStatsCost_NoChannelFallbackPolicy(t *testing.T) {
+	cs := newTestChannelServiceForStats(t, &Channel{ID: 1, Status: StatusActive}, 99, PlatformOpenAI)
+	bs := NewBillingService(&config.Config{}, nil)
+	for _, tc := range []struct {
+		name, upstream, billed, tier string
+		want                         *float64
+	}{
+		{name: "mapped standard", upstream: "gpt-5.6-terra", billed: "gpt-5.5", want: testPtrFloat64(0.002012)},
+		{name: "mapped priority", upstream: "gpt-5.6-terra", billed: "gpt-5.5", tier: "priority", want: testPtrFloat64(0.004024)},
+		{name: "same model preserves custom user total", upstream: "gpt-5.6-terra", billed: "gpt-5.6-terra"},
+		{name: "unknown price retains fallback", upstream: "unknown-mapped-model", billed: "gpt-5.5"},
+		{name: "unspecified billing model retains fallback", upstream: "gpt-5.6-terra"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, channelService := range []*ChannelService{nil, cs} {
+				got := resolveAccountStatsCost(context.Background(), channelService, bs,
+					1, 10, tc.upstream, UsageTokens{InputTokens: 1000, OutputTokens: 1}, 1, 9.99, tc.tier, tc.billed)
+				if tc.want == nil {
+					require.Nil(t, got)
+				} else {
+					require.NotNil(t, got)
+					require.InDelta(t, *tc.want, *got, 1e-12)
+				}
+			}
+		})
+	}
+}
+
 func TestResolveAccountStatsCost_HitsCustomRule(t *testing.T) {
 	channel := &Channel{
 		ID:     1,

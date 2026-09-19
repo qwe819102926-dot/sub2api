@@ -881,22 +881,24 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	// 计算账号统计定价费用（使用最终上游模型匹配自定义规则）。
 	// /v1/responses 透传经常让 result.UpstreamModel 为空或仍是请求模型，
 	// 管理员成本必须按映射链/渠道映射后的上游模型计价，用户计费保持不变。
+	var accountStatsGroupID int64
 	if apiKey.GroupID != nil {
-		applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
-			account.ID, *apiKey.GroupID, result.UpstreamModel, result.Model, input.ChannelMappedModel,
-			// Anthropic's input_tokens excludes cache_read and cache_creation (billed separately);
-			// OpenAI gateway uses actualInputTokens which also excludes cache_read for the same reason.
-			UsageTokens{
-				InputTokens:         result.Usage.InputTokens,
-				OutputTokens:        result.Usage.OutputTokens,
-				CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-				CacheReadTokens:     result.Usage.CacheReadInputTokens,
-				ImageOutputTokens:   result.Usage.ImageOutputTokens,
-			},
-			cost.TotalCost,
-			statsBilledModel,
-		)
+		accountStatsGroupID = *apiKey.GroupID
 	}
+	applyAccountStatsCost(ctx, usageLog, s.channelService, s.billingService,
+		account.ID, accountStatsGroupID, result.UpstreamModel, result.Model, input.ChannelMappedModel,
+		// Anthropic's input_tokens excludes cache_read and cache_creation (billed separately);
+		// OpenAI gateway uses actualInputTokens which also excludes cache_read for the same reason.
+		UsageTokens{
+			InputTokens:         result.Usage.InputTokens,
+			OutputTokens:        result.Usage.OutputTokens,
+			CacheCreationTokens: result.Usage.CacheCreationInputTokens,
+			CacheReadTokens:     result.Usage.CacheReadInputTokens,
+			ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		},
+		cost.TotalCost,
+		statsBilledModel,
+	)
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")

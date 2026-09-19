@@ -1666,6 +1666,60 @@ func TestOpenAIGatewayServiceRecordUsage_EmptyUpstreamUsesMappedModelAccountStat
 	require.NotEqual(t, usageRepo.lastLog.TotalCost, *usageRepo.lastLog.AccountStatsCost)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_MappedAccountCostWithoutChannel(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		withGroup          bool
+		withChannelService bool
+	}{
+		{name: "group without channel", withGroup: true, withChannelService: true},
+		{name: "no channel service", withGroup: true},
+		{name: "no group", withChannelService: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			userRepo := &openAIRecordUsageUserRepoStub{}
+			svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{}, nil)
+			if tc.withChannelService {
+				cache := newEmptyChannelCache()
+				cache.loadedAt = time.Now()
+				svc.channelService = &ChannelService{}
+				svc.channelService.cache.Store(cache)
+			}
+			apiKey := &APIKey{ID: 10}
+			if tc.withGroup {
+				apiKey.GroupID = i64p(10)
+				apiKey.Group = &Group{ID: 10, RateMultiplier: 1.1}
+			}
+			rate := 0.075
+			err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+				Result: &OpenAIForwardResult{
+					RequestID: "mapped_cost_without_channel",
+					Model:     "gpt-5.5", UpstreamModel: "gpt-5.6-terra",
+					Usage:    OpenAIUsage{InputTokens: 596 + 3834, OutputTokens: 5, CacheReadInputTokens: 3834},
+					Duration: time.Second,
+				},
+				APIKey: apiKey, User: &User{ID: 20},
+				Account:            &Account{ID: 30, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, RateMultiplier: &rate},
+				ChannelUsageFields: ChannelUsageFields{OriginalModel: "gpt-5.5", BillingModelSource: BillingModelSourceRequested},
+			})
+			require.NoError(t, err)
+			log := usageRepo.lastLog
+			require.NotNil(t, log)
+			require.NotNil(t, log.AccountStatsCost)
+			// Representative 3.8K cache tokens: reproduce the two displayed costs.
+			const requestedCost = 596*5e-6 + 5*30e-6 + 3834*0.5e-6
+			const upstreamCost = 596*2e-6 + 5*12e-6 + 3834*0.2e-6
+			require.InDelta(t, upstreamCost, *log.AccountStatsCost, 1e-12)
+			require.InDelta(t, 0.00015141, *log.AccountStatsCost**log.AccountRateMultiplier, 1e-12)
+			require.InDelta(t, 0.000378525, log.TotalCost*rate, 1e-12)
+			require.InDelta(t, requestedCost, log.TotalCost, 1e-12)
+			require.InDelta(t, requestedCost*1.1, log.ActualCost, 1e-12)
+			require.InDelta(t, log.ActualCost, userRepo.lastAmount, 1e-12)
+		})
+	}
+}
+
 func TestOpenAIGatewayServiceRecordUsage_PreservesLoopedChannelAndAccountUpstreamModel(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	userRepo := &openAIRecordUsageUserRepoStub{}

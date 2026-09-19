@@ -17,6 +17,8 @@ import (
 //  3. 模型定价文件（LiteLLM）中上游模型的默认价格
 //  4. nil → 走默认公式（total_cost × account_rate_multiplier）
 //
+// 没有关联渠道时，映射到不同计费模型的请求仍走模型文件定价；同模型保留默认公式。
+//
 // upstreamModel 是最终发往上游的模型 ID。
 // totalCost 是本次请求的客户计费（倍率前），用于优先级 2。
 // serviceTier 是最终参与用户计费的 OpenAI 服务层级，用于优先级 3。
@@ -40,12 +42,21 @@ func resolveAccountStatsCost(
 	if len(reasoningEfforts) > 0 {
 		reasoningEffort = reasoningEfforts[0]
 	}
-	if channelService == nil || upstreamModel == "" {
+	if upstreamModel == "" {
 		return nil
 	}
+	// Account-level mappings also work without a channel. In that case a
+	// different upstream model still needs its own price, while unmapped
+	// requests retain the existing total_cost fallback (including custom prices).
+	if channelService == nil {
+		return mappedAccountStatsFileCost(billingService, upstreamModel, billedModel, tokens, serviceTier, reasoningEffort)
+	}
 	channel, err := channelService.GetChannelForGroup(ctx, groupID)
-	if err != nil || channel == nil {
+	if err != nil {
 		return nil
+	}
+	if channel == nil {
+		return mappedAccountStatsFileCost(billingService, upstreamModel, billedModel, tokens, serviceTier, reasoningEffort)
 	}
 
 	platform := channelService.GetGroupPlatform(ctx, groupID)
@@ -71,6 +82,13 @@ func resolveAccountStatsCost(
 	}
 
 	return nil
+}
+
+func mappedAccountStatsFileCost(bs *BillingService, upstreamModel, billedModel string, tokens UsageTokens, serviceTier, reasoningEffort string) *float64 {
+	if bs == nil || accountStatsShouldReuseUserTotalCost(upstreamModel, billedModel) {
+		return nil
+	}
+	return tryModelFilePricing(bs, upstreamModel, tokens, serviceTier, reasoningEffort)
 }
 
 // accountStatsShouldReuseUserTotalCost reports whether account stats may copy the
