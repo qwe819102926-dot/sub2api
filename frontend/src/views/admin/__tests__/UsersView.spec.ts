@@ -6,12 +6,14 @@ import UsersView from '../UsersView.vue'
 
 const {
   listUsers,
+  getBalanceSummary,
   getAllGroups,
   getBatchUsersUsage,
   listEnabledDefinitions,
   getBatchUserAttributes
 } = vi.hoisted(() => ({
   listUsers: vi.fn(),
+  getBalanceSummary: vi.fn(),
   getAllGroups: vi.fn(),
   getBatchUsersUsage: vi.fn(),
   listEnabledDefinitions: vi.fn(),
@@ -22,6 +24,7 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     users: {
       list: listUsers,
+      getBalanceSummary,
       toggleStatus: vi.fn(),
       delete: vi.fn()
     },
@@ -127,6 +130,7 @@ describe('admin UsersView', () => {
     localStorage.clear()
 
     listUsers.mockReset()
+    getBalanceSummary.mockReset()
     getAllGroups.mockReset()
     getBatchUsersUsage.mockReset()
     listEnabledDefinitions.mockReset()
@@ -139,6 +143,7 @@ describe('admin UsersView', () => {
       page_size: 20,
       pages: 1
     })
+    getBalanceSummary.mockResolvedValue({ total_balance: 12.5, total_bonus_balance: 3.25 })
     getAllGroups.mockResolvedValue([])
     getBatchUsersUsage.mockResolvedValue({ stats: {} })
     listEnabledDefinitions.mockResolvedValue([])
@@ -183,6 +188,10 @@ describe('admin UsersView', () => {
 
     await flushPromises()
 
+    expect(wrapper.get('[data-test="user-balance-summary"]').text()).toContain('$12.50')
+    expect(wrapper.get('[data-test="user-balance-summary"]').text()).toContain('$3.25')
+    expect(getBalanceSummary).toHaveBeenCalled()
+
     const columns = wrapper.get('[data-test="columns"]').text()
     const visibleColumns = columns.split(',')
     const balanceIdx = visibleColumns.indexOf('balance')
@@ -203,6 +212,7 @@ describe('admin UsersView', () => {
       }),
       expect.any(Object)
     )
+    expect(getBalanceSummary).toHaveBeenCalledTimes(1)
   })
 
   it('clears usage current-page sort when switching to last_used_at server sort', async () => {

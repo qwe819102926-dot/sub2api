@@ -72,7 +72,7 @@
 
         <section class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-dark-700 dark:bg-dark-900 md:p-7">
           <div class="mb-5 flex items-center justify-between border-b border-gray-100 pb-5 dark:border-dark-700"><div><h2 class="font-semibold text-gray-900 dark:text-white">{{ t('imageGeneration.resultTitle') }}</h2><p class="text-sm text-gray-500 dark:text-gray-400">{{ submitting ? t('imageGeneration.resultPending') : images.length ? t('imageGeneration.resultReady', { count: images.length }) : t('imageGeneration.resultEmpty') }}</p></div><button v-if="images.length" type="button" class="btn btn-secondary btn-sm" @click="clearResult"><Icon name="x" size="sm" class="mr-1.5" />{{ t('common.clear') }}</button></div>
-          <div v-if="images.length" class="grid gap-4 sm:grid-cols-2"><figure v-for="image in images" :key="image.index" class="group overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800"><img :src="image.url" class="aspect-square w-full object-contain" :alt="t('imageGeneration.imageAlt', { index: image.index + 1 })" /><figcaption class="flex items-center justify-between border-t border-gray-200 bg-white px-3 py-2 dark:border-dark-700 dark:bg-dark-900"><span class="text-xs text-gray-500">{{ image.mimeType }}</span><button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-300" :title="t('imageGeneration.download')" @click="downloadGeneratedImage(image, `generated-${image.index + 1}.${image.mimeType.split('/')[1] || 'png'}`)"><Icon name="download" size="sm" /></button></figcaption></figure></div>
+          <p v-if="downloadError" class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/30 dark:text-red-300">{{ downloadError }}</p><div v-if="images.length" class="grid gap-4 sm:grid-cols-2"><figure v-for="image in images" :key="image.index" class="group overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-dark-700 dark:bg-dark-800"><img :src="image.url" class="aspect-square w-full object-contain" :alt="t('imageGeneration.imageAlt', { index: image.index + 1 })" /><figcaption class="flex items-center justify-between border-t border-gray-200 bg-white px-3 py-2 dark:border-dark-700 dark:bg-dark-900"><span class="text-xs text-gray-500">{{ image.mimeType }}</span><button type="button" class="text-primary-600 hover:text-primary-700 dark:text-primary-300" :title="t('imageGeneration.download')" @click="downloadImage(image)"><Icon name="download" size="sm" /></button></figcaption></figure></div>
           <div v-else class="flex min-h-[520px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/60 px-6 text-center dark:border-dark-700 dark:bg-dark-800/40"><Icon name="sparkles" size="lg" class="mb-4 text-gray-300 dark:text-dark-500" /><p class="font-medium text-gray-700 dark:text-gray-200">{{ submitting ? t('imageGeneration.generating') : t('imageGeneration.resultEmpty') }}</p><p class="mt-2 max-w-xs text-sm text-gray-500 dark:text-gray-400">{{ t('imageGeneration.resultEmptyHint') }}</p></div>
         </section>
       </div>
@@ -86,7 +86,7 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { Icon } from '@/components/icons'
 import { useImageGenerationAccess } from '@/composables/useImageGenerationAccess'
-import { generateImages, downloadGeneratedImage, listImageGenerationModels, type GeneratedImage } from '@/api/imageGeneration'
+import { generateImages, downloadGeneratedImage, generatedImageFilename, listImageGenerationModels, type GeneratedImage } from '@/api/imageGeneration'
 
 const { t } = useI18n()
 const { imageGenerationKeys: imageKeys, loadingImageGenerationAccess: loadingAccess, refreshImageGenerationAccess } = useImageGenerationAccess()
@@ -95,6 +95,7 @@ const mode = ref<'generate' | 'edit'>('generate')
 const submitting = ref(false)
 const loadingModels = ref(false)
 const errorMessage = ref('')
+const downloadError = ref('')
 const modelLoadError = ref('')
 const availableModels = ref<string[]>([])
 const images = ref<GeneratedImage[]>([])
@@ -138,8 +139,16 @@ async function loadAvailableModels() {
 
 function onSourceImage(event: Event) { const file = (event.target as HTMLInputElement).files?.[0]; if (!file) return; if (sourcePreview.value) URL.revokeObjectURL(sourcePreview.value); sourceImage.value = file; sourcePreview.value = URL.createObjectURL(file) }
 function clearSourceImage() { if (sourcePreview.value) URL.revokeObjectURL(sourcePreview.value); sourceImage.value = null; sourcePreview.value = '' }
-function clearResult() { images.value = []; errorMessage.value = '' }
-async function submit() { if (!canSubmit.value || !selectedKey.value) return; submitting.value = true; errorMessage.value = ''; images.value = []; try { const result = await generateImages(selectedKey.value.key, { ...form.value, model: form.value.model.trim(), prompt: form.value.prompt.trim() }, mode.value === 'edit' ? sourceImage.value : null); images.value = result.images; if (!images.value.length) errorMessage.value = t('imageGeneration.noImagesReturned') } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('common.unknownError') } finally { submitting.value = false } }
+function clearResult() { images.value = []; errorMessage.value = ''; downloadError.value = '' }
+async function downloadImage(image: GeneratedImage) {
+  downloadError.value = ''
+  try {
+    await downloadGeneratedImage(image, generatedImageFilename(image, form.value.output_format), selectedKey.value?.key)
+  } catch {
+    downloadError.value = t('imageGeneration.downloadFailed')
+  }
+}
+async function submit() { if (!canSubmit.value || !selectedKey.value) return; submitting.value = true; errorMessage.value = ''; downloadError.value = ''; images.value = []; try { const result = await generateImages(selectedKey.value.key, { ...form.value, model: form.value.model.trim(), prompt: form.value.prompt.trim() }, mode.value === 'edit' ? sourceImage.value : null); images.value = result.images; if (!images.value.length) errorMessage.value = t('imageGeneration.noImagesReturned') } catch (error) { errorMessage.value = error instanceof Error ? error.message : t('common.unknownError') } finally { submitting.value = false } }
 </script>
 
 <style scoped>

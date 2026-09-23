@@ -436,6 +436,10 @@ export default {
       title: '用户管理',
       description: '管理用户账户和权限',
       createUser: '创建用户',
+      totalBalance: '余额合计',
+      totalBonusBalance: '赠送余额合计',
+      totalBalanceHint: '全部未删除用户的余额合计，不受当前筛选和分页影响',
+      totalBonusBalanceHint: '全部未删除用户的赠送余额合计，不受当前筛选和分页影响',
       bulkLimits: {
         action: '批量设置限制（{count}）',
         title: '批量设置用户限制',

@@ -29,6 +29,8 @@ type stubAdminService struct {
 	updatedProxies                      []*service.UpdateProxyInput
 	testedProxyIDs                      []int64
 	getUserErr                          error
+	balanceSummary                      *service.UserBalanceSummary
+	balanceSummaryErr                   error
 	createAccountErr                    error
 	createSparkShadowErr                error
 	updateAccountErr                    error
@@ -196,6 +198,16 @@ func (s *stubAdminService) UpdateUserBalance(ctx context.Context, userID int64, 
 func (s *stubAdminService) UpdateUserBonusBalance(ctx context.Context, userID int64, amount float64, operation string, notes string) (*service.User, error) {
 	user := service.User{ID: userID, BonusBalance: amount, BonusBalanceKnown: true, Status: service.StatusActive}
 	return &user, nil
+}
+
+func (s *stubAdminService) GetUserBalanceSummary(ctx context.Context) (*service.UserBalanceSummary, error) {
+	if s.balanceSummaryErr != nil {
+		return nil, s.balanceSummaryErr
+	}
+	if s.balanceSummary != nil {
+		return s.balanceSummary, nil
+	}
+	return &service.UserBalanceSummary{}, nil
 }
 
 func (s *stubAdminService) BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error) {

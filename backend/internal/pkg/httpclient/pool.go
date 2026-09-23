@@ -16,6 +16,7 @@
 package httpclient
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -46,7 +47,8 @@ type Options struct {
 	ResponseHeaderTimeout time.Duration // 等待响应头超时时间
 	InsecureSkipVerify    bool          // 是否跳过 TLS 证书验证（已禁用，不允许设置为 true）
 	ValidateResolvedIP    bool          // 是否校验解析后的 IP（防止 DNS Rebinding）
-	AllowPrivateHosts     bool          // 允许私有地址解析（与 ValidateResolvedIP 一起使用）
+	PinResolvedIP         bool          // 解析并将实际连接固定到同一个 IP，防止 TOCTOU/DNS Rebinding
+	AllowPrivateHosts     bool          // 允许私有地址解析（与 ValidateResolvedIP/PinResolvedIP 一起使用）
 
 	// 可选的连接池参数（不设置则使用默认值）
 	MaxIdleConns        int // 最大空闲连接总数（默认 100）
@@ -59,6 +61,7 @@ var sharedClients sync.Map
 
 // 允许测试替换校验函数，生产默认指向真实实现。
 var validateResolvedIP = urlvalidator.ValidateResolvedIP
+var resolveAndValidateIP = urlvalidator.ResolveAndValidateIP
 
 // GetClient 返回共享的 HTTP 客户端实例
 // 性能优化：相同配置复用同一客户端，避免重复创建 Transport
@@ -122,6 +125,12 @@ func buildTransport(opts Options) (*http.Transport, error) {
 		IdleConnTimeout:       defaultIdleConnTimeout,
 		ResponseHeaderTimeout: opts.ResponseHeaderTimeout,
 	}
+	if opts.PinResolvedIP {
+		if strings.TrimSpace(opts.ProxyURL) != "" {
+			return nil, fmt.Errorf("pin_resolved_ip cannot be combined with a proxy")
+		}
+		transport.DialContext = pinnedDialContext(opts.AllowPrivateHosts)
+	}
 
 	if opts.InsecureSkipVerify {
 		// 安全要求：禁止跳过证书验证，避免中间人攻击。
@@ -144,17 +153,33 @@ func buildTransport(opts Options) (*http.Transport, error) {
 }
 
 func buildClientKey(opts Options) string {
-	return fmt.Sprintf("%s|%s|%s|%t|%t|%t|%d|%d|%d",
+	return fmt.Sprintf("%s|%s|%s|%t|%t|%t|%t|%d|%d|%d",
 		strings.TrimSpace(opts.ProxyURL),
 		opts.Timeout.String(),
 		opts.ResponseHeaderTimeout.String(),
 		opts.InsecureSkipVerify,
 		opts.ValidateResolvedIP,
+		opts.PinResolvedIP,
 		opts.AllowPrivateHosts,
 		opts.MaxIdleConns,
 		opts.MaxIdleConnsPerHost,
 		opts.MaxConnsPerHost,
 	)
+}
+
+func pinnedDialContext(allowPrivate bool) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		host, port, err := net.SplitHostPort(address)
+		if err != nil {
+			return nil, fmt.Errorf("split dial address %q: %w", address, err)
+		}
+		ip, err := resolveAndValidateIP(ctx, host, allowPrivate)
+		if err != nil {
+			return nil, err
+		}
+		dialer := &net.Dialer{Timeout: defaultDialTimeout}
+		return dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+	}
 }
 
 type validatedTransport struct {

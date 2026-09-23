@@ -20,6 +20,8 @@ type AdminService interface {
 	DeleteUser(ctx context.Context, id int64) error
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	UpdateUserBonusBalance(ctx context.Context, userID int64, amount float64, operation string, notes string) (*User, error)
+	// GetUserBalanceSummary sums balance and bonus balance for every non-deleted user.
+	GetUserBalanceSummary(ctx context.Context) (*UserBalanceSummary, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
@@ -706,6 +708,18 @@ type BonusBalanceStore interface {
 	GetBonusBalancesByUserIDs(ctx context.Context, userIDs []int64) (map[int64]float64, error)
 	AdjustBonusBalance(ctx context.Context, id int64, delta float64) (BalanceChange, error)
 	SetBonusBalance(ctx context.Context, id int64, value float64) (BalanceChange, error)
+}
+
+// UserBalanceSummary is the combined balance of every non-deleted user.
+type UserBalanceSummary struct {
+	TotalBalance      float64 `json:"total_balance"`
+	TotalBonusBalance float64 `json:"total_bonus_balance"`
+}
+
+// UserBalanceSummaryStore sums users.balance and users.bonus_balance.
+// bonus_balance is not in the Ent schema, so the production implementation uses raw SQL.
+type UserBalanceSummaryStore interface {
+	SumUserBalances(ctx context.Context) (UserBalanceSummary, error)
 }
 
 // NewAdminService creates a new AdminService

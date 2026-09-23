@@ -122,6 +122,18 @@ func (s *adminServiceImpl) attachBonusBalance(ctx context.Context, user *User) {
 	user.BonusBalanceKnown = users[0].BonusBalanceKnown
 }
 
+func (s *adminServiceImpl) GetUserBalanceSummary(ctx context.Context) (*UserBalanceSummary, error) {
+	store, ok := s.userRepo.(UserBalanceSummaryStore)
+	if !ok {
+		return nil, fmt.Errorf("user balance summary is unavailable")
+	}
+	summary, err := store.SumUserBalances(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("sum user balances: %w", err)
+	}
+	return &summary, nil
+}
+
 func (s *adminServiceImpl) attachBonusBalances(ctx context.Context, users []User) {
 	if len(users) == 0 {
 		return

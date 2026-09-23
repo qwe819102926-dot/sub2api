@@ -105,24 +105,47 @@ func ValidateHTTPSURL(raw string, opts ValidationOptions) (string, error) {
 	return ValidateHTTPURL(raw, false, opts)
 }
 
-// ValidateResolvedIP 验证 DNS 解析后的 IP 地址是否安全
-// 用于防止 DNS Rebinding 攻击：在实际 HTTP 请求时调用此函数验证解析后的 IP
+// ResolveAndValidateIP resolves host once and returns an address that is safe
+// to use for the corresponding connection. Callers that need DNS rebinding
+// protection must dial the returned IP instead of resolving host again.
+func ResolveAndValidateIP(ctx context.Context, host string, allowPrivate bool) (net.IP, error) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return nil, errors.New("host is required")
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		if !allowPrivate && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+			ip.IsLinkLocalMulticast() || ip.IsUnspecified()) {
+			return nil, fmt.Errorf("resolved ip %s is not allowed", ip.String())
+		}
+		return ip, nil
+	}
+
+	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
+	if err != nil {
+		return nil, fmt.Errorf("dns resolution failed: %w", err)
+	}
+	for _, ip := range ips {
+		if !allowPrivate && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
+			ip.IsLinkLocalMulticast() || ip.IsUnspecified()) {
+			return nil, fmt.Errorf("resolved ip %s is not allowed", ip.String())
+		}
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("dns resolution returned no addresses for %s", host)
+	}
+	return ips[0], nil
+}
+
+// ValidateResolvedIP verifies that every address currently returned for host
+// is safe. It is retained for callers that only need validation; callers that
+// will connect immediately should use ResolveAndValidateIP and dial its result.
 func ValidateResolvedIP(host string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
-	if err != nil {
-		return fmt.Errorf("dns resolution failed: %w", err)
-	}
-
-	for _, ip := range ips {
-		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
-			ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-			return fmt.Errorf("resolved ip %s is not allowed", ip.String())
-		}
-	}
-	return nil
+	_, err := ResolveAndValidateIP(ctx, host, false)
+	return err
 }
 
 func normalizeAllowlist(values []string) []string {

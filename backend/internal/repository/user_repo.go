@@ -34,6 +34,7 @@ type userRepository struct {
 
 var _ service.RedeemUserAdjustmentRepository = (*userRepository)(nil)
 var _ service.BonusBalanceStore = (*userRepository)(nil)
+var _ service.UserBalanceSummaryStore = (*userRepository)(nil)
 
 func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
 	return newUserRepositoryWithSQL(client, sqlDB)
@@ -1031,6 +1032,34 @@ func (r *userRepository) currentBalance(ctx context.Context, id int64) (balance 
 		return 0, err
 	}
 	return balance, rows.Err()
+}
+
+func (r *userRepository) SumUserBalances(ctx context.Context) (summary service.UserBalanceSummary, err error) {
+	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `
+		SELECT COALESCE(SUM(balance), 0), COALESCE(SUM(COALESCE(bonus_balance, 0)), 0)
+		FROM users
+		WHERE deleted_at IS NULL`)
+	if err != nil {
+		return service.UserBalanceSummary{}, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
+	}()
+	if !rows.Next() {
+		if rowsErr := rows.Err(); rowsErr != nil {
+			return service.UserBalanceSummary{}, rowsErr
+		}
+		return service.UserBalanceSummary{}, nil
+	}
+	if err = rows.Scan(&summary.TotalBalance, &summary.TotalBonusBalance); err != nil {
+		return service.UserBalanceSummary{}, err
+	}
+	if err = rows.Err(); err != nil {
+		return service.UserBalanceSummary{}, err
+	}
+	return summary, nil
 }
 
 func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs []int64) (result map[int64]float64, err error) {

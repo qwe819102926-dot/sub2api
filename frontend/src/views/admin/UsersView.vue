@@ -123,6 +123,26 @@
             </template>
           </div>
 
+          <div
+            class="ml-auto flex flex-wrap items-center gap-2"
+            data-test="user-balance-summary"
+          >
+            <div
+              class="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm dark:border-dark-600 dark:bg-dark-800"
+              :title="t('admin.users.totalBalanceHint')"
+            >
+              <span class="text-gray-500 dark:text-gray-400">{{ t('admin.users.totalBalance') }}</span>
+              <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ formatSummaryAmount(balanceSummary?.total_balance) }}</span>
+            </div>
+            <div
+              class="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm dark:border-emerald-900/50 dark:bg-emerald-950/30"
+              :title="t('admin.users.totalBonusBalanceHint')"
+            >
+              <span class="text-emerald-700 dark:text-emerald-300">{{ t('admin.users.totalBonusBalance') }}</span>
+              <span class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-200">{{ formatSummaryAmount(balanceSummary?.total_bonus_balance) }}</span>
+            </div>
+          </div>
+
           <!-- Right: Actions and Settings -->
           <div class="flex flex-wrap items-center justify-end gap-2">
             <!-- Mobile: Secondary buttons (icon only) -->
@@ -786,7 +806,7 @@
     </Teleport>
 
     <ConfirmDialog :show="showDeleteDialog" :title="t('admin.users.deleteUser')" :message="t('admin.users.deleteConfirm', { email: deletingUser?.email })" :danger="true" @confirm="confirmDelete" @cancel="showDeleteDialog = false" />
-    <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="loadUsers" />
+    <UserCreateModal :show="showCreateModal" @close="showCreateModal = false" @success="refreshUsersAndBalanceSummary" />
     <UserEditModal :show="showEditModal" :user="editingUser" @close="closeEditModal" @success="loadUsers" />
     <BulkEditUserModal
       :show="showBulkEditModal"
@@ -802,8 +822,8 @@
     />
     <UserApiKeysModal :show="showApiKeysModal" :user="viewingUser" @close="closeApiKeysModal" />
     <UserAllowedGroupsModal :show="showAllowedGroupsModal" :user="allowedGroupsUser" @close="closeAllowedGroupsModal" @success="loadUsers" />
-    <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="loadUsers" />
-    <UserBonusBalanceModal :show="showBonusBalanceModal" :user="bonusBalanceUser" @close="closeBonusBalanceModal" @success="loadUsers" />
+    <UserBalanceModal :show="showBalanceModal" :user="balanceUser" :operation="balanceOperation" @close="closeBalanceModal" @success="refreshUsersAndBalanceSummary" />
+    <UserBonusBalanceModal :show="showBonusBalanceModal" :user="bonusBalanceUser" @close="closeBonusBalanceModal" @success="refreshUsersAndBalanceSummary" />
     <UserLotteryChancesModal :show="showLotteryChancesModal" :user="lotteryChancesUser" @close="closeLotteryChancesModal" @success="loadUsers" />
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
@@ -824,7 +844,7 @@ const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
-import type { PlatformQuotaItem } from '@/api/admin/users'
+import type { PlatformQuotaItem, UserBalanceSummary } from '@/api/admin/users'
 import type { Column } from '@/components/common/types'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -1064,6 +1084,21 @@ const columns = computed<Column[]>(() =>
 
 const users = ref<AdminUser[]>([])
 const loading = ref(false)
+const balanceSummary = ref<UserBalanceSummary | null>(null)
+
+const formatSummaryAmount = (value: number | null | undefined) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '--'
+  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+const loadBalanceSummary = async () => {
+  try {
+    balanceSummary.value = await adminAPI.users.getBalanceSummary()
+  } catch (error) {
+    console.error('Failed to load user balance summary:', error)
+  }
+}
+
 const searchQuery = ref('')
 const USER_SORT_STORAGE_KEY = 'admin-users-table-sort'
 const loadInitialSortState = (): { sort_by: string; sort_order: 'asc' | 'desc' } => {
@@ -1672,6 +1707,10 @@ const loadUsers = async () => {
   }
 }
 
+const refreshUsersAndBalanceSummary = async () => {
+  await Promise.all([loadUsers(), loadBalanceSummary()])
+}
+
 const handleBulkLimitsSuccess = async () => {
   clearSelection()
   await loadUsers()
@@ -1825,7 +1864,7 @@ const confirmDelete = async () => {
     appStore.showSuccess(t('common.success'))
     showDeleteDialog.value = false
     deletingUser.value = null
-    loadUsers()
+    await refreshUsersAndBalanceSummary()
   } catch (error: any) {
     appStore.showError(error.response?.data?.detail || t('admin.users.failedToDelete'))
     console.error('Error deleting user:', error)
@@ -1912,6 +1951,7 @@ onMounted(async () => {
   loadSavedFilters()
   loadSavedColumns()
   loadUsers()
+  void loadBalanceSummary()
   if (hasVisibleGroupsColumn.value || visibleFilters.has('group')) {
     loadAllGroups()
   }

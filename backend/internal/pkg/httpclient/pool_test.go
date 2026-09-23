@@ -1,8 +1,10 @@
 package httpclient
 
 import (
+	"context"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -112,4 +114,46 @@ func TestValidatedTransport_ValidationErrorStopsRoundTrip(t *testing.T) {
 	_, err = transport.RoundTrip(req)
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, int32(0), atomic.LoadInt32(&baseCalls))
+}
+
+func TestPinnedDialContextUsesTheValidatedAddress(t *testing.T) {
+	originalResolve := resolveAndValidateIP
+	defer func() { resolveAndValidateIP = originalResolve }()
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	resolveAndValidateIP = func(_ context.Context, host string, allowPrivate bool) (net.IP, error) {
+		require.Equal(t, "cdn.example.com", host)
+		require.False(t, allowPrivate)
+		return net.ParseIP("127.0.0.1"), nil
+	}
+
+	accepted := make(chan net.Conn, 1)
+	go func() {
+		conn, acceptErr := listener.Accept()
+		if acceptErr == nil {
+			accepted <- conn
+		}
+	}()
+
+	dial := pinnedDialContext(false)
+	conn, err := dial(context.Background(), "tcp", "cdn.example.com:"+portOf(listener.Addr()))
+	require.NoError(t, err)
+	conn.Close()
+	select {
+	case acceptedConn := <-accepted:
+		acceptedConn.Close()
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for pinned connection")
+	}
+}
+
+func portOf(addr net.Addr) string {
+	_, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		panic(err)
+	}
+	return port
 }

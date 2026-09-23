@@ -37,6 +37,7 @@ export default {
     resultEmpty: 'No result yet',
     resultEmptyHint: 'Enter a prompt and submit to see the generated image here.',
     download: 'Download image',
+    downloadFailed: 'The image could not be downloaded. Please try again.',
     imageAlt: 'Generated result {index}',
     noKeys: 'No API key is available for image generation. Create or bind a key to an OpenAI or Grok group with image generation enabled.',
     noImagesReturned: 'The upstream did not return a previewable image.',

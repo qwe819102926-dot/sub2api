@@ -189,6 +189,20 @@ export async function updateBalance(
   return data
 }
 
+export interface UserBalanceSummary {
+  total_balance: number
+  total_bonus_balance: number
+}
+
+/**
+ * Sum balance and bonus balance across all non-deleted users.
+ * The total ignores the user list filters and pagination.
+ */
+export async function getBalanceSummary(): Promise<UserBalanceSummary> {
+  const { data } = await apiClient.get<UserBalanceSummary>('/admin/users/balance-summary')
+  return data
+}
+
 /**
  * Update user bonus balance
  * @param id - User ID
@@ -444,6 +458,7 @@ export const usersAPI = {
   delete: deleteUser,
   updateBalance,
   updateBonusBalance,
+  getBalanceSummary,
   getLotteryChances,
   updateLotteryChances,
   updateConcurrency,

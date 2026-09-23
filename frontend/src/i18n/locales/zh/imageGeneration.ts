@@ -37,6 +37,7 @@ export default {
     resultEmpty: '还没有生成结果',
     resultEmptyHint: '填写提示词并提交后，图片会显示在这里。',
     download: '下载图片',
+    downloadFailed: '图片下载失败，请稍后重试。',
     imageAlt: '生成结果 {index}',
     noKeys: '当前没有可用于生图的 API Key。请先创建并绑定已开启图片生成的 OpenAI 或 Grok 分组。',
     noImagesReturned: '上游没有返回可预览的图片。',

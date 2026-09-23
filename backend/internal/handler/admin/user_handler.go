@@ -248,6 +248,17 @@ func (h *UserHandler) List(c *gin.Context) {
 	response.Paginated(c, out, total, page, pageSize)
 }
 
+// GetBalanceSummary handles the combined balance of every non-deleted user.
+// GET /api/v1/admin/users/balance-summary
+func (h *UserHandler) GetBalanceSummary(c *gin.Context) {
+	summary, err := h.adminService.GetUserBalanceSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, summary)
+}
+
 // parseAttributeFilters extracts attribute filters from query params
 // Format: attr[{attributeID}]=value, e.g. attr[1]=company&attr[2]=developer
 func parseAttributeFilters(c *gin.Context) map[int64]string {
