@@ -122,7 +122,9 @@ func TestPinnedDialContextUsesTheValidatedAddress(t *testing.T) {
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() {
+		require.NoError(t, listener.Close())
+	}()
 
 	resolveAndValidateIP = func(_ context.Context, host string, allowPrivate bool) (net.IP, error) {
 		require.Equal(t, "cdn.example.com", host)
@@ -141,10 +143,10 @@ func TestPinnedDialContextUsesTheValidatedAddress(t *testing.T) {
 	dial := pinnedDialContext(false)
 	conn, err := dial(context.Background(), "tcp", "cdn.example.com:"+portOf(listener.Addr()))
 	require.NoError(t, err)
-	conn.Close()
+	require.NoError(t, conn.Close())
 	select {
 	case acceptedConn := <-accepted:
-		acceptedConn.Close()
+		require.NoError(t, acceptedConn.Close())
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for pinned connection")
 	}
