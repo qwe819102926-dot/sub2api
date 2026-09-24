@@ -248,7 +248,7 @@ func (h *UserHandler) List(c *gin.Context) {
 	response.Paginated(c, out, total, page, pageSize)
 }
 
-// GetBalanceSummary handles the combined balance of every non-deleted user.
+// GetBalanceSummary handles the combined balance of every non-deleted user with the user role.
 // GET /api/v1/admin/users/balance-summary
 func (h *UserHandler) GetBalanceSummary(c *gin.Context) {
 	summary, err := h.adminService.GetUserBalanceSummary(c.Request.Context())

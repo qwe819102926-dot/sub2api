@@ -195,7 +195,7 @@ export interface UserBalanceSummary {
 }
 
 /**
- * Sum balance and bonus balance across all non-deleted users.
+ * Sum balance and bonus balance across all non-deleted users with the user role.
  * The total ignores the user list filters and pagination.
  */
 export async function getBalanceSummary(): Promise<UserBalanceSummary> {

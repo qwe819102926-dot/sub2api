@@ -438,8 +438,8 @@ export default {
       createUser: 'Create User',
       totalBalance: 'Total balance',
       totalBonusBalance: 'Total bonus balance',
-      totalBalanceHint: 'Combined balance of all users. Ignores the current filters and page.',
-      totalBonusBalanceHint: 'Combined bonus balance of all users. Ignores the current filters and page.',
+      totalBalanceHint: 'Combined balance of all regular users. Ignores the current filters and page.',
+      totalBonusBalanceHint: 'Combined bonus balance of all regular users. Ignores the current filters and page.',
       bulkLimits: {
         action: 'Set limits ({count})',
         title: 'Set user limits',

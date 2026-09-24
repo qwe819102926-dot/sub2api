@@ -20,7 +20,7 @@ type AdminService interface {
 	DeleteUser(ctx context.Context, id int64) error
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	UpdateUserBonusBalance(ctx context.Context, userID int64, amount float64, operation string, notes string) (*User, error)
-	// GetUserBalanceSummary sums balance and bonus balance for every non-deleted user.
+	// GetUserBalanceSummary sums balance and bonus balance for every non-deleted user with the user role.
 	GetUserBalanceSummary(ctx context.Context) (*UserBalanceSummary, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
@@ -710,7 +710,7 @@ type BonusBalanceStore interface {
 	SetBonusBalance(ctx context.Context, id int64, value float64) (BalanceChange, error)
 }
 
-// UserBalanceSummary is the combined balance of every non-deleted user.
+// UserBalanceSummary is the combined balance of every non-deleted user with the user role.
 type UserBalanceSummary struct {
 	TotalBalance      float64 `json:"total_balance"`
 	TotalBonusBalance float64 `json:"total_bonus_balance"`

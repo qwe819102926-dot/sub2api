@@ -1038,7 +1038,8 @@ func (r *userRepository) SumUserBalances(ctx context.Context) (summary service.U
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `
 		SELECT COALESCE(SUM(balance), 0), COALESCE(SUM(COALESCE(bonus_balance, 0)), 0)
 		FROM users
-		WHERE deleted_at IS NULL`)
+		WHERE deleted_at IS NULL
+		  AND role = $1`, service.RoleUser)
 	if err != nil {
 		return service.UserBalanceSummary{}, err
 	}
