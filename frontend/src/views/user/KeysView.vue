@@ -470,8 +470,8 @@
           <div class="relative">
             <button
               type="button"
-              class="select-trigger w-full"
-              :class="groupPanelOpen && 'select-trigger-open'"
+              class="select-trigger flex w-full items-center justify-between gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 transition-all duration-200 hover:border-gray-300 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-100 dark:hover:border-dark-500"
+              :class="groupPanelOpen && 'border-primary-500 ring-2 ring-primary-500/30'"
               data-tour="key-form-group"
               @click="groupPanelOpen = !groupPanelOpen"
             >
