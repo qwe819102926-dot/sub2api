@@ -467,45 +467,42 @@
 
         <div>
           <label class="input-label">{{ t('keys.groupLabel') }}</label>
-          <Select
-            v-model="formData.group_id"
-            :options="groupOptions"
-            :placeholder="t('keys.selectGroup')"
-            :searchable="true"
-            :search-placeholder="t('keys.searchGroup')"
-            data-tour="key-form-group"
-          >
-            <template #selected="{ option }">
-              <GroupBadge
-                v-if="option"
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-              />
+          <div class="relative">
+            <button
+              type="button"
+              class="select-trigger w-full"
+              :class="groupPanelOpen && 'select-trigger-open'"
+              data-tour="key-form-group"
+              @click="groupPanelOpen = !groupPanelOpen"
+            >
+              <span v-if="selectedFormGroup" class="flex min-w-0 items-center gap-2">
+                <GroupBadge :name="selectedFormGroup.label" :platform="selectedFormGroup.platform" :subscription-type="selectedFormGroup.subscriptionType" :rate-multiplier="selectedFormGroup.rate" />
+              </span>
               <span v-else class="text-gray-400">{{ t('keys.selectGroup') }}</span>
-            </template>
-            <template #option="{ option, selected }">
-              <GroupOptionItem
-                :name="(option as unknown as GroupOption).label"
-                :platform="(option as unknown as GroupOption).platform"
-                :subscription-type="(option as unknown as GroupOption).subscriptionType"
-                :rate-multiplier="(option as unknown as GroupOption).rate"
-                :user-rate-multiplier="(option as unknown as GroupOption).userRate"
-                :peak-rate-enabled="(option as unknown as GroupOption).peakRateEnabled"
-                :peak-start="(option as unknown as GroupOption).peakStart"
-                :peak-end="(option as unknown as GroupOption).peakEnd"
-                :peak-rate-multiplier="(option as unknown as GroupOption).peakRateMultiplier"
-                :description="(option as unknown as GroupOption).description"
-                :selected="selected"
-              />
-            </template>
-          </Select>
+              <Icon name="chevronDown" size="md" :class="['transition-transform', groupPanelOpen && 'rotate-180']" />
+            </button>
+            <div v-if="groupPanelOpen" class="mt-1 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-dark-600 dark:bg-dark-800">
+              <div class="border-b border-gray-100 p-2 dark:border-dark-700">
+                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-2 dark:bg-dark-700">
+                  <Icon name="search" size="sm" class="text-gray-400" />
+                  <input v-model="groupSearchQuery" class="w-full bg-transparent text-sm outline-none" :placeholder="t('keys.searchGroup')" />
+                </div>
+              </div>
+              <div class="grid min-h-[220px] grid-cols-[132px_1fr]">
+                <div class="border-r border-gray-100 bg-gray-50/80 p-2 dark:border-dark-700 dark:bg-dark-900/30">
+                  <button v-for="category in groupCategories" :key="category.value" type="button" class="mb-1 flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm" :class="activeGroupCategory === category.value ? 'bg-white font-semibold text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-400' : 'text-gray-600 hover:bg-white/70 dark:text-gray-300 dark:hover:bg-dark-700/70'" @click="activeGroupCategory = category.value">
+                    <span class="truncate">{{ category.label }}</span><span class="ml-1 text-xs text-gray-400">{{ category.count }}</span>
+                  </button>
+                </div>
+                <div class="max-h-72 space-y-1 overflow-y-auto p-2">
+                  <button v-for="option in categorizedGroupOptions" :key="option.value" type="button" class="flex w-full items-start justify-between rounded-lg border border-transparent px-3 py-2 text-left hover:border-primary-200 hover:bg-primary-50/60 dark:hover:border-primary-800 dark:hover:bg-primary-900/20" :class="formData.group_id === option.value && 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/30'" @click="formData.group_id = option.value; groupPanelOpen = false">
+                    <GroupOptionItem :name="option.label" :platform="option.platform" :subscription-type="option.subscriptionType" :rate-multiplier="option.rate" :user-rate-multiplier="option.userRate" :peak-rate-enabled="option.peakRateEnabled" :peak-start="option.peakStart" :peak-end="option.peakEnd" :peak-rate-multiplier="option.peakRateMultiplier" :description="option.description" :selected="formData.group_id === option.value" />
+                  </button>
+                  <div v-if="categorizedGroupOptions.length === 0" class="py-8 text-center text-sm text-gray-400">{{ t('keys.noGroupFound') }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Custom Key Section (only for create) -->
@@ -1141,7 +1138,7 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
-	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
+import type { ApiKey, Group, PublicSettings, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
@@ -1156,20 +1153,6 @@ const formatDateTimeLocal = (isoDate: string): string => {
   const date = new Date(isoDate)
   const pad = (n: number) => n.toString().padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-
-interface GroupOption {
-  value: number
-  label: string
-  description: string | null
-  rate: number
-  userRate: number | null
-  peakRateEnabled: boolean
-  peakStart: string
-  peakEnd: string
-  peakRateMultiplier: number
-  subscriptionType: SubscriptionType
-  platform: GroupPlatform
 }
 
 const appStore = useAppStore()
@@ -1350,6 +1333,32 @@ const formData = ref({
   expiration_date: ''
 })
 
+const groupPanelOpen = ref(false)
+const activeGroupCategory = ref<GroupPlatform | 'all'>('all')
+// Shared by the categorized create/edit picker and the table quick-change picker.
+const groupSearchQuery = ref('')
+
+const platformLabelKeys: Record<GroupPlatform, string> = {
+  openai: 'gpt', anthropic: 'claude', deepseek: 'deepseek', grok: 'grok', kimi: 'kimi', zhipu: 'zhipu', gemini: 'gemini', antigravity: 'antigravity', composite: 'composite'
+}
+
+const selectedFormGroup = computed(() => groupOptions.value.find((option) => option.value === formData.value.group_id) ?? null)
+const groupCategories = computed(() => {
+  const counts = new Map<GroupPlatform, number>()
+  for (const option of groupOptions.value) counts.set(option.platform, (counts.get(option.platform) ?? 0) + 1)
+  const categories: Array<{ value: GroupPlatform | 'all'; label: string; count: number }> = [{ value: 'all', label: t('keys.groupCategories.all'), count: groupOptions.value.length }]
+  for (const [value, count] of counts) categories.push({ value, label: t(`keys.groupCategories.${platformLabelKeys[value]}`), count })
+  return categories
+})
+const categorizedGroupOptions = computed(() => {
+  const query = groupSearchQuery.value.trim().toLowerCase()
+  return groupOptions.value.filter((option) => {
+    const categoryMatch = activeGroupCategory.value === 'all' || option.platform === activeGroupCategory.value
+    const searchMatch = !query || option.label.toLowerCase().includes(query) || (option.description ?? '').toLowerCase().includes(query)
+    return categoryMatch && searchMatch
+  })
+})
+
 // 自定义Key验证
 const customKeyError = computed(() => {
   if (!formData.value.use_custom_key || !formData.value.custom_key) {
@@ -1426,7 +1435,6 @@ const groupOptions = computed(() =>
 )
 
 // Group dropdown search
-const groupSearchQuery = ref('')
 const filteredGroupOptions = computed(() => {
   const query = groupSearchQuery.value.trim().toLowerCase()
   if (!query) return groupOptions.value
@@ -1785,6 +1793,8 @@ const handleDelete = async () => {
 }
 
 const closeModals = () => {
+  groupPanelOpen.value = false
+  groupSearchQuery.value = ''
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null

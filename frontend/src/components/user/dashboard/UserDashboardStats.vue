@@ -24,7 +24,14 @@
           <Icon name="gift" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
         </div>
         <div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalance') }}</p>
+          <p class="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400">
+            {{ t('dashboard.bonusBalance') }}
+            <HelpTooltip :content="t('dashboard.bonusBalanceTooltip')" width-class="w-64">
+              <template #trigger>
+                <Icon name="infoCircle" size="sm" class="cursor-help text-amber-500 dark:text-amber-400" :stroke-width="2.5" />
+              </template>
+            </HelpTooltip>
+          </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalanceHint') }}</p>
         </div>
@@ -151,6 +158,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 
 defineProps<{
