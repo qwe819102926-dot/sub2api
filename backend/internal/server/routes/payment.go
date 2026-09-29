@@ -37,6 +37,8 @@ func RegisterPaymentRoutes(
 		authenticated.POST("/lottery/draw", paymentHandler.DrawRechargeLottery)
 		authenticated.GET("/rewards", paymentHandler.GetRewardCampaigns)
 		authenticated.POST("/rewards/consumption/claim", paymentHandler.ClaimConsumptionReward)
+		authenticated.GET("/checkin", paymentHandler.GetDailyCheckin)
+		authenticated.POST("/checkin", paymentHandler.ClaimDailyCheckin)
 
 		orders := authenticated.Group("/orders")
 		{

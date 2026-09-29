@@ -13,7 +13,7 @@ import type {
   CreateOrderResult,
   PaymentOrder
 } from '@/types/payment'
-import type { RechargeLotteryDrawResult, RechargeLotteryStatus, RewardCampaignStatus } from '@/types/payment'
+import type { DailyCheckinStatus, RechargeLotteryDrawResult, RechargeLotteryStatus, RewardCampaignStatus } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
 export interface PublicOrderVerifyResult {
@@ -63,6 +63,14 @@ export const paymentAPI = {
   /** Claim an eligible cumulative consumption reward tier. */
   claimConsumptionReward(threshold: number) {
     return apiClient.post<{ balance: number }>('/payment/rewards/consumption/claim', { threshold })
+  },
+
+  getDailyCheckin(month?: string) {
+    return apiClient.get<DailyCheckinStatus>('/payment/checkin', { params: month ? { month } : undefined })
+  },
+
+  claimDailyCheckin() {
+    return apiClient.post<DailyCheckinStatus>('/payment/checkin')
   },
 
   /** Create a new payment order */

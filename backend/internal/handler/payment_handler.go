@@ -114,6 +114,38 @@ func (h *PaymentHandler) ClaimConsumptionReward(c *gin.Context) {
 	response.Success(c, gin.H{"balance": balance})
 }
 
+// GetDailyCheckin returns the current user's check-in progress and monthly records.
+// GET /api/v1/payment/checkin
+func (h *PaymentHandler) GetDailyCheckin(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	status, err := h.paymentService.GetDailyCheckinStatus(c.Request.Context(), subject.UserID, c.Query("month"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
+// ClaimDailyCheckin credits today's configured reward to bonus_balance.
+// POST /api/v1/payment/checkin
+func (h *PaymentHandler) ClaimDailyCheckin(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	status, err := h.paymentService.ClaimDailyCheckin(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, status)
+}
+
 // GetPlans returns subscription plans available for sale.
 // GET /api/v1/payment/plans
 func (h *PaymentHandler) GetPlans(c *gin.Context) {

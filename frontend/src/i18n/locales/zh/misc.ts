@@ -1,5 +1,32 @@
 export default {
 
+  checkin: {
+    title: '每日签到',
+    subtitle: '签到即可领取赠送余额奖励',
+    available: '可签到',
+    checked: '已签到',
+    currentStreak: '当前连续',
+    totalDays: '累计签到',
+    totalReward: '累计奖励',
+    days: '天',
+    checkedToday: '今日已签到，奖励已到账',
+    todayReward: '今日签到可得 +{amount}',
+    bonusOnly: '签到奖励全部计入赠送余额',
+    checkinNow: '立即签到',
+    viewDetails: '查看详情',
+    success: '签到成功，赠送余额已到账',
+    failed: '签到失败，请稍后重试',
+    loadFailed: '签到信息加载失败，请稍后重试',
+    weekdays: '日,一,二,三,四,五,六',
+    calendar: '签到日历',
+    details: '签到奖励明细',
+    rewardSchedule: '每日奖励',
+    dayNumber: '第 {day} 天',
+    cycleHint: '{days} 天奖励循环',
+    streakDay: '连续第 {day} 天',
+    noRecords: '本月暂无签到记录'
+  },
+
   // Subscription Progress (Header component)
   subscriptionProgress: {
     title: '我的订阅',
@@ -409,6 +436,7 @@ export default {
     tabTopUp: '充值',
     tabSubscribe: '订阅',
     noPlans: '暂无可用订阅套餐',
+    planCount: '个套餐',
     notAvailable: '充值功能暂未开放',
     confirmSubscription: '确认订阅',
     confirmCancel: '确定要取消此订单吗？',

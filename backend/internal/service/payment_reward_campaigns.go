@@ -219,7 +219,11 @@ func rewardTierByThreshold(tiers []RewardTier, threshold float64) *RewardTier {
 }
 
 func queryTotalConsumption(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {
-	rows, err := client.QueryContext(ctx, `SELECT COALESCE(SUM(actual_cost), 0) FROM usage_logs WHERE user_id = $1`, userID)
+	rows, err := client.QueryContext(ctx, `
+		SELECT COALESCE(SUM(CASE WHEN billing_type = 0 THEN COALESCE(wallet_cost, actual_cost) ELSE 0 END), 0)
+		FROM usage_logs
+		WHERE user_id = $1
+	`, userID)
 	if err != nil {
 		return 0, err
 	}

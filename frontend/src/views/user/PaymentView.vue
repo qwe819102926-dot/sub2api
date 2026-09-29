@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl space-y-6">
+    <div class="mx-auto max-w-7xl space-y-6">
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
@@ -198,8 +198,24 @@
                 <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
                 <p class="text-gray-500 dark:text-gray-400">{{ t('payment.noPlans') }}</p>
               </div>
-              <div v-else :class="planGridClass">
-                <SubscriptionPlanCard v-for="plan in checkout.plans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+              <div v-else class="space-y-6">
+                <section v-for="group in subscriptionGroups" :key="group.key" class="rounded-2xl border border-gray-200/80 bg-white/90 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/80 md:p-6">
+                  <header class="mb-5 flex items-center justify-between gap-4">
+                    <div class="flex min-w-0 items-center gap-3">
+                      <div :class="['flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', platformBadgeLightClass(group.platform)]">
+                        <PlatformIcon :platform="group.platform as GroupPlatform" size="lg" />
+                      </div>
+                      <div class="min-w-0">
+                        <h2 class="truncate text-xl font-bold text-gray-900 dark:text-white">{{ group.name }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ platformLabel(group.platform) }}</p>
+                      </div>
+                    </div>
+                    <span class="shrink-0 text-sm text-gray-400 dark:text-gray-500">{{ group.plans.length }} {{ t('payment.planCount') }}</span>
+                  </header>
+                  <div :class="planGridClass(group.plans.length)">
+                    <SubscriptionPlanCard v-for="plan in group.plans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+                  </div>
+                </section>
               </div>
               <!-- Active subscriptions (compact, below plan list) -->
               <div v-if="activeSubscriptions.length > 0">
@@ -279,6 +295,7 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiErro
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import type { GroupPlatform } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -295,6 +312,7 @@ import {
   writePaymentRecoverySnapshot,
 } from '@/components/payment/paymentFlow'
 import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, platformTextClass, platformLabel } from '@/utils/platformColors'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -541,12 +559,42 @@ const rechargeBonus = computed(() => {
   return checkout.value.recharge_bonus.tiers.reduce((bonus, tier) => validAmount.value >= tier.threshold ? tier.bonus : bonus, 0)
 })
 
-// Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
-const planGridClass = computed(() => {
-  const n = checkout.value.plans.length
+interface SubscriptionPlanGroup {
+  key: string
+  name: string
+  platform: string
+  plans: SubscriptionPlan[]
+}
+
+// Keep plans from the same subscription group together so each provider has a clear visual section.
+const subscriptionGroups = computed<SubscriptionPlanGroup[]>(() => {
+  const groups = new Map<string, SubscriptionPlanGroup>()
+  for (const plan of checkout.value.plans) {
+    const platform = plan.group_platform || ''
+    const key = String(plan.group_id)
+    const existing = groups.get(key)
+    if (existing) {
+      existing.plans.push(plan)
+    } else {
+      groups.set(key, {
+        key,
+        name: plan.group_name || platformLabel(platform),
+        platform,
+        plans: [plan],
+      })
+    }
+  }
+  return [...groups.values()].map(group => ({
+    ...group,
+    plans: [...group.plans].sort((a, b) => a.sort_order - b.sort_order),
+  }))
+})
+
+// Adaptive grid: one card stays readable, while larger groups use the available width.
+function planGridClass(n: number): string {
   if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
   return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
-})
+}
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.
 function amountFitsMethod(amt: number, methodType: string): boolean {

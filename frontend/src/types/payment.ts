@@ -89,6 +89,26 @@ export interface RewardCampaignStatus {
   }
 }
 
+export interface DailyCheckinRecord {
+  date: string
+  streak_day: number
+  reward: number
+  created_at: string
+}
+
+export interface DailyCheckinStatus {
+  checked_in_today: boolean
+  current_streak: number
+  total_days: number
+  total_reward: number
+  cycle_day: number
+  cycle_length: number
+  today_reward: number
+  reward_cycle: number[]
+  month: string
+  records: DailyCheckinRecord[]
+}
+
 export interface MethodLimit {
   currency?: string
   display_name?: string

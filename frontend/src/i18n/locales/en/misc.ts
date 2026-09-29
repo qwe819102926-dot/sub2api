@@ -1,5 +1,32 @@
 export default {
 
+  checkin: {
+    title: 'Daily Check-in',
+    subtitle: 'Check in to receive bonus balance rewards',
+    available: 'Available',
+    checked: 'Checked in',
+    currentStreak: 'Current streak',
+    totalDays: 'Total days',
+    totalReward: 'Total rewards',
+    days: 'days',
+    checkedToday: 'Checked in today. Reward credited.',
+    todayReward: 'Today\'s reward: +{amount}',
+    bonusOnly: 'All check-in rewards are credited to bonus balance',
+    checkinNow: 'Check in now',
+    viewDetails: 'View details',
+    success: 'Check-in successful. Bonus balance credited.',
+    failed: 'Check-in failed. Please try again.',
+    loadFailed: 'Failed to load check-in information. Please try again.',
+    weekdays: 'Sun,Mon,Tue,Wed,Thu,Fri,Sat',
+    calendar: 'Check-in calendar',
+    details: 'Reward details',
+    rewardSchedule: 'Daily rewards',
+    dayNumber: 'Day {day}',
+    cycleHint: '{days}-day reward cycle',
+    streakDay: 'Streak day {day}',
+    noRecords: 'No check-ins this month'
+  },
+
   // Subscription Progress (Header component)
   subscriptionProgress: {
     title: 'My Subscriptions',
@@ -385,6 +412,7 @@ export default {
     tabTopUp: 'Top Up',
     tabSubscribe: 'Subscribe',
     noPlans: 'No subscription plans available',
+    planCount: 'plans',
     notAvailable: 'Top-up is currently unavailable',
     confirmSubscription: 'Confirm Subscription',
     confirmCancel: 'Are you sure you want to cancel this order?',
