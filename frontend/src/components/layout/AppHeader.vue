@@ -23,15 +23,6 @@
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex min-w-0 items-center gap-1 sm:gap-3">
-        <button
-          v-if="user"
-          type="button"
-          class="hidden items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50 sm:flex dark:text-amber-300 dark:hover:bg-amber-900/20"
-          @click="showCheckin = true"
-        >
-          <Icon name="calendar" size="sm" />
-          <span>{{ t('payment.checkin.title') }}</span>
-        </button>
         <!-- Customer service entry -->
         <CustomerServiceButton />
 
@@ -259,7 +250,6 @@
       </div>
     </div>
   </header>
-  <DailyCheckinDialog v-if="user" v-model:show="showCheckin" :floating="false" />
 </template>
 
 <script setup lang="ts">
@@ -276,7 +266,6 @@ import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { getContactDisplayText } from '@/utils/customerService'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
-import DailyCheckinDialog from '@/components/payment/DailyCheckinDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -288,7 +277,6 @@ const onboardingStore = useOnboardingStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
-const showCheckin = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const contactInfo = computed(() => appStore.contactInfo)
 const contactDisplayText = computed(() => getContactDisplayText(contactInfo.value))
