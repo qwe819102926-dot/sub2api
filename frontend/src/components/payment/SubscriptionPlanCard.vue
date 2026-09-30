@@ -96,7 +96,6 @@ import { hasPeakRate as groupHasPeakRate, formatPeakRateWindow, serverTimezoneLa
 import { planValiditySuffix } from './validity'
 import { currencySymbol } from '@/components/payment/currency'
 import {
-  platformAccentBarClass,
   platformBadgeLightClass,
   platformBorderClass,
   platformTextClass,
@@ -116,7 +115,6 @@ const isRenewal = computed(() =>
 )
 
 // Derived color classes from central config
-const accentClass = computed(() => platformAccentBarClass(platform.value))
 const borderClass = computed(() => platformBorderClass(platform.value))
 const badgeLightClass = computed(() => platformBadgeLightClass(platform.value))
 const textClass = computed(() => platformTextClass(platform.value))
