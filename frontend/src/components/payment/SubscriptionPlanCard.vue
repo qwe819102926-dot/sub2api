@@ -8,7 +8,7 @@
     <div class="flex flex-1 flex-col p-4 md:p-5">
       <div :class="['mb-4 flex min-h-[58px] flex-wrap items-center gap-2 rounded-lg px-3 py-2.5', badgeLightClass]">
         <div :class="['flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/75 dark:bg-black/10', iconClass]">
-          <span class="text-xl font-bold" aria-hidden="true">{{ platformInitial }}</span>
+          <PlatformIcon :platform="platform || undefined" size="lg" aria-hidden="true" />
         </div>
         <div class="min-w-0 flex-1 basis-[min(100%,12rem)]">
           <h3
@@ -90,11 +90,12 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SubscriptionPlan } from '@/types/payment'
-import type { UserSubscription } from '@/types'
+import type { GroupPlatform, UserSubscription } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { hasPeakRate as groupHasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { planValiditySuffix } from './validity'
 import { currencySymbol } from '@/components/payment/currency'
+import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import {
   platformBadgeLightClass,
   platformBorderClass,
@@ -109,7 +110,7 @@ const props = defineProps<{ plan: SubscriptionPlan; activeSubscriptions?: UserSu
 const emit = defineEmits<{ select: [plan: SubscriptionPlan] }>()
 const { t } = useI18n()
 
-const platform = computed(() => props.plan.group_platform || '')
+const platform = computed(() => (props.plan.group_platform || '') as GroupPlatform | '')
 const isRenewal = computed(() =>
   props.activeSubscriptions?.some(s => s.group_id === props.plan.group_id && s.status === 'active') ?? false
 )
@@ -122,7 +123,6 @@ const iconClass = computed(() => platformIconClass(platform.value))
 const btnClass = computed(() => platformButtonClass(platform.value))
 const discountClass = computed(() => platformDiscountClass(platform.value))
 const pLabel = computed(() => platformLabel(platform.value))
-const platformInitial = computed(() => pLabel.value.slice(0, 1).toUpperCase())
 
 const discountText = computed(() => {
   if (!props.plan.original_price || props.plan.original_price <= 0) return ''
