@@ -5,7 +5,6 @@
       <template v-else-if="stats">
         <DashboardContactQr />
         <UserDashboardStats :stats="stats" :balance="user?.balance || 0" :bonus-balance="bonusBalance" :is-simple="authStore.isSimpleMode" />
-        <DailyCheckinDialog compact />
         <RewardCampaignCard @claimed="loadStats" />
         <UserDashboardCharts v-model:startDate="startDate" v-model:endDate="endDate" v-model:granularity="granularity" :loading="loadingCharts" :trend="trendData" :models="modelStats" @dateRangeChange="loadCharts" @granularityChange="loadCharts" @refresh="refreshAll" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -30,7 +29,6 @@ import { paymentAPI } from '@/api/payment'
 import { formatDateLocalInput } from '@/utils/format'
 import RechargeLotteryCard from '@/components/payment/RechargeLotteryCard.vue'
 import RewardCampaignCard from '@/components/payment/RewardCampaignCard.vue'
-import DailyCheckinDialog from '@/components/payment/DailyCheckinDialog.vue'
 
 const showLottery = ref(false)
 const route = useRoute()
