@@ -49,10 +49,38 @@ func TestProvideHTTPServerEnablesBoundedH2C(t *testing.T) {
 		MaxUploadBufferPerConnection: 1024 * 1024,
 		MaxUploadBufferPerStream:     256 * 1024,
 	}
-	srv := ProvideHTTPServer(cfg, gin.New())
+	router := gin.New()
+	router.GET("/", func(c *gin.Context) { c.String(http.StatusOK, c.Request.Proto) })
+	srv := ProvideHTTPServer(cfg, router)
 	require.NotNil(t, srv.Protocols)
 	require.True(t, srv.Protocols.UnencryptedHTTP2())
 	require.True(t, srv.Protocols.HTTP1())
+	require.True(t, srv.Protocols.HTTP2())
+	require.Equal(t, 30*time.Second, srv.IdleTimeout)
+	require.NotNil(t, srv.HTTP2)
+	require.Equal(t, 25, srv.HTTP2.MaxConcurrentStreams)
+	require.Equal(t, 64*1024, srv.HTTP2.MaxReadFrameSize)
+	require.Equal(t, 1024*1024, srv.HTTP2.MaxReceiveBufferPerConnection)
+	require.Equal(t, 256*1024, srv.HTTP2.MaxReceiveBufferPerStream)
+
+	addr, stop := serveIngressTestServer(t, srv)
+	defer stop()
+	for _, protoMajor := range []int{1, 2} {
+		protocols := new(http.Protocols)
+		protocols.SetHTTP1(protoMajor == 1)
+		protocols.SetUnencryptedHTTP2(protoMajor == 2)
+		tr := &http.Transport{Protocols: protocols}
+		defer tr.CloseIdleConnections()
+		client := &http.Client{Transport: tr, Timeout: 3 * time.Second}
+		resp, err := client.Get("http://" + addr + "/")
+		require.NoError(t, err)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, resp.Body.Close())
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, protoMajor, resp.ProtoMajor)
+		require.Equal(t, resp.Proto, string(body), "服务端也须识别正确的 HTTP 协议")
+	}
 }
 
 func TestConfigureTrustedProxies(t *testing.T) {
