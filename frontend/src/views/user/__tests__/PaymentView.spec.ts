@@ -289,7 +289,9 @@ async function mountSubscriptionPlanList(planCount: number) {
   const plans = Array.from({ length: planCount }, (_, index) => ({
     ...basePlan,
     id: index + 1,
+    group_id: index + 3,
     name: `Plan ${index + 1}`,
+    group_name: `OpenAI Group ${index + 1}`,
   }))
   getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans }))
   bridgeInvoke.mockReset()
@@ -313,17 +315,22 @@ async function mountSubscriptionPlanList(planCount: number) {
 }
 
 describe('PaymentView subscription plan grid', () => {
-  it.each([3, 4, 6])('keeps %i plans on the existing mobile/tablet/desktop grid', async (planCount) => {
+  it.each([3, 4, 6])('groups %i plans from separate groups by platform', async (planCount) => {
     const wrapper = await mountSubscriptionPlanList(planCount)
     const cards = wrapper.findAllComponents(SubscriptionPlanCard)
+    const grids = wrapper.findAll('.grid.grid-cols-1')
 
     expect(cards).toHaveLength(planCount)
-    expect([...(cards[0].element.parentElement?.classList ?? [])]).toEqual(expect.arrayContaining([
+    expect(grids).toHaveLength(1)
+    expect([...grids[0].element.classList]).toEqual(expect.arrayContaining([
       'grid',
       'grid-cols-1',
       'sm:grid-cols-2',
-      'lg:grid-cols-3',
     ]))
+    expect(wrapper.text()).toContain('GPT套餐')
+    expect(wrapper.text()).not.toContain('OpenAI Group')
+    if (planCount === 3) expect(grids[0].element.classList).toContain('lg:grid-cols-3')
+    if (planCount >= 4) expect(grids[0].element.classList).toContain('xl:grid-cols-4')
   })
 })
 

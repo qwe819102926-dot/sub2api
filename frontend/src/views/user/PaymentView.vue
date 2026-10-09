@@ -566,19 +566,19 @@ interface SubscriptionPlanGroup {
   plans: SubscriptionPlan[]
 }
 
-// Keep plans from the same subscription group together so each provider has a clear visual section.
+// Group plans by model platform so plans split across several access groups stay together.
 const subscriptionGroups = computed<SubscriptionPlanGroup[]>(() => {
   const groups = new Map<string, SubscriptionPlanGroup>()
   for (const plan of checkout.value.plans) {
     const platform = plan.group_platform || ''
-    const key = String(plan.group_id)
+    const key = platform || `group-${plan.group_id}`
     const existing = groups.get(key)
     if (existing) {
       existing.plans.push(plan)
     } else {
       groups.set(key, {
         key,
-        name: plan.group_name || platformLabel(platform),
+        name: platform === 'openai' ? 'GPT套餐' : `${platformLabel(platform)} 套餐`,
         platform,
         plans: [plan],
       })
@@ -590,10 +590,11 @@ const subscriptionGroups = computed<SubscriptionPlanGroup[]>(() => {
   }))
 })
 
-// Adaptive grid: one card stays readable, while larger groups use the available width.
+// Use up to four columns on wide screens to keep the common plan set on one row.
 function planGridClass(n: number): string {
   if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
-  return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+  if (n === 3) return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+  return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
 }
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.
