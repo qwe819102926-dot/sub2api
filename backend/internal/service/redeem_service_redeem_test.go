@@ -3,11 +3,58 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
 )
+
+type redeemRateLimitCacheStub struct {
+	count      int
+	increments int
+}
+
+func (s *redeemRateLimitCacheStub) GetRedeemAttemptCount(context.Context, int64) (int, error) {
+	return s.count, nil
+}
+
+func (s *redeemRateLimitCacheStub) IncrementRedeemAttemptCount(context.Context, int64) error {
+	s.increments++
+	return nil
+}
+
+func (*redeemRateLimitCacheStub) AcquireRedeemLock(context.Context, string, time.Duration) (bool, error) {
+	return true, nil
+}
+
+func (*redeemRateLimitCacheStub) ReleaseRedeemLock(context.Context, string) error { return nil }
+
+func TestPaymentFulfillmentBypassesPublicRedeemRateLimit(t *testing.T) {
+	ctx := context.Background()
+	cache := &redeemRateLimitCacheStub{count: redeemMaxErrorsPerHour}
+	service := NewRedeemService(&redeemRejectRepo{}, nil, nil, cache, nil, nil, nil, nil)
+
+	_, err := service.Redeem(ctx, 2, "PAYMENT-001")
+	require.ErrorIs(t, err, ErrRedeemRateLimited)
+	require.Zero(t, cache.increments)
+
+	_, err = service.redeemForPaymentFulfillment(ctx, 2, "PAYMENT-001")
+	require.ErrorIs(t, err, ErrRedeemCodeNotFound)
+	require.Zero(t, cache.increments, "payment fulfillment must not add to public failure attempts")
+
+	_, err = service.RedeemForAdminFulfillment(ctx, 2, "ADMIN-001")
+	require.ErrorIs(t, err, ErrRedeemCodeNotFound)
+	require.Zero(t, cache.increments, "admin fulfillment must not add to public failure attempts")
+}
+
+func TestPublicRedeemStillCountsInvalidAttempts(t *testing.T) {
+	cache := &redeemRateLimitCacheStub{}
+	service := NewRedeemService(&redeemRejectRepo{}, nil, nil, cache, nil, nil, nil, nil)
+	_, err := service.Redeem(context.Background(), 2, "MISSING")
+	require.ErrorIs(t, err, ErrRedeemCodeNotFound)
+	require.Equal(t, 1, cache.increments)
+}
 
 type redeemRejectRepo struct {
 	code      RedeemCode
