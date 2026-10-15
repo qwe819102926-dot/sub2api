@@ -57,13 +57,13 @@ jobs:
             const run = response.data.workflow_runs.find(candidate =>
               candidate.head_sha === context.sha &&
               candidate.head_branch === 'dev' &&
-              candidate.event === 'push' &&
+              ['push', 'workflow_dispatch'].includes(candidate.event) &&
               candidate.conclusion === 'success'
             );
 
             if (!run) {
               core.setFailed(
-                `Commit ${context.sha} has no successful dev push run for ${workflow}. ` +
+                `Commit ${context.sha} has no successful dev push or manual run for ${workflow}. ` +
                 'Merge main into dev first, wait for the dev image to pass, then fast-forward main.'
               );
               return;

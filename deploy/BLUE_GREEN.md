@@ -16,6 +16,10 @@
 
 ## 发布
 
+正式发布只提升同一提交在 dev 冒烟通过后保存的镜像摘要，不重新构建。
+dev 构建可由推送或手动运行触发；两者都必须在 dev 分支成功完成，提交 SHA
+必须与 main 完全一致，并提供该次运行的 `tested-image-<完整 SHA>` artifact。
+
 ```bash
 cd /opt/sub2api-deploy
 chmod +x blue-green-update.sh
