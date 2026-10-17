@@ -34,14 +34,15 @@ func TestPaidSubscriptionResetQuoteUsesCurrentPriceAndOriginalDays(t *testing.T)
 			subs := NewSubscriptionService(nil, repo, nil, nil, nil)
 			t.Cleanup(subs.Stop)
 			svc := &PaymentService{subscriptionSvc: subs, configService: &PaymentConfigService{entClient: client}, groupRepo: paidResetGroupRepo{}}
-			if scenario == "other user" {
+			switch scenario {
+			case "other user":
 				_, err := svc.GetSubscriptionResetQuote(context.Background(), 99, 5)
 				require.Equal(t, "SUBSCRIPTION_NOT_FOUND", infraerrors.Reason(err))
-			} else if scenario == "unknown term" {
+			case "unknown term":
 				repo.sub.BaseValidityDays = 0
 				_, err := svc.GetSubscriptionResetQuote(context.Background(), 1, 5)
 				require.Equal(t, "SUBSCRIPTION_TERM_UNKNOWN", infraerrors.Reason(err))
-			} else {
+			default:
 				mock.ExpectQuery(`SELECT .*subscription_plans`).WithArgs(planID).WillReturnRows(
 					sqlmock.NewRows([]string{"id", "group_id", "name", "price", "validity_days", "validity_unit", "for_sale"}).
 						AddRow(7, 2, "Current plan", 128, 60, "day", true))
