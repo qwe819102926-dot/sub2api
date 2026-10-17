@@ -203,7 +203,7 @@ function oauthOrderFixture() {
   }
 }
 
-async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}, reset?: 'success' | 'failure') {
+async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}, reset?: 'success' | 'failure' | 'legacy') {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = {
@@ -214,6 +214,7 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
     routeState.query = { tab: 'subscription', reset_subscription: '5' }
     getSubscriptionResetQuote.mockReset()
     if (reset === 'failure') getSubscriptionResetQuote.mockRejectedValue(new Error('Reset unavailable'))
+    else if (reset === 'legacy') getSubscriptionResetQuote.mockResolvedValueOnce({ data: { subscription_id: 5, plan_id: 0, group_id: 3, price: 0, validity_days: 30, plan_ids: [7, 8] } })
     else getSubscriptionResetQuote.mockResolvedValue({ data: { subscription_id: 5, plan_id: 7, group_id: 3, plan_name: 'Starter', price: 128, validity_days: 30 } })
   }
   routerReplace.mockReset().mockResolvedValue(undefined)
@@ -225,7 +226,12 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   showError.mockReset()
   showInfo.mockReset()
   showWarning.mockReset()
-  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoWithPlansFixture(options))
+  const checkout = checkoutInfoWithPlansFixture(options)
+  if (reset === 'legacy') checkout.data.plans.push(
+    { ...checkout.data.plans[0], id: 8, name: 'Alternative', price: 132 },
+    { ...checkout.data.plans[0], id: 9, group_id: 99, name: 'Other group' },
+  )
+  getCheckoutInfo.mockReset().mockResolvedValue(checkout)
   bridgeInvoke.mockReset()
   window.localStorage.clear()
   ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
@@ -361,6 +367,26 @@ describe('PaymentView recharge amounts', () => {
 })
 
 describe('PaymentView paid subscription reset', () => {
+  it('requires a legacy plan choice, refreshes its quote and pays for the same subscription', async () => {
+    const wrapper = await mountSubscriptionConfirm({}, 'legacy')
+    expect(wrapper.get('[data-testid="subscription-reset-plan-selection"]').text()).toContain('userSubscriptions.resetSelectPlan')
+    const cards = wrapper.findAllComponents(SubscriptionPlanCard)
+    expect(cards.map(card => card.props('plan').id)).toEqual([7, 8])
+    expect(wrapper.findAll('button').some(button => button.text().includes('userSubscriptions.resetPay'))).toBe(false)
+    expect(createOrder).not.toHaveBeenCalled()
+    getSubscriptionResetQuote.mockResolvedValueOnce({ data: { subscription_id: 5, plan_id: 8, group_id: 3, plan_name: 'Alternative', price: 135, validity_days: 30 } })
+    cards[1].vm.$emit('select', cards[1].props('plan'))
+    await flushPromises()
+    expect(getSubscriptionResetQuote).toHaveBeenLastCalledWith(5, 8)
+    expect(wrapper.get('[data-testid="subscription-reset-confirmation"]').exists()).toBe(true)
+    createOrder.mockRejectedValueOnce(new Error('test stops before contacting a provider'))
+    const pay = wrapper.findAll('button').find(button => button.text().includes('userSubscriptions.resetPay'))!
+    await pay.trigger('click')
+    await flushPromises()
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ amount: 135, plan_id: 8, subscription_reset_id: 5 }))
+    wrapper.unmount()
+  })
+
   it('confirms the original term and sends the owned subscription ID with payment', async () => {
     const wrapper = await mountSubscriptionConfirm({ plan: { validity_days: 60 } }, 'success')
     expect(getSubscriptionResetQuote).toHaveBeenCalledWith(5)

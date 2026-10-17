@@ -86,6 +86,54 @@ func TestPaidSubscriptionResetReplacesRemainingDaysAndAllQuota(t *testing.T) {
 	require.Equal(t, 30, sub.BaseValidityDays)
 }
 
+func TestPaidSubscriptionResetLegacyPlans(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		selected   int64
+		secondDays int
+		wantReason string
+	}{
+		{"explicit choice required", 0, 30, ""},
+		{"current price for chosen plan", 8, 30, ""},
+		{"other group rejected", 9, 30, "RESET_PLAN_MISMATCH"},
+		{"unknown original duration rejected", 7, 60, "SUBSCRIPTION_TERM_UNKNOWN"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+			t.Cleanup(func() { _ = client.Close() })
+			repo := &paidResetSubscriptionRepo{sub: UserSubscription{ID: 5, UserID: 1, GroupID: 2, Status: SubscriptionStatusActive,
+				StartsAt: time.Now().AddDate(0, 0, -50), ExpiresAt: time.Now().AddDate(0, 0, 10)}}
+			subs := NewSubscriptionService(nil, repo, nil, nil, nil)
+			t.Cleanup(subs.Stop)
+			svc := &PaymentService{subscriptionSvc: subs, configService: &PaymentConfigService{entClient: client}, groupRepo: paidResetGroupRepo{}}
+			mock.ExpectQuery(`SELECT .*subscription_plans`).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "group_id", "name", "price", "validity_days", "validity_unit", "for_sale"}).
+					AddRow(7, 2, "Original", 10, 30, "days", true).
+					AddRow(8, 2, "Alternative", 132, test.secondDays, "days", true).
+					AddRow(9, 3, "Different group", 1, 30, "days", true))
+			quote, err := svc.GetSubscriptionResetQuote(context.Background(), 1, 5, test.selected)
+			if test.wantReason != "" {
+				require.Equal(t, test.wantReason, infraerrors.Reason(err))
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, 30, quote.ValidityDays, "renewal's 60-day span must not become the original term")
+				if test.selected == 0 {
+					require.Zero(t, quote.PlanID, "never silently choose a price")
+					require.Equal(t, []int64{7, 8}, quote.PlanIDs)
+				} else {
+					require.Equal(t, int64(8), quote.PlanID)
+					require.Equal(t, float64(132), quote.Price)
+				}
+			}
+			require.Zero(t, repo.sub.BaseValidityDays, "getting a quote must not mutate subscriptions")
+			require.Nil(t, repo.sub.SourcePlanID)
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestPaidSubscriptionResetRejectsOtherUsersGroupsAndRevokedSubscriptions(t *testing.T) {
 	for _, test := range []struct {
 		name        string
@@ -162,7 +210,7 @@ func TestPaidSubscriptionResetCallbackIsIdempotentAndAtomic(t *testing.T) {
 			require.NoError(t, err)
 			client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
 			t.Cleanup(func() { _ = client.Close() })
-			repo := &paidResetSubscriptionRepo{sub: UserSubscription{ID: 5, UserID: 1, GroupID: 2, Status: SubscriptionStatusActive, BaseValidityDays: 30, MonthlyUsageUSD: 160, ExpiresAt: time.Now().AddDate(0, 0, 10)}}
+			repo := &paidResetSubscriptionRepo{sub: UserSubscription{ID: 5, UserID: 1, GroupID: 2, Status: SubscriptionStatusActive, MonthlyUsageUSD: 160, ExpiresAt: time.Now().AddDate(0, 0, 10)}}
 			subs := NewSubscriptionService(nil, repo, nil, client, nil)
 			t.Cleanup(subs.Stop)
 			svc := &PaymentService{entClient: client, subscriptionSvc: subs}
@@ -173,7 +221,7 @@ func TestPaidSubscriptionResetCallbackIsIdempotentAndAtomic(t *testing.T) {
 					paidAt = time.Now()
 				}
 				mock.ExpectBegin()
-				mock.ExpectQuery(`SELECT .*payment_orders.*FOR UPDATE`).WillReturnRows(sqlmock.NewRows([]string{"id", "status", "paid_at"}).AddRow(7, OrderStatusRecharging, paidAt))
+				mock.ExpectQuery(`SELECT .*payment_orders.*FOR UPDATE`).WillReturnRows(sqlmock.NewRows([]string{"id", "status", "paid_at", "plan_id"}).AddRow(7, OrderStatusRecharging, paidAt, 7))
 				mock.ExpectQuery(`SELECT COUNT.*payment_audit_logs`).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(applied))
 			}
 			expectLockedOrder(0)
@@ -195,6 +243,8 @@ func TestPaidSubscriptionResetCallbackIsIdempotentAndAtomic(t *testing.T) {
 				require.NoError(t, svc.ensurePaymentSubscriptionReset(context.Background(), order, 2, 30))
 				require.Zero(t, repo.sub.MonthlyUsageUSD)
 				require.Equal(t, 1, repo.updates)
+				require.Equal(t, 30, repo.sub.BaseValidityDays)
+				require.Equal(t, int64(7), *repo.sub.SourcePlanID)
 				expiry := repo.sub.ExpiresAt
 				repo.sub.MonthlyUsageUSD = 3
 				expectLockedOrder(1)

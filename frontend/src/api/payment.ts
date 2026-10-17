@@ -23,6 +23,7 @@ export interface SubscriptionResetQuote {
   plan_name: string
   price: number
   validity_days: number
+  plan_ids?: number[]
 }
 
 export interface PublicOrderVerifyResult {
@@ -34,8 +35,8 @@ export interface PublicOrderVerifyResult {
 }
 
 export const paymentAPI = {
-	getSubscriptionResetQuote(subscriptionId: number) {
-		return apiClient.get<SubscriptionResetQuote>(`/payment/subscriptions/${subscriptionId}/reset-quote`)
+	getSubscriptionResetQuote(subscriptionId: number, planId?: number) {
+		return apiClient.get<SubscriptionResetQuote>(`/payment/subscriptions/${subscriptionId}/reset-quote`, planId ? { params: { plan_id: planId } } : undefined)
 	},
   /** Get payment configuration (enabled types, limits, etc.) */
   getConfig() {

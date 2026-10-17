@@ -17,7 +17,15 @@ func (h *PaymentHandler) GetSubscriptionResetQuote(c *gin.Context) {
 		response.BadRequest(c, "Invalid subscription ID")
 		return
 	}
-	quote, err := h.paymentService.GetSubscriptionResetQuote(c.Request.Context(), subject.UserID, id)
+	var planID int64
+	if raw := c.Query("plan_id"); raw != "" {
+		planID, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil || planID <= 0 {
+			response.BadRequest(c, "Invalid plan ID")
+			return
+		}
+	}
+	quote, err := h.paymentService.GetSubscriptionResetQuote(c.Request.Context(), subject.UserID, id, planID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

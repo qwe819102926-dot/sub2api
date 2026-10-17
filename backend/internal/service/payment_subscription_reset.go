@@ -21,9 +21,10 @@ type SubscriptionResetQuote struct {
 	PlanName       string  `json:"plan_name"`
 	Price          float64 `json:"price"`
 	ValidityDays   int     `json:"validity_days"`
+	PlanIDs        []int64 `json:"plan_ids,omitempty"`
 }
 
-func (s *PaymentService) GetSubscriptionResetQuote(ctx context.Context, userID, subscriptionID int64) (*SubscriptionResetQuote, error) {
+func (s *PaymentService) GetSubscriptionResetQuote(ctx context.Context, userID, subscriptionID int64, selectedPlanIDs ...int64) (*SubscriptionResetQuote, error) {
 	if s.subscriptionSvc == nil {
 		return nil, infraerrors.ServiceUnavailable("SUBSCRIPTION_RESET_UNAVAILABLE", "subscription service is unavailable")
 	}
@@ -34,8 +35,13 @@ func (s *PaymentService) GetSubscriptionResetQuote(ctx context.Context, userID, 
 	if sub.Status != SubscriptionStatusActive || !sub.ExpiresAt.After(time.Now()) {
 		return nil, infraerrors.BadRequest("SUBSCRIPTION_RESET_UNAVAILABLE", "only active subscriptions can be reset")
 	}
-	if sub.BaseValidityDays < 1 || sub.BaseValidityDays > MaxValidityDays {
-		return nil, infraerrors.BadRequest("SUBSCRIPTION_TERM_UNKNOWN", "original subscription term is unavailable; please contact the administrator")
+	days := sub.BaseValidityDays
+	if days < 0 || days > MaxValidityDays || days == 0 && sub.SourcePlanID != nil {
+		return nil, infraerrors.BadRequest("SUBSCRIPTION_TERM_UNKNOWN", "无法确认此旧订阅的原始天数，请联系管理员确认原套餐。")
+	}
+	selectedPlanID := int64(0)
+	if len(selectedPlanIDs) > 0 {
+		selectedPlanID = selectedPlanIDs[0]
 	}
 	var plan *dbent.SubscriptionPlan
 	if sub.SourcePlanID != nil {
@@ -43,19 +49,54 @@ func (s *PaymentService) GetSubscriptionResetQuote(ctx context.Context, userID, 
 		if err != nil {
 			return nil, infraerrors.BadRequest("RESET_PLAN_UNAVAILABLE", "original subscription plan is no longer available")
 		}
+		if selectedPlanID > 0 && selectedPlanID != *sub.SourcePlanID {
+			return nil, infraerrors.BadRequest("RESET_PLAN_MISMATCH", "reset plan does not match the original subscription")
+		}
 	} else {
 		plans, listErr := s.configService.ListPlansForSale(ctx)
 		if listErr != nil {
 			return nil, listErr
 		}
-		for _, candidate := range plans {
-			if candidate.GroupID == sub.GroupID && psComputeValidityDays(candidate.ValidityDays, candidate.ValidityUnit) == sub.BaseValidityDays {
-				if plan != nil {
-					return nil, infraerrors.BadRequest("RESET_PLAN_AMBIGUOUS", "multiple plans match this subscription; please contact the administrator")
+		// Legacy manual subscriptions have no purchase metadata. Recover a term
+		// only when every sale plan for the group agrees; never use the total
+		// starts_at/expires_at span, which may include accumulated renewals.
+		if days == 0 {
+			for _, candidate := range plans {
+				if candidate.GroupID != sub.GroupID {
+					continue
 				}
-				plan = candidate
+				candidateDays := psComputeValidityDays(candidate.ValidityDays, candidate.ValidityUnit)
+				if days != 0 && days != candidateDays {
+					return nil, infraerrors.BadRequest("SUBSCRIPTION_TERM_UNKNOWN", "无法确认此旧订阅的原始天数，请联系管理员确认原套餐。")
+				}
+				days = candidateDays
 			}
 		}
+		if days < 1 || days > MaxValidityDays {
+			return nil, infraerrors.BadRequest("SUBSCRIPTION_TERM_UNKNOWN", "无法确认此旧订阅的原始天数，请联系管理员确认原套餐。")
+		}
+		var candidates []int64
+		for _, candidate := range plans {
+			if candidate.GroupID == sub.GroupID && psComputeValidityDays(candidate.ValidityDays, candidate.ValidityUnit) == days && candidate.Price > 0 && !math.IsNaN(candidate.Price) && !math.IsInf(candidate.Price, 0) {
+				candidates = append(candidates, candidate.ID)
+				if selectedPlanID == candidate.ID || selectedPlanID == 0 && plan == nil {
+					plan = candidate
+				}
+			}
+		}
+		if selectedPlanID > 0 && plan == nil {
+			return nil, infraerrors.BadRequest("RESET_PLAN_MISMATCH", "所选套餐与此订阅的分组或周期不匹配，请重新选择。")
+		}
+		if selectedPlanID == 0 && len(candidates) > 1 {
+			group, err := s.groupRepo.GetByID(ctx, sub.GroupID)
+			if err != nil || group.Status != payment.EntityStatusActive || !group.IsSubscriptionType() {
+				return nil, infraerrors.BadRequest("RESET_PLAN_UNAVAILABLE", "subscription group is unavailable")
+			}
+			return &SubscriptionResetQuote{SubscriptionID: sub.ID, GroupID: sub.GroupID, ValidityDays: days, PlanIDs: candidates}, nil
+		}
+	}
+	if days < 1 || days > MaxValidityDays {
+		return nil, infraerrors.BadRequest("SUBSCRIPTION_TERM_UNKNOWN", "无法确认此旧订阅的原始天数，请联系管理员确认原套餐。")
 	}
 	if plan == nil || !plan.ForSale || plan.GroupID != sub.GroupID || plan.Price <= 0 || math.IsNaN(plan.Price) || math.IsInf(plan.Price, 0) {
 		return nil, infraerrors.BadRequest("RESET_PLAN_UNAVAILABLE", "a paid subscription plan is not available for reset")
@@ -65,7 +106,7 @@ func (s *PaymentService) GetSubscriptionResetQuote(ctx context.Context, userID, 
 		return nil, infraerrors.BadRequest("RESET_PLAN_UNAVAILABLE", "subscription group is unavailable")
 	}
 	return &SubscriptionResetQuote{SubscriptionID: sub.ID, PlanID: plan.ID, GroupID: sub.GroupID,
-		PlanName: plan.Name, Price: plan.Price, ValidityDays: sub.BaseValidityDays}, nil
+		PlanName: plan.Name, Price: plan.Price, ValidityDays: days}, nil
 }
 
 func IsSubscriptionResetOrder(order *dbent.PaymentOrder) bool {
@@ -127,6 +168,12 @@ func (s *PaymentService) ensurePaymentSubscriptionReset(ctx context.Context, ord
 		}
 		if err := resetSubscriptionTerm(sub, order.UserID, groupID, days, time.Now()); err != nil {
 			return err
+		}
+		if sub.BaseValidityDays == 0 {
+			sub.BaseValidityDays = days
+		}
+		if sub.SourcePlanID == nil {
+			sub.SourcePlanID = lockedOrder.PlanID
 		}
 		if err := s.subscriptionSvc.userSubRepo.Update(txCtx, sub); err != nil {
 			return err

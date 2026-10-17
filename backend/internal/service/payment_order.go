@@ -30,11 +30,11 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 		if req.SubscriptionResetID < 0 || req.OrderType != payment.OrderTypeSubscription {
 			return nil, infraerrors.BadRequest("INVALID_SUBSCRIPTION_RESET", "reset requires a subscription order")
 		}
-		quote, err := s.GetSubscriptionResetQuote(ctx, req.UserID, req.SubscriptionResetID)
+		quote, err := s.GetSubscriptionResetQuote(ctx, req.UserID, req.SubscriptionResetID, req.PlanID)
 		if err != nil {
 			return nil, err
 		}
-		if req.PlanID != quote.PlanID {
+		if quote.PlanID <= 0 || req.PlanID != quote.PlanID {
 			return nil, infraerrors.BadRequest("RESET_PLAN_MISMATCH", "reset plan does not match the original subscription")
 		}
 		if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || math.Abs(req.Amount-quote.Price) > 0.000001 {

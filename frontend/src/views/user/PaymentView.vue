@@ -197,6 +197,15 @@
               <button class="btn btn-secondary w-full" @click="resetRequested ? router.push('/subscriptions') : selectedPlan = null">{{ t('common.cancel') }}</button>
             </template>
             <!-- Plan list -->
+            <div v-else-if="resetPlanChoices.length" class="card space-y-4 p-6" data-testid="subscription-reset-plan-selection">
+              <h3 class="text-lg font-semibold">{{ t('userSubscriptions.resetSelectPlan') }}</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('userSubscriptions.resetSelectPlanDescription', { days: resetQuote?.validity_days }) }}</p>
+              <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <SubscriptionPlanCard v-for="plan in resetPlanChoices" :key="plan.id" :plan="plan" :action-label="t('userSubscriptions.resetChoosePlan')" @select="chooseResetPlan" />
+              </div>
+              <p v-if="errorMessage" class="text-sm text-red-600" role="alert">{{ errorMessage }}</p>
+              <button class="btn btn-secondary" @click="router.push('/subscriptions')">{{ t('common.cancel') }}</button>
+            </div>
             <div v-else-if="resetRequested" class="card p-6" role="alert">
               <p class="text-sm text-red-600 dark:text-red-400">{{ errorMessage || t('userSubscriptions.resetUnavailable') }}</p>
               <button class="btn btn-secondary mt-4" @click="router.push('/subscriptions')">{{ t('common.cancel') }}</button>
@@ -366,6 +375,7 @@ const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const resetRequested = computed(() => route.query.reset_subscription !== undefined)
 const resetQuote = ref<SubscriptionResetQuote | null>(null)
+const resetPlanChoices = computed(() => checkout.value.plans.filter(plan => resetQuote.value?.plan_ids?.includes(plan.id) && plan.group_id === resetQuote.value.group_id))
 const previewImage = ref('')
 
 const paymentPhase = ref<'select' | 'paying'>('select')
@@ -826,6 +836,32 @@ function selectPlan(plan: SubscriptionPlan) {
   errorMessage.value = ''
 }
 
+function applyResetQuote(quote: SubscriptionResetQuote) {
+  resetQuote.value = quote
+  if (quote.plan_ids?.length && !quote.plan_id) {
+    if (!resetPlanChoices.value.length) throw new Error(t('userSubscriptions.resetUnavailable'))
+    return
+  }
+  const plan = checkout.value.plans.find(plan => plan.id === quote.plan_id && plan.group_id === quote.group_id)
+  if (!plan) throw new Error(t('userSubscriptions.resetUnavailable'))
+  selectedPlan.value = { ...plan, price: quote.price, validity_days: quote.validity_days, validity_unit: 'day' }
+}
+
+async function chooseResetPlan(plan: SubscriptionPlan) {
+  if (submitting.value) return
+  submitting.value = true
+  errorMessage.value = ''
+  try {
+    const response = await paymentAPI.getSubscriptionResetQuote(Number(route.query.reset_subscription), plan.id)
+    applyResetQuote(response.data)
+  } catch (err: unknown) {
+    errorMessage.value = extractI18nErrorMessage(err, t, 'payment.errors', t('userSubscriptions.resetUnavailable'))
+    appStore.showError(errorMessage.value)
+  } finally {
+    submitting.value = false
+  }
+}
+
 function selectPlanFromModal(plan: SubscriptionPlan) {
   showRenewalModal.value = false
   renewGroupId.value = null
@@ -1164,6 +1200,10 @@ async function resumeWechatPaymentFromQuery() {
   if (resume.orderType === 'subscription' && resume.planId && !resetQuote.value) {
     selectedPlan.value = checkout.value.plans.find(plan => plan.id === resume.planId) ?? null
   }
+  if (resume.orderType === 'subscription' && resume.planId && resetRequested.value && resetQuote.value?.plan_id !== resume.planId) {
+    const response = await paymentAPI.getSubscriptionResetQuote(Number(route.query.reset_subscription), resume.planId)
+    applyResetQuote(response.data)
+  }
 
   await router.replace({ path: route.path, query: stripWechatResumeQuery(route.query) })
 
@@ -1228,11 +1268,7 @@ onMounted(async () => {
       const resetID = Number(route.query.reset_subscription)
       if (!Number.isSafeInteger(resetID) || resetID <= 0) throw new Error(t('userSubscriptions.resetUnavailable'))
       const response = await paymentAPI.getSubscriptionResetQuote(resetID)
-      const quote = response.data
-      const plan = checkout.value.plans.find(plan => plan.id === quote.plan_id && plan.group_id === quote.group_id)
-      if (!plan) throw new Error(t('userSubscriptions.resetUnavailable'))
-      resetQuote.value = quote
-      selectedPlan.value = { ...plan, price: quote.price, validity_days: quote.validity_days, validity_unit: 'day' }
+      applyResetQuote(response.data)
     }
     await resumeWechatPaymentFromQuery()
     if (checkout.value.balance_disabled) {
