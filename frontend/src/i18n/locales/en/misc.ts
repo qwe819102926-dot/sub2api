@@ -138,6 +138,12 @@ export default {
 
   // User Subscriptions Page
   userSubscriptions: {
+	paidReset: 'Paid reset',
+	resetTitle: 'Confirm subscription reset',
+	resetDescription: 'After payment, daily, weekly and monthly usage is cleared and expiry becomes {days} days from the successful reset. Remaining time and unused quota are replaced, not added.',
+	resetUnavailable: 'This subscription cannot currently be reset. Contact the administrator to confirm the original plan.',
+	resetPay: 'Pay and reset',
+	resetSuccess: 'Subscription reset',
     title: 'My Subscriptions',
     description: 'View your subscription plans and usage',
     noActiveSubscriptions: 'No Active Subscriptions',

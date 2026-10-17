@@ -79,6 +79,34 @@ func (_c *UserSubscriptionCreate) SetGroupID(v int64) *UserSubscriptionCreate {
 	return _c
 }
 
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (_c *UserSubscriptionCreate) SetBaseValidityDays(v int) *UserSubscriptionCreate {
+	_c.mutation.SetBaseValidityDays(v)
+	return _c
+}
+
+// SetNillableBaseValidityDays sets the "base_validity_days" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableBaseValidityDays(v *int) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetBaseValidityDays(*v)
+	}
+	return _c
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (_c *UserSubscriptionCreate) SetSourcePlanID(v int64) *UserSubscriptionCreate {
+	_c.mutation.SetSourcePlanID(v)
+	return _c
+}
+
+// SetNillableSourcePlanID sets the "source_plan_id" field if the given value is not nil.
+func (_c *UserSubscriptionCreate) SetNillableSourcePlanID(v *int64) *UserSubscriptionCreate {
+	if v != nil {
+		_c.SetSourcePlanID(*v)
+	}
+	return _c
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_c *UserSubscriptionCreate) SetStartsAt(v time.Time) *UserSubscriptionCreate {
 	_c.mutation.SetStartsAt(v)
@@ -326,6 +354,10 @@ func (_c *UserSubscriptionCreate) defaults() error {
 		v := usersubscription.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.BaseValidityDays(); !ok {
+		v := usersubscription.DefaultBaseValidityDays
+		_c.mutation.SetBaseValidityDays(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := usersubscription.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -365,6 +397,9 @@ func (_c *UserSubscriptionCreate) check() error {
 	}
 	if _, ok := _c.mutation.GroupID(); !ok {
 		return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "UserSubscription.group_id"`)}
+	}
+	if _, ok := _c.mutation.BaseValidityDays(); !ok {
+		return &ValidationError{Name: "base_validity_days", err: errors.New(`ent: missing required field "UserSubscription.base_validity_days"`)}
 	}
 	if _, ok := _c.mutation.StartsAt(); !ok {
 		return &ValidationError{Name: "starts_at", err: errors.New(`ent: missing required field "UserSubscription.starts_at"`)}
@@ -436,6 +471,14 @@ func (_c *UserSubscriptionCreate) createSpec() (*UserSubscription, *sqlgraph.Cre
 	if value, ok := _c.mutation.DeletedAt(); ok {
 		_spec.SetField(usersubscription.FieldDeletedAt, field.TypeTime, value)
 		_node.DeletedAt = &value
+	}
+	if value, ok := _c.mutation.BaseValidityDays(); ok {
+		_spec.SetField(usersubscription.FieldBaseValidityDays, field.TypeInt, value)
+		_node.BaseValidityDays = value
+	}
+	if value, ok := _c.mutation.SourcePlanID(); ok {
+		_spec.SetField(usersubscription.FieldSourcePlanID, field.TypeInt64, value)
+		_node.SourcePlanID = &value
 	}
 	if value, ok := _c.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)
@@ -651,6 +694,48 @@ func (u *UserSubscriptionUpsert) SetGroupID(v int64) *UserSubscriptionUpsert {
 // UpdateGroupID sets the "group_id" field to the value that was provided on create.
 func (u *UserSubscriptionUpsert) UpdateGroupID() *UserSubscriptionUpsert {
 	u.SetExcluded(usersubscription.FieldGroupID)
+	return u
+}
+
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (u *UserSubscriptionUpsert) SetBaseValidityDays(v int) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldBaseValidityDays, v)
+	return u
+}
+
+// UpdateBaseValidityDays sets the "base_validity_days" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateBaseValidityDays() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldBaseValidityDays)
+	return u
+}
+
+// AddBaseValidityDays adds v to the "base_validity_days" field.
+func (u *UserSubscriptionUpsert) AddBaseValidityDays(v int) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldBaseValidityDays, v)
+	return u
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (u *UserSubscriptionUpsert) SetSourcePlanID(v int64) *UserSubscriptionUpsert {
+	u.Set(usersubscription.FieldSourcePlanID, v)
+	return u
+}
+
+// UpdateSourcePlanID sets the "source_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsert) UpdateSourcePlanID() *UserSubscriptionUpsert {
+	u.SetExcluded(usersubscription.FieldSourcePlanID)
+	return u
+}
+
+// AddSourcePlanID adds v to the "source_plan_id" field.
+func (u *UserSubscriptionUpsert) AddSourcePlanID(v int64) *UserSubscriptionUpsert {
+	u.Add(usersubscription.FieldSourcePlanID, v)
+	return u
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (u *UserSubscriptionUpsert) ClearSourcePlanID() *UserSubscriptionUpsert {
+	u.SetNull(usersubscription.FieldSourcePlanID)
 	return u
 }
 
@@ -951,6 +1036,55 @@ func (u *UserSubscriptionUpsertOne) SetGroupID(v int64) *UserSubscriptionUpsertO
 func (u *UserSubscriptionUpsertOne) UpdateGroupID() *UserSubscriptionUpsertOne {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateGroupID()
+	})
+}
+
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (u *UserSubscriptionUpsertOne) SetBaseValidityDays(v int) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetBaseValidityDays(v)
+	})
+}
+
+// AddBaseValidityDays adds v to the "base_validity_days" field.
+func (u *UserSubscriptionUpsertOne) AddBaseValidityDays(v int) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddBaseValidityDays(v)
+	})
+}
+
+// UpdateBaseValidityDays sets the "base_validity_days" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateBaseValidityDays() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateBaseValidityDays()
+	})
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (u *UserSubscriptionUpsertOne) SetSourcePlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetSourcePlanID(v)
+	})
+}
+
+// AddSourcePlanID adds v to the "source_plan_id" field.
+func (u *UserSubscriptionUpsertOne) AddSourcePlanID(v int64) *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddSourcePlanID(v)
+	})
+}
+
+// UpdateSourcePlanID sets the "source_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertOne) UpdateSourcePlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateSourcePlanID()
+	})
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (u *UserSubscriptionUpsertOne) ClearSourcePlanID() *UserSubscriptionUpsertOne {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearSourcePlanID()
 	})
 }
 
@@ -1449,6 +1583,55 @@ func (u *UserSubscriptionUpsertBulk) SetGroupID(v int64) *UserSubscriptionUpsert
 func (u *UserSubscriptionUpsertBulk) UpdateGroupID() *UserSubscriptionUpsertBulk {
 	return u.Update(func(s *UserSubscriptionUpsert) {
 		s.UpdateGroupID()
+	})
+}
+
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (u *UserSubscriptionUpsertBulk) SetBaseValidityDays(v int) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetBaseValidityDays(v)
+	})
+}
+
+// AddBaseValidityDays adds v to the "base_validity_days" field.
+func (u *UserSubscriptionUpsertBulk) AddBaseValidityDays(v int) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddBaseValidityDays(v)
+	})
+}
+
+// UpdateBaseValidityDays sets the "base_validity_days" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateBaseValidityDays() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateBaseValidityDays()
+	})
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) SetSourcePlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.SetSourcePlanID(v)
+	})
+}
+
+// AddSourcePlanID adds v to the "source_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) AddSourcePlanID(v int64) *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.AddSourcePlanID(v)
+	})
+}
+
+// UpdateSourcePlanID sets the "source_plan_id" field to the value that was provided on create.
+func (u *UserSubscriptionUpsertBulk) UpdateSourcePlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.UpdateSourcePlanID()
+	})
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (u *UserSubscriptionUpsertBulk) ClearSourcePlanID() *UserSubscriptionUpsertBulk {
+	return u.Update(func(s *UserSubscriptionUpsert) {
+		s.ClearSourcePlanID()
 	})
 }
 

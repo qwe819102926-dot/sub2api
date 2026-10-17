@@ -46,6 +46,7 @@ func RegisterPaymentRoutes(
 		authenticated.GET("/config", paymentHandler.GetPaymentConfig)
 		authenticated.GET("/checkout-info", paymentHandler.GetCheckoutInfo)
 		authenticated.GET("/plans", paymentHandler.GetPlans)
+		authenticated.GET("/subscriptions/:id/reset-quote", paymentHandler.GetSubscriptionResetQuote)
 		authenticated.GET("/limits", paymentHandler.GetLimits)
 		authenticated.GET("/lottery", paymentHandler.GetRechargeLottery)
 		authenticated.POST("/lottery/draw", paymentHandler.DrawRechargeLottery)

@@ -136,6 +136,12 @@ export default {
 
   // User Subscriptions Page
   userSubscriptions: {
+	paidReset: '付费重置',
+	resetTitle: '确认付费重置',
+	resetDescription: '支付成功后，本订阅的日、周、月已用额度将清零，到期时间重新设为重置成功时刻起 {days} 天。当前剩余天数和未用额度将被覆盖，不会累加。',
+	resetUnavailable: '暂时无法重置该订阅，请联系管理员确认原套餐。',
+	resetPay: '支付并重置',
+	resetSuccess: '订阅已重置',
     title: '我的订阅',
     description: '查看您的订阅计划和用量',
     noActiveSubscriptions: '暂无有效订阅',

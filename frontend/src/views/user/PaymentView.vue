@@ -6,7 +6,7 @@
       </div>
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
-        <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
+        <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan && !resetRequested" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
           <button v-for="tab in tabs" :key="tab.key"
             class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
             :class="activeTab === tab.key ? 'bg-white text-gray-900 shadow dark:bg-dark-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
@@ -108,6 +108,10 @@
           <template v-else-if="activeTab === 'subscription'">
             <!-- Subscription confirm (inline, replaces plan list) -->
             <template v-if="selectedPlan">
+              <div v-if="resetQuote" class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30" role="note" data-testid="subscription-reset-confirmation">
+                <h3 class="font-semibold text-amber-900 dark:text-amber-200">{{ t('userSubscriptions.resetTitle') }}</h3>
+                <p class="mt-2 text-sm leading-relaxed text-amber-800 dark:text-amber-300">{{ t('userSubscriptions.resetDescription', { days: resetQuote.validity_days }) }}</p>
+              </div>
               <div class="card p-5">
                 <!-- Header: platform badge + plan name -->
                 <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -188,11 +192,15 @@
                   <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
                   {{ t('common.processing') }}
                 </span>
-                <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
+                <span v-else>{{ t(resetQuote ? 'userSubscriptions.resetPay' : 'payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
               </button>
-              <button class="btn btn-secondary w-full" @click="selectedPlan = null">{{ t('common.cancel') }}</button>
+              <button class="btn btn-secondary w-full" @click="resetRequested ? router.push('/subscriptions') : selectedPlan = null">{{ t('common.cancel') }}</button>
             </template>
             <!-- Plan list -->
+            <div v-else-if="resetRequested" class="card p-6" role="alert">
+              <p class="text-sm text-red-600 dark:text-red-400">{{ errorMessage || t('userSubscriptions.resetUnavailable') }}</p>
+              <button class="btn btn-secondary mt-4" @click="router.push('/subscriptions')">{{ t('common.cancel') }}</button>
+            </div>
             <template v-else>
               <div v-if="checkout.plans.length === 0" class="card py-16 text-center">
                 <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
@@ -291,6 +299,7 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
+import type { SubscriptionResetQuote } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
@@ -355,6 +364,8 @@ const activeTab = ref<'recharge' | 'subscription'>('recharge')
 const amount = ref<number | null>(null)
 const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
+const resetRequested = computed(() => route.query.reset_subscription !== undefined)
+const resetQuote = ref<SubscriptionResetQuote | null>(null)
 const previewImage = ref('')
 
 const paymentPhase = ref<'select' | 'paying'>('select')
@@ -485,6 +496,10 @@ function buildWechatOAuthAuthorizeUrl(
 
     redirectUrl.searchParams.set('payment_type', paymentType)
     redirectUrl.searchParams.set('order_type', context.orderType)
+    if (resetQuote.value) {
+      redirectUrl.searchParams.set('reset_subscription', String(resetQuote.value.subscription_id))
+      targetUrl.searchParams.set('subscription_reset_id', String(resetQuote.value.subscription_id))
+    }
 
     if (context.planId) {
       redirectUrl.searchParams.set('plan_id', String(context.planId))
@@ -506,6 +521,10 @@ function buildWechatOAuthAuthorizeUrl(
 }
 
 function onPaymentDone() {
+  if (resetRequested.value) {
+    router.push('/subscriptions')
+    return
+  }
   const wasSubscription = paymentState.value.orderType === 'subscription'
   resetPayment()
   selectedPlan.value = null
@@ -754,6 +773,7 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
 
 const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
+    && (!resetRequested.value || resetQuote.value !== null)
     && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
     && selectedLimit.value?.available !== false
 )
@@ -825,6 +845,7 @@ async function handleSubmitRecharge() {
 
 async function confirmSubscribe() {
   if (!selectedPlan.value || submitting.value) return
+  if (resetRequested.value && !resetQuote.value) return
   await createOrder(selectedPlan.value.price, 'subscription', selectedPlan.value.id)
 }
 
@@ -839,6 +860,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       paymentType: requestType,
       orderType,
       planId,
+      subscriptionResetId: orderType === 'subscription' ? resetQuote.value?.subscription_id : undefined,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
@@ -889,6 +911,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     const decision = decidePaymentLaunch(result, {
       visibleMethod,
       orderType,
+      subscriptionResetId: resetQuote.value?.subscription_id,
       isMobile: isMobileDevice(),
       isWechatBrowser: typeof window !== 'undefined' && /MicroMessenger/i.test(window.navigator.userAgent),
       forceQRCode: !!(checkout.value.alipay_force_qrcode && visibleMethod === 'alipay'),
@@ -1067,6 +1090,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
       paymentType: visibleMethod,
       orderType: context.orderType,
       planId: context.planId,
+      subscriptionResetId: context.orderType === 'subscription' ? resetQuote.value?.subscription_id : undefined,
       origin: typeof window !== 'undefined' ? window.location.origin : '',
       isMobile: false,
       isWechatBrowser: false,
@@ -1087,6 +1111,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
     const decision = decidePaymentLaunch(result, {
       visibleMethod,
       orderType: context.orderType,
+      subscriptionResetId: resetQuote.value?.subscription_id,
       isMobile: false,
       isWechatBrowser: false,
       stripePopupUrl: stripeRouteUrl,
@@ -1136,7 +1161,7 @@ async function resumeWechatPaymentFromQuery() {
   if (resume.orderType === 'balance' && resume.orderAmount > 0) {
     amount.value = resume.orderAmount
   }
-  if (resume.orderType === 'subscription' && resume.planId) {
+  if (resume.orderType === 'subscription' && resume.planId && !resetQuote.value) {
     selectedPlan.value = checkout.value.plans.find(plan => plan.id === resume.planId) ?? null
   }
 
@@ -1184,7 +1209,7 @@ onMounted(async () => {
           : undefined
       const restored = readPaymentRecoverySnapshot(
         window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY),
-        { resumeToken: routeResumeToken },
+        { resumeToken: routeResumeToken, subscriptionResetId: resetRequested.value ? Number(route.query.reset_subscription) : undefined },
       )
       if (restored) {
         paymentState.value = restored
@@ -1198,6 +1223,17 @@ onMounted(async () => {
         removeRecoverySnapshot()
       }
     }
+    if (resetRequested.value) {
+      activeTab.value = 'subscription'
+      const resetID = Number(route.query.reset_subscription)
+      if (!Number.isSafeInteger(resetID) || resetID <= 0) throw new Error(t('userSubscriptions.resetUnavailable'))
+      const response = await paymentAPI.getSubscriptionResetQuote(resetID)
+      const quote = response.data
+      const plan = checkout.value.plans.find(plan => plan.id === quote.plan_id && plan.group_id === quote.group_id)
+      if (!plan) throw new Error(t('userSubscriptions.resetUnavailable'))
+      resetQuote.value = quote
+      selectedPlan.value = { ...plan, price: quote.price, validity_days: quote.validity_days, validity_unit: 'day' }
+    }
     await resumeWechatPaymentFromQuery()
     if (checkout.value.balance_disabled) {
       activeTab.value = 'subscription'
@@ -1205,7 +1241,7 @@ onMounted(async () => {
     // Handle renewal navigation: ?tab=subscription&group=123
     if (route.query.tab === 'subscription') {
       activeTab.value = 'subscription'
-      if (route.query.group) {
+      if (route.query.group && !resetRequested.value) {
         const groupId = Number(route.query.group)
         const groupPlans = checkout.value.plans.filter(p => p.group_id === groupId)
         if (groupPlans.length === 1) {
@@ -1216,7 +1252,10 @@ onMounted(async () => {
         }
       }
     }
-  } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
+  } catch (err: unknown) {
+    errorMessage.value = extractI18nErrorMessage(err, t, 'payment.errors', resetRequested.value ? t('userSubscriptions.resetUnavailable') : t('common.error'))
+    appStore.showError(errorMessage.value)
+  }
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})

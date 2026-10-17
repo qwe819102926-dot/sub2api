@@ -337,14 +337,15 @@ func (h *PaymentHandler) GetLimits(c *gin.Context) {
 
 // CreateOrderRequest is the request body for creating a payment order.
 type CreateOrderRequest struct {
-	Amount            float64 `json:"amount"`
-	PaymentType       string  `json:"payment_type" binding:"required"`
-	OpenID            string  `json:"openid"`
-	WechatResumeToken string  `json:"wechat_resume_token"`
-	ReturnURL         string  `json:"return_url"`
-	PaymentSource     string  `json:"payment_source"`
-	OrderType         string  `json:"order_type"`
-	PlanID            int64   `json:"plan_id"`
+	SubscriptionResetID int64   `json:"subscription_reset_id"`
+	Amount              float64 `json:"amount"`
+	PaymentType         string  `json:"payment_type" binding:"required"`
+	OpenID              string  `json:"openid"`
+	WechatResumeToken   string  `json:"wechat_resume_token"`
+	ReturnURL           string  `json:"return_url"`
+	PaymentSource       string  `json:"payment_source"`
+	OrderType           string  `json:"order_type"`
+	PlanID              int64   `json:"plan_id"`
 	// IsMobile lets the frontend declare its mobile status directly. When
 	// nil we fall back to User-Agent heuristics (which miss iPadOS / some
 	// embedded browsers that strip the "Mobile" keyword).
@@ -381,20 +382,21 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		mobile = *req.IsMobile
 	}
 	result, err := h.paymentService.CreateOrder(c.Request.Context(), service.CreateOrderRequest{
-		UserID:          subject.UserID,
-		Amount:          req.Amount,
-		PaymentType:     req.PaymentType,
-		OpenID:          req.OpenID,
-		ClientIP:        c.ClientIP(),
-		IsMobile:        mobile,
-		IsWeChatBrowser: isWeChatBrowser(c),
-		SrcHost:         c.Request.Host,
-		SrcURL:          c.Request.Referer(),
-		ReturnURL:       req.ReturnURL,
-		PaymentSource:   req.PaymentSource,
-		OrderType:       req.OrderType,
-		PlanID:          req.PlanID,
-		Locale:          c.GetHeader("Accept-Language"),
+		UserID:              subject.UserID,
+		Amount:              req.Amount,
+		PaymentType:         req.PaymentType,
+		OpenID:              req.OpenID,
+		ClientIP:            c.ClientIP(),
+		IsMobile:            mobile,
+		IsWeChatBrowser:     isWeChatBrowser(c),
+		SrcHost:             c.Request.Host,
+		SrcURL:              c.Request.Referer(),
+		ReturnURL:           req.ReturnURL,
+		PaymentSource:       req.PaymentSource,
+		OrderType:           req.OrderType,
+		PlanID:              req.PlanID,
+		SubscriptionResetID: req.SubscriptionResetID,
+		Locale:              c.GetHeader("Accept-Language"),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -407,6 +409,10 @@ func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeC
 	if req == nil || claims == nil {
 		return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume context is missing")
 	}
+	if req.SubscriptionResetID != 0 && req.SubscriptionResetID != claims.SubscriptionResetID {
+		return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "subscription reset does not match the payment resume token")
+	}
+	req.SubscriptionResetID = claims.SubscriptionResetID
 	openid := strings.TrimSpace(claims.OpenID)
 	if openid == "" {
 		return infraerrors.BadRequest("INVALID_WECHAT_PAYMENT_RESUME_TOKEN", "wechat payment resume token missing openid")
@@ -586,6 +592,7 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 // proves possession of the checkout session, so the result keeps the legacy
 // frontend contract needed by payment result pages.
 type PublicOrderResult struct {
+	IsSubscriptionReset bool       `json:"is_subscription_reset,omitempty"`
 	ID                  int64      `json:"id"`
 	OutTradeNo          string     `json:"out_trade_no"`
 	Amount              float64    `json:"amount"`
@@ -621,6 +628,7 @@ type PublicOrderVerifyResult struct {
 
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 	return PublicOrderResult{
+		IsSubscriptionReset: service.IsSubscriptionResetOrder(order),
 		ID:                  order.ID,
 		OutTradeNo:          order.OutTradeNo,
 		Amount:              order.Amount,
@@ -729,6 +737,7 @@ func isMobile(c *gin.Context) bool {
 }
 
 type PaymentOrderResult struct {
+	IsSubscriptionReset bool       `json:"is_subscription_reset,omitempty"`
 	ID                  int64      `json:"id"`
 	UserID              int64      `json:"user_id"`
 	Amount              float64    `json:"amount"`
@@ -767,6 +776,7 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		return nil
 	}
 	return &PaymentOrderResult{
+		IsSubscriptionReset: service.IsSubscriptionResetOrder(order),
 		ID:                  order.ID,
 		UserID:              order.UserID,
 		Amount:              order.Amount,

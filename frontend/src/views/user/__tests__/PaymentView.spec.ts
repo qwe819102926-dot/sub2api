@@ -22,6 +22,7 @@ const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
+const getSubscriptionResetQuote = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', async () => {
@@ -81,6 +82,7 @@ vi.mock('@/stores', () => ({
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     getCheckoutInfo,
+    getSubscriptionResetQuote,
   },
 }))
 
@@ -201,12 +203,18 @@ function oauthOrderFixture() {
   }
 }
 
-async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}) {
+async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoWithPlansFixture>[0] = {}, reset?: 'success' | 'failure') {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = {
     tab: 'subscription',
     group: '3',
+  }
+  if (reset) {
+    routeState.query = { tab: 'subscription', reset_subscription: '5' }
+    getSubscriptionResetQuote.mockReset()
+    if (reset === 'failure') getSubscriptionResetQuote.mockRejectedValue(new Error('Reset unavailable'))
+    else getSubscriptionResetQuote.mockResolvedValue({ data: { subscription_id: 5, plan_id: 7, group_id: 3, plan_name: 'Starter', price: 128, validity_days: 30 } })
   }
   routerReplace.mockReset().mockResolvedValue(undefined)
   routerPush.mockReset().mockResolvedValue(undefined)
@@ -349,6 +357,31 @@ describe('PaymentView recharge amounts', () => {
       800,
       1000,
     ])
+  })
+})
+
+describe('PaymentView paid subscription reset', () => {
+  it('confirms the original term and sends the owned subscription ID with payment', async () => {
+    const wrapper = await mountSubscriptionConfirm({ plan: { validity_days: 60 } }, 'success')
+    expect(getSubscriptionResetQuote).toHaveBeenCalledWith(5)
+    expect(wrapper.get('[data-testid="subscription-reset-confirmation"]').text()).toContain('userSubscriptions.resetDescription')
+    const button = wrapper.findAll('button').find(button => button.text().includes('userSubscriptions.resetPay'))
+    expect(button).toBeDefined()
+    createOrder.mockRejectedValueOnce(new Error('test stops before contacting a provider'))
+    await button!.trigger('click')
+    await flushPromises()
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 128, order_type: 'subscription', plan_id: 7, subscription_reset_id: 5,
+    }))
+    wrapper.unmount()
+  })
+
+  it('does not fall back to an ordinary subscription purchase when the quote fails', async () => {
+    const wrapper = await mountSubscriptionConfirm({}, 'failure')
+    expect(wrapper.get('[role="alert"]').text()).toContain('Reset unavailable')
+    expect(wrapper.findComponent(SubscriptionPlanCard).exists()).toBe(false)
+    expect(createOrder).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 })
 

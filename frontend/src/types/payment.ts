@@ -153,6 +153,7 @@ export interface CheckoutInfoResponse {
 // ==================== Orders ====================
 
 export interface PaymentOrder {
+	  is_subscription_reset?: boolean
   id: number
   user_id: number
   amount: number
@@ -238,6 +239,7 @@ export interface ProviderInstance {
 // ==================== Request / Response ====================
 
 export interface CreateOrderRequest {
+	  subscription_reset_id?: number
   amount: number
   payment_type: string
   order_type: string

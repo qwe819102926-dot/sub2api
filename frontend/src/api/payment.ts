@@ -16,6 +16,15 @@ import type {
 import type { DailyCheckinStatus, RechargeLotteryDrawResult, RechargeLotteryStatus, RewardCampaignStatus } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
+export interface SubscriptionResetQuote {
+  subscription_id: number
+  plan_id: number
+  group_id: number
+  plan_name: string
+  price: number
+  validity_days: number
+}
+
 export interface PublicOrderVerifyResult {
   out_trade_no: string
   status: string
@@ -25,6 +34,9 @@ export interface PublicOrderVerifyResult {
 }
 
 export const paymentAPI = {
+	getSubscriptionResetQuote(subscriptionId: number) {
+		return apiClient.get<SubscriptionResetQuote>(`/payment/subscriptions/${subscriptionId}/reset-quote`)
+	},
   /** Get payment configuration (enabled types, limits, etc.) */
   getConfig() {
     return apiClient.get<PaymentConfig>('/payment/config')

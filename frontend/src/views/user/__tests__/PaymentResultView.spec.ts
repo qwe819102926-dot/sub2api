@@ -91,6 +91,21 @@ const recoverySnapshotFactory = (resumeToken: string) => ({
 })
 
 describe('PaymentResultView', () => {
+  it('waits for reset fulfillment before reporting the subscription as reset', async () => {
+    vi.useFakeTimers()
+    routeState.query = { resume_token: 'reset-42' }
+    resolveOrderPublicByResumeToken
+      .mockResolvedValueOnce({ data: { ...orderFactory('RECHARGING'), order_type: 'subscription', is_subscription_reset: true } })
+      .mockResolvedValueOnce({ data: { ...orderFactory('COMPLETED'), order_type: 'subscription', is_subscription_reset: true } })
+    const wrapper = mount(PaymentResultView, { global: { stubs: { OrderStatusBadge: true } } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('payment.result.processing')
+    expect(wrapper.text()).not.toContain('userSubscriptions.resetSuccess')
+    await vi.advanceTimersByTimeAsync(2000)
+    await flushPromises()
+    expect(wrapper.text()).toContain('userSubscriptions.resetSuccess')
+    wrapper.unmount()
+  })
   beforeEach(() => {
     routeState.query = {}
     routerPush.mockReset()

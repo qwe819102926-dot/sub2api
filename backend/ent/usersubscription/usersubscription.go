@@ -25,6 +25,10 @@ const (
 	FieldUserID = "user_id"
 	// FieldGroupID holds the string denoting the group_id field in the database.
 	FieldGroupID = "group_id"
+	// FieldBaseValidityDays holds the string denoting the base_validity_days field in the database.
+	FieldBaseValidityDays = "base_validity_days"
+	// FieldSourcePlanID holds the string denoting the source_plan_id field in the database.
+	FieldSourcePlanID = "source_plan_id"
 	// FieldStartsAt holds the string denoting the starts_at field in the database.
 	FieldStartsAt = "starts_at"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
@@ -97,6 +101,8 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldUserID,
 	FieldGroupID,
+	FieldBaseValidityDays,
+	FieldSourcePlanID,
 	FieldStartsAt,
 	FieldExpiresAt,
 	FieldStatus,
@@ -135,6 +141,8 @@ var (
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
 	UpdateDefaultUpdatedAt func() time.Time
+	// DefaultBaseValidityDays holds the default value on creation for the "base_validity_days" field.
+	DefaultBaseValidityDays int
 	// DefaultStatus holds the default value on creation for the "status" field.
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
@@ -180,6 +188,16 @@ func ByUserID(opts ...sql.OrderTermOption) OrderOption {
 // ByGroupID orders the results by the group_id field.
 func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldGroupID, opts...).ToFunc()
+}
+
+// ByBaseValidityDays orders the results by the base_validity_days field.
+func ByBaseValidityDays(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBaseValidityDays, opts...).ToFunc()
+}
+
+// BySourcePlanID orders the results by the source_plan_id field.
+func BySourcePlanID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourcePlanID, opts...).ToFunc()
 }
 
 // ByStartsAt orders the results by the starts_at field.

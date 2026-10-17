@@ -1,12 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import type { CreateOrderResult, MethodLimit } from '@/types/payment'
 import {
+  createPaymentRecoverySnapshot,
   buildCreateOrderPayload,
   decidePaymentLaunch,
   getVisibleMethods,
   readPaymentRecoverySnapshot,
   type PaymentRecoverySnapshot,
 } from '@/components/payment/paymentFlow'
+
+it('restores only the payment belonging to the selected subscription reset', () => {
+  const snapshot = createPaymentRecoverySnapshot({
+    subscriptionResetId: 5, orderId: 7, amount: 128, payAmount: 128,
+    qrCode: '', expiresAt: '2099-01-01T00:10:00Z', paymentType: 'alipay',
+    payUrl: '', outTradeNo: 'test-7', clientSecret: '', intentId: '',
+    currency: 'CNY', countryCode: '', paymentEnv: '', orderType: 'subscription',
+    paymentMode: 'popup', resumeToken: 'test-token',
+  })
+  expect(readPaymentRecoverySnapshot(JSON.stringify(snapshot), { subscriptionResetId: 5 })?.subscriptionResetId).toBe(5)
+  expect(readPaymentRecoverySnapshot(JSON.stringify(snapshot), { subscriptionResetId: 6 })).toBeNull()
+  expect(readPaymentRecoverySnapshot(JSON.stringify({ ...snapshot, subscriptionResetId: undefined }), { subscriptionResetId: 5 })).toBeNull()
+})
 
 function methodLimit(overrides: Partial<MethodLimit> = {}): MethodLimit {
   return {

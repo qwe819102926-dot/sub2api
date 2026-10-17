@@ -32,6 +32,7 @@ export type PaymentLaunchKind =
   | 'unhandled'
 
 export interface PaymentRecoverySnapshot {
+  subscriptionResetId?: number
   orderId: number
   amount: number
   qrCode: string
@@ -53,6 +54,7 @@ export interface PaymentRecoverySnapshot {
 }
 
 export interface PaymentLaunchContext {
+  subscriptionResetId?: number
   visibleMethod: string
   orderType: OrderType
   isMobile: boolean
@@ -77,6 +79,7 @@ export interface PaymentLaunchDecision {
 }
 
 export interface BuildCreateOrderPayloadInput {
+	  subscriptionResetId?: number
   amount: number
   paymentType: string
   orderType: OrderType
@@ -139,6 +142,9 @@ export function buildCreateOrderPayload(input: BuildCreateOrderPayloadInput): Cr
   if (input.planId) {
     payload.plan_id = input.planId
   }
+	if (input.subscriptionResetId && input.orderType === 'subscription') {
+		payload.subscription_reset_id = input.subscriptionResetId
+	}
   if (normalizedOrigin) {
     payload.return_url = `${normalizedOrigin}/payment/result`
   }
@@ -152,6 +158,7 @@ export function decidePaymentLaunch(
 ): PaymentLaunchDecision {
   const visibleMethod = normalizeVisibleMethod(context.visibleMethod) || context.visibleMethod
   const baseState = createPaymentRecoverySnapshot({
+    ...(context.subscriptionResetId ? { subscriptionResetId: context.subscriptionResetId } : {}),
     orderId: result.order_id,
     amount: result.amount,
     qrCode: result.qr_code || '',
@@ -273,7 +280,7 @@ export function clearPaymentRecoverySnapshot(
 
 export function readPaymentRecoverySnapshot(
   raw: string | null | undefined,
-  options: { now?: number; resumeToken?: string } = {},
+  options: { now?: number; resumeToken?: string; subscriptionResetId?: number } = {},
 ): PaymentRecoverySnapshot | null {
   if (!raw) return null
 
@@ -309,8 +316,11 @@ export function readPaymentRecoverySnapshot(
     if (options.resumeToken && parsed.resumeToken !== options.resumeToken) {
       return null
     }
+    if (options.subscriptionResetId !== undefined && parsed.subscriptionResetId !== options.subscriptionResetId) return null
 
     return {
+      ...(typeof parsed.subscriptionResetId === 'number' && Number.isSafeInteger(parsed.subscriptionResetId) && parsed.subscriptionResetId > 0
+        ? { subscriptionResetId: parsed.subscriptionResetId } : {}),
       orderId: parsed.orderId,
       amount: parsed.amount,
       qrCode: parsed.qrCode,

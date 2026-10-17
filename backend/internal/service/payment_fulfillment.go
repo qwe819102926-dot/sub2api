@@ -569,6 +569,9 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 	if s.subscriptionSvc == nil {
 		return errors.New("subscription service is unavailable")
 	}
+	if IsSubscriptionResetOrder(o) {
+		return s.ensurePaymentSubscriptionReset(ctx, o, groupID, days)
+	}
 
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
@@ -597,6 +600,7 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 				UserID:       o.UserID,
 				GroupID:      groupID,
 				ValidityDays: days,
+				SourcePlanID: o.PlanID,
 				AssignedBy:   0,
 				Notes:        orderNote,
 			}, true); err != nil {

@@ -85,6 +85,54 @@ func (_u *UserSubscriptionUpdate) SetNillableGroupID(v *int64) *UserSubscription
 	return _u
 }
 
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (_u *UserSubscriptionUpdate) SetBaseValidityDays(v int) *UserSubscriptionUpdate {
+	_u.mutation.ResetBaseValidityDays()
+	_u.mutation.SetBaseValidityDays(v)
+	return _u
+}
+
+// SetNillableBaseValidityDays sets the "base_validity_days" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableBaseValidityDays(v *int) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetBaseValidityDays(*v)
+	}
+	return _u
+}
+
+// AddBaseValidityDays adds value to the "base_validity_days" field.
+func (_u *UserSubscriptionUpdate) AddBaseValidityDays(v int) *UserSubscriptionUpdate {
+	_u.mutation.AddBaseValidityDays(v)
+	return _u
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (_u *UserSubscriptionUpdate) SetSourcePlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.ResetSourcePlanID()
+	_u.mutation.SetSourcePlanID(v)
+	return _u
+}
+
+// SetNillableSourcePlanID sets the "source_plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdate) SetNillableSourcePlanID(v *int64) *UserSubscriptionUpdate {
+	if v != nil {
+		_u.SetSourcePlanID(*v)
+	}
+	return _u
+}
+
+// AddSourcePlanID adds value to the "source_plan_id" field.
+func (_u *UserSubscriptionUpdate) AddSourcePlanID(v int64) *UserSubscriptionUpdate {
+	_u.mutation.AddSourcePlanID(v)
+	return _u
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (_u *UserSubscriptionUpdate) ClearSourcePlanID() *UserSubscriptionUpdate {
+	_u.mutation.ClearSourcePlanID()
+	return _u
+}
+
 // SetStartsAt sets the "starts_at" field.
 func (_u *UserSubscriptionUpdate) SetStartsAt(v time.Time) *UserSubscriptionUpdate {
 	_u.mutation.SetStartsAt(v)
@@ -471,6 +519,21 @@ func (_u *UserSubscriptionUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(usersubscription.FieldDeletedAt, field.TypeTime)
 	}
+	if value, ok := _u.mutation.BaseValidityDays(); ok {
+		_spec.SetField(usersubscription.FieldBaseValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBaseValidityDays(); ok {
+		_spec.AddField(usersubscription.FieldBaseValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SourcePlanID(); ok {
+		_spec.SetField(usersubscription.FieldSourcePlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSourcePlanID(); ok {
+		_spec.AddField(usersubscription.FieldSourcePlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.SourcePlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldSourcePlanID, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)
 	}
@@ -728,6 +791,54 @@ func (_u *UserSubscriptionUpdateOne) SetNillableGroupID(v *int64) *UserSubscript
 	if v != nil {
 		_u.SetGroupID(*v)
 	}
+	return _u
+}
+
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (_u *UserSubscriptionUpdateOne) SetBaseValidityDays(v int) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetBaseValidityDays()
+	_u.mutation.SetBaseValidityDays(v)
+	return _u
+}
+
+// SetNillableBaseValidityDays sets the "base_validity_days" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableBaseValidityDays(v *int) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetBaseValidityDays(*v)
+	}
+	return _u
+}
+
+// AddBaseValidityDays adds value to the "base_validity_days" field.
+func (_u *UserSubscriptionUpdateOne) AddBaseValidityDays(v int) *UserSubscriptionUpdateOne {
+	_u.mutation.AddBaseValidityDays(v)
+	return _u
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) SetSourcePlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.ResetSourcePlanID()
+	_u.mutation.SetSourcePlanID(v)
+	return _u
+}
+
+// SetNillableSourcePlanID sets the "source_plan_id" field if the given value is not nil.
+func (_u *UserSubscriptionUpdateOne) SetNillableSourcePlanID(v *int64) *UserSubscriptionUpdateOne {
+	if v != nil {
+		_u.SetSourcePlanID(*v)
+	}
+	return _u
+}
+
+// AddSourcePlanID adds value to the "source_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) AddSourcePlanID(v int64) *UserSubscriptionUpdateOne {
+	_u.mutation.AddSourcePlanID(v)
+	return _u
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (_u *UserSubscriptionUpdateOne) ClearSourcePlanID() *UserSubscriptionUpdateOne {
+	_u.mutation.ClearSourcePlanID()
 	return _u
 }
 
@@ -1146,6 +1257,21 @@ func (_u *UserSubscriptionUpdateOne) sqlSave(ctx context.Context) (_node *UserSu
 	}
 	if _u.mutation.DeletedAtCleared() {
 		_spec.ClearField(usersubscription.FieldDeletedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.BaseValidityDays(); ok {
+		_spec.SetField(usersubscription.FieldBaseValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedBaseValidityDays(); ok {
+		_spec.AddField(usersubscription.FieldBaseValidityDays, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.SourcePlanID(); ok {
+		_spec.SetField(usersubscription.FieldSourcePlanID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedSourcePlanID(); ok {
+		_spec.AddField(usersubscription.FieldSourcePlanID, field.TypeInt64, value)
+	}
+	if _u.mutation.SourcePlanIDCleared() {
+		_spec.ClearField(usersubscription.FieldSourcePlanID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.StartsAt(); ok {
 		_spec.SetField(usersubscription.FieldStartsAt, field.TypeTime, value)

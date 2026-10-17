@@ -33,7 +33,7 @@
         >
           <!-- Header -->
           <div
-            class="flex items-center justify-between border-b border-gray-100 p-4 dark:border-dark-700"
+            class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-4 dark:border-dark-700"
           >
             <div class="flex items-center gap-3">
               <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-dark-700">
@@ -59,7 +59,13 @@
                 </div>
               </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
+			  <button
+				v-if="subscription.status === 'active'"
+				class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-600 dark:text-gray-200 dark:hover:bg-dark-700"
+				data-testid="paid-subscription-reset"
+				@click="router.push({ path: '/purchase', query: { tab: 'subscription', reset_subscription: String(subscription.id) } })"
+			  >{{ t('userSubscriptions.paidReset') }}</button>
               <span
                 :class="[
                   'rounded-full px-2 py-0.5 text-xs font-medium',

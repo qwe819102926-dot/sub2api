@@ -26,6 +26,22 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if req.OrderType == "" {
 		req.OrderType = payment.OrderTypeBalance
 	}
+	if req.SubscriptionResetID != 0 {
+		if req.SubscriptionResetID < 0 || req.OrderType != payment.OrderTypeSubscription {
+			return nil, infraerrors.BadRequest("INVALID_SUBSCRIPTION_RESET", "reset requires a subscription order")
+		}
+		quote, err := s.GetSubscriptionResetQuote(ctx, req.UserID, req.SubscriptionResetID)
+		if err != nil {
+			return nil, err
+		}
+		if req.PlanID != quote.PlanID {
+			return nil, infraerrors.BadRequest("RESET_PLAN_MISMATCH", "reset plan does not match the original subscription")
+		}
+		if math.IsNaN(req.Amount) || math.IsInf(req.Amount, 0) || math.Abs(req.Amount-quote.Price) > 0.000001 {
+			return nil, infraerrors.BadRequest("RESET_PRICE_CHANGED", "subscription reset price has changed; please refresh and confirm again")
+		}
+		req.SubscriptionResetDays = quote.ValidityDays
+	}
 	if normalized := NormalizeVisibleMethod(req.PaymentType); normalized != "" {
 		req.PaymentType = normalized
 	}
@@ -39,6 +55,9 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	plan, err := s.validateOrderInput(ctx, req, cfg)
 	if err != nil {
 		return nil, err
+	}
+	if req.SubscriptionResetID > 0 && (plan == nil || math.Abs(plan.Price-req.Amount) > 0.000001) {
+		return nil, infraerrors.BadRequest("RESET_PRICE_CHANGED", "subscription reset price has changed; please refresh and confirm again")
 	}
 	if err := s.checkCancelRateLimit(ctx, req.UserID, cfg); err != nil {
 		return nil, err
@@ -171,6 +190,13 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, err
 	}
 	providerSnapshot := buildPaymentOrderProviderSnapshot(sel, req)
+	if req.SubscriptionResetID > 0 {
+		if providerSnapshot == nil {
+			providerSnapshot = make(map[string]any)
+		}
+		providerSnapshot["subscription_action"] = "reset"
+		providerSnapshot["subscription_reset_id"] = req.SubscriptionResetID
+	}
 	selectedInstanceID := ""
 	selectedProviderKey := ""
 	if sel != nil {
@@ -208,6 +234,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	if plan != nil {
 		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		if req.SubscriptionResetID > 0 {
+			b.SetSubscriptionDays(req.SubscriptionResetDays)
+		}
 	}
 	order, err := b.Save(ctx)
 	if err != nil {

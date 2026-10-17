@@ -192,6 +192,7 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
+	SourcePlanID *int64
 	UserID       int64
 	GroupID      int64
 	ValidityDays int
@@ -424,15 +425,17 @@ func (s *SubscriptionService) createSubscription(ctx context.Context, input *Ass
 	}
 
 	sub := &UserSubscription{
-		UserID:     input.UserID,
-		GroupID:    input.GroupID,
-		StartsAt:   now,
-		ExpiresAt:  expiresAt,
-		Status:     SubscriptionStatusActive,
-		AssignedAt: now,
-		Notes:      input.Notes,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		BaseValidityDays: validityDays,
+		SourcePlanID:     input.SourcePlanID,
+		UserID:           input.UserID,
+		GroupID:          input.GroupID,
+		StartsAt:         now,
+		ExpiresAt:        expiresAt,
+		Status:           SubscriptionStatusActive,
+		AssignedAt:       now,
+		Notes:            input.Notes,
+		CreatedAt:        now,
+		UpdatedAt:        now,
 	}
 	// 只有当 AssignedBy > 0 时才设置（0 表示系统分配，如兑换码）
 	if input.AssignedBy > 0 {

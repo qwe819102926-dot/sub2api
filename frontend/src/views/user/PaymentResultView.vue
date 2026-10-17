@@ -178,6 +178,7 @@ const isPending = computed(() => {
 })
 
 const statusTitle = computed(() => {
+  if (isSuccess.value && order.value && 'is_subscription_reset' in order.value && order.value.is_subscription_reset) return t('userSubscriptions.resetSuccess')
   if (isSuccess.value) {
     return t('payment.result.success')
   }
@@ -238,10 +239,14 @@ function displayOrderStatus(status: string): OrderStatus {
 }
 
 function isSuccessStatus(status: string | null | undefined): boolean {
+  if (order.value && 'is_subscription_reset' in order.value && order.value.is_subscription_reset) {
+    return normalizeOrderStatus(status) === 'COMPLETED'
+  }
   return SUCCESS_STATUSES.has(normalizeOrderStatus(status))
 }
 
 function isPendingStatus(status: string | null | undefined): boolean {
+  if (order.value && 'is_subscription_reset' in order.value && order.value.is_subscription_reset && ['PAID', 'RECHARGING'].includes(normalizeOrderStatus(status))) return true
   return PENDING_STATUSES.has(normalizeOrderStatus(status))
 }
 

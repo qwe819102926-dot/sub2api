@@ -55288,6 +55288,10 @@ type UserSubscriptionMutation struct {
 	created_at              *time.Time
 	updated_at              *time.Time
 	deleted_at              *time.Time
+	base_validity_days      *int
+	addbase_validity_days   *int
+	source_plan_id          *int64
+	addsource_plan_id       *int64
 	starts_at               *time.Time
 	expires_at              *time.Time
 	status                  *string
@@ -55606,6 +55610,132 @@ func (m *UserSubscriptionMutation) OldGroupID(ctx context.Context) (v int64, err
 // ResetGroupID resets all changes to the "group_id" field.
 func (m *UserSubscriptionMutation) ResetGroupID() {
 	m.group = nil
+}
+
+// SetBaseValidityDays sets the "base_validity_days" field.
+func (m *UserSubscriptionMutation) SetBaseValidityDays(i int) {
+	m.base_validity_days = &i
+	m.addbase_validity_days = nil
+}
+
+// BaseValidityDays returns the value of the "base_validity_days" field in the mutation.
+func (m *UserSubscriptionMutation) BaseValidityDays() (r int, exists bool) {
+	v := m.base_validity_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBaseValidityDays returns the old "base_validity_days" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldBaseValidityDays(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBaseValidityDays is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBaseValidityDays requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBaseValidityDays: %w", err)
+	}
+	return oldValue.BaseValidityDays, nil
+}
+
+// AddBaseValidityDays adds i to the "base_validity_days" field.
+func (m *UserSubscriptionMutation) AddBaseValidityDays(i int) {
+	if m.addbase_validity_days != nil {
+		*m.addbase_validity_days += i
+	} else {
+		m.addbase_validity_days = &i
+	}
+}
+
+// AddedBaseValidityDays returns the value that was added to the "base_validity_days" field in this mutation.
+func (m *UserSubscriptionMutation) AddedBaseValidityDays() (r int, exists bool) {
+	v := m.addbase_validity_days
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetBaseValidityDays resets all changes to the "base_validity_days" field.
+func (m *UserSubscriptionMutation) ResetBaseValidityDays() {
+	m.base_validity_days = nil
+	m.addbase_validity_days = nil
+}
+
+// SetSourcePlanID sets the "source_plan_id" field.
+func (m *UserSubscriptionMutation) SetSourcePlanID(i int64) {
+	m.source_plan_id = &i
+	m.addsource_plan_id = nil
+}
+
+// SourcePlanID returns the value of the "source_plan_id" field in the mutation.
+func (m *UserSubscriptionMutation) SourcePlanID() (r int64, exists bool) {
+	v := m.source_plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourcePlanID returns the old "source_plan_id" field's value of the UserSubscription entity.
+// If the UserSubscription object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserSubscriptionMutation) OldSourcePlanID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourcePlanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourcePlanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourcePlanID: %w", err)
+	}
+	return oldValue.SourcePlanID, nil
+}
+
+// AddSourcePlanID adds i to the "source_plan_id" field.
+func (m *UserSubscriptionMutation) AddSourcePlanID(i int64) {
+	if m.addsource_plan_id != nil {
+		*m.addsource_plan_id += i
+	} else {
+		m.addsource_plan_id = &i
+	}
+}
+
+// AddedSourcePlanID returns the value that was added to the "source_plan_id" field in this mutation.
+func (m *UserSubscriptionMutation) AddedSourcePlanID() (r int64, exists bool) {
+	v := m.addsource_plan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSourcePlanID clears the value of the "source_plan_id" field.
+func (m *UserSubscriptionMutation) ClearSourcePlanID() {
+	m.source_plan_id = nil
+	m.addsource_plan_id = nil
+	m.clearedFields[usersubscription.FieldSourcePlanID] = struct{}{}
+}
+
+// SourcePlanIDCleared returns if the "source_plan_id" field was cleared in this mutation.
+func (m *UserSubscriptionMutation) SourcePlanIDCleared() bool {
+	_, ok := m.clearedFields[usersubscription.FieldSourcePlanID]
+	return ok
+}
+
+// ResetSourcePlanID resets all changes to the "source_plan_id" field.
+func (m *UserSubscriptionMutation) ResetSourcePlanID() {
+	m.source_plan_id = nil
+	m.addsource_plan_id = nil
+	delete(m.clearedFields, usersubscription.FieldSourcePlanID)
 }
 
 // SetStartsAt sets the "starts_at" field.
@@ -56347,7 +56477,7 @@ func (m *UserSubscriptionMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserSubscriptionMutation) Fields() []string {
-	fields := make([]string, 0, 17)
+	fields := make([]string, 0, 19)
 	if m.created_at != nil {
 		fields = append(fields, usersubscription.FieldCreatedAt)
 	}
@@ -56362,6 +56492,12 @@ func (m *UserSubscriptionMutation) Fields() []string {
 	}
 	if m.group != nil {
 		fields = append(fields, usersubscription.FieldGroupID)
+	}
+	if m.base_validity_days != nil {
+		fields = append(fields, usersubscription.FieldBaseValidityDays)
+	}
+	if m.source_plan_id != nil {
+		fields = append(fields, usersubscription.FieldSourcePlanID)
 	}
 	if m.starts_at != nil {
 		fields = append(fields, usersubscription.FieldStartsAt)
@@ -56417,6 +56553,10 @@ func (m *UserSubscriptionMutation) Field(name string) (ent.Value, bool) {
 		return m.UserID()
 	case usersubscription.FieldGroupID:
 		return m.GroupID()
+	case usersubscription.FieldBaseValidityDays:
+		return m.BaseValidityDays()
+	case usersubscription.FieldSourcePlanID:
+		return m.SourcePlanID()
 	case usersubscription.FieldStartsAt:
 		return m.StartsAt()
 	case usersubscription.FieldExpiresAt:
@@ -56460,6 +56600,10 @@ func (m *UserSubscriptionMutation) OldField(ctx context.Context, name string) (e
 		return m.OldUserID(ctx)
 	case usersubscription.FieldGroupID:
 		return m.OldGroupID(ctx)
+	case usersubscription.FieldBaseValidityDays:
+		return m.OldBaseValidityDays(ctx)
+	case usersubscription.FieldSourcePlanID:
+		return m.OldSourcePlanID(ctx)
 	case usersubscription.FieldStartsAt:
 		return m.OldStartsAt(ctx)
 	case usersubscription.FieldExpiresAt:
@@ -56527,6 +56671,20 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetGroupID(v)
+		return nil
+	case usersubscription.FieldBaseValidityDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBaseValidityDays(v)
+		return nil
+	case usersubscription.FieldSourcePlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourcePlanID(v)
 		return nil
 	case usersubscription.FieldStartsAt:
 		v, ok := value.(time.Time)
@@ -56620,6 +56778,12 @@ func (m *UserSubscriptionMutation) SetField(name string, value ent.Value) error 
 // this mutation.
 func (m *UserSubscriptionMutation) AddedFields() []string {
 	var fields []string
+	if m.addbase_validity_days != nil {
+		fields = append(fields, usersubscription.FieldBaseValidityDays)
+	}
+	if m.addsource_plan_id != nil {
+		fields = append(fields, usersubscription.FieldSourcePlanID)
+	}
 	if m.adddaily_usage_usd != nil {
 		fields = append(fields, usersubscription.FieldDailyUsageUsd)
 	}
@@ -56637,6 +56801,10 @@ func (m *UserSubscriptionMutation) AddedFields() []string {
 // was not set, or was not defined in the schema.
 func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
+	case usersubscription.FieldBaseValidityDays:
+		return m.AddedBaseValidityDays()
+	case usersubscription.FieldSourcePlanID:
+		return m.AddedSourcePlanID()
 	case usersubscription.FieldDailyUsageUsd:
 		return m.AddedDailyUsageUsd()
 	case usersubscription.FieldWeeklyUsageUsd:
@@ -56652,6 +56820,20 @@ func (m *UserSubscriptionMutation) AddedField(name string) (ent.Value, bool) {
 // type.
 func (m *UserSubscriptionMutation) AddField(name string, value ent.Value) error {
 	switch name {
+	case usersubscription.FieldBaseValidityDays:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddBaseValidityDays(v)
+		return nil
+	case usersubscription.FieldSourcePlanID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSourcePlanID(v)
+		return nil
 	case usersubscription.FieldDailyUsageUsd:
 		v, ok := value.(float64)
 		if !ok {
@@ -56684,6 +56866,9 @@ func (m *UserSubscriptionMutation) ClearedFields() []string {
 	if m.FieldCleared(usersubscription.FieldDeletedAt) {
 		fields = append(fields, usersubscription.FieldDeletedAt)
 	}
+	if m.FieldCleared(usersubscription.FieldSourcePlanID) {
+		fields = append(fields, usersubscription.FieldSourcePlanID)
+	}
 	if m.FieldCleared(usersubscription.FieldDailyWindowStart) {
 		fields = append(fields, usersubscription.FieldDailyWindowStart)
 	}
@@ -56715,6 +56900,9 @@ func (m *UserSubscriptionMutation) ClearField(name string) error {
 	switch name {
 	case usersubscription.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case usersubscription.FieldSourcePlanID:
+		m.ClearSourcePlanID()
 		return nil
 	case usersubscription.FieldDailyWindowStart:
 		m.ClearDailyWindowStart()
@@ -56753,6 +56941,12 @@ func (m *UserSubscriptionMutation) ResetField(name string) error {
 		return nil
 	case usersubscription.FieldGroupID:
 		m.ResetGroupID()
+		return nil
+	case usersubscription.FieldBaseValidityDays:
+		m.ResetBaseValidityDays()
+		return nil
+	case usersubscription.FieldSourcePlanID:
+		m.ResetSourcePlanID()
 		return nil
 	case usersubscription.FieldStartsAt:
 		m.ResetStartsAt()

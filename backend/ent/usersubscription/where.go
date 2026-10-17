@@ -80,6 +80,16 @@ func GroupID(v int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldGroupID, v))
 }
 
+// BaseValidityDays applies equality check predicate on the "base_validity_days" field. It's identical to BaseValidityDaysEQ.
+func BaseValidityDays(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldBaseValidityDays, v))
+}
+
+// SourcePlanID applies equality check predicate on the "source_plan_id" field. It's identical to SourcePlanIDEQ.
+func SourcePlanID(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldSourcePlanID, v))
+}
+
 // StartsAt applies equality check predicate on the "starts_at" field. It's identical to StartsAtEQ.
 func StartsAt(v time.Time) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldEQ(FieldStartsAt, v))
@@ -308,6 +318,96 @@ func GroupIDIn(vs ...int64) predicate.UserSubscription {
 // GroupIDNotIn applies the NotIn predicate on the "group_id" field.
 func GroupIDNotIn(vs ...int64) predicate.UserSubscription {
 	return predicate.UserSubscription(sql.FieldNotIn(FieldGroupID, vs...))
+}
+
+// BaseValidityDaysEQ applies the EQ predicate on the "base_validity_days" field.
+func BaseValidityDaysEQ(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldBaseValidityDays, v))
+}
+
+// BaseValidityDaysNEQ applies the NEQ predicate on the "base_validity_days" field.
+func BaseValidityDaysNEQ(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldBaseValidityDays, v))
+}
+
+// BaseValidityDaysIn applies the In predicate on the "base_validity_days" field.
+func BaseValidityDaysIn(vs ...int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldBaseValidityDays, vs...))
+}
+
+// BaseValidityDaysNotIn applies the NotIn predicate on the "base_validity_days" field.
+func BaseValidityDaysNotIn(vs ...int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldBaseValidityDays, vs...))
+}
+
+// BaseValidityDaysGT applies the GT predicate on the "base_validity_days" field.
+func BaseValidityDaysGT(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldBaseValidityDays, v))
+}
+
+// BaseValidityDaysGTE applies the GTE predicate on the "base_validity_days" field.
+func BaseValidityDaysGTE(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldBaseValidityDays, v))
+}
+
+// BaseValidityDaysLT applies the LT predicate on the "base_validity_days" field.
+func BaseValidityDaysLT(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldBaseValidityDays, v))
+}
+
+// BaseValidityDaysLTE applies the LTE predicate on the "base_validity_days" field.
+func BaseValidityDaysLTE(v int) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldBaseValidityDays, v))
+}
+
+// SourcePlanIDEQ applies the EQ predicate on the "source_plan_id" field.
+func SourcePlanIDEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldEQ(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDNEQ applies the NEQ predicate on the "source_plan_id" field.
+func SourcePlanIDNEQ(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNEQ(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDIn applies the In predicate on the "source_plan_id" field.
+func SourcePlanIDIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIn(FieldSourcePlanID, vs...))
+}
+
+// SourcePlanIDNotIn applies the NotIn predicate on the "source_plan_id" field.
+func SourcePlanIDNotIn(vs ...int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotIn(FieldSourcePlanID, vs...))
+}
+
+// SourcePlanIDGT applies the GT predicate on the "source_plan_id" field.
+func SourcePlanIDGT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGT(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDGTE applies the GTE predicate on the "source_plan_id" field.
+func SourcePlanIDGTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldGTE(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDLT applies the LT predicate on the "source_plan_id" field.
+func SourcePlanIDLT(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLT(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDLTE applies the LTE predicate on the "source_plan_id" field.
+func SourcePlanIDLTE(v int64) predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldLTE(FieldSourcePlanID, v))
+}
+
+// SourcePlanIDIsNil applies the IsNil predicate on the "source_plan_id" field.
+func SourcePlanIDIsNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldIsNull(FieldSourcePlanID))
+}
+
+// SourcePlanIDNotNil applies the NotNil predicate on the "source_plan_id" field.
+func SourcePlanIDNotNil() predicate.UserSubscription {
+	return predicate.UserSubscription(sql.FieldNotNull(FieldSourcePlanID))
 }
 
 // StartsAtEQ applies the EQ predicate on the "starts_at" field.
