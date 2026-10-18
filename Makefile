@@ -4,14 +4,22 @@ FRONTEND_CRITICAL_VITEST := \
 	src/api/__tests__/client.spec.ts \
 	src/api/__tests__/tokenRefresh.spec.ts \
 	src/api/__tests__/keys.bulkUpdate.spec.ts \
+	src/api/__tests__/redeem.spec.ts \
+	src/components/common/__tests__/Select.ime.spec.ts \
 	src/components/keys/__tests__/BulkEditKeysModal.spec.ts \
 	src/views/user/__tests__/KeysView.spec.ts \
+	src/views/user/__tests__/RedeemView.pagination.spec.ts \
+	src/views/user/__tests__/ChannelStatusV1View.details.spec.ts \
+	src/views/user/__tests__/ChannelStatusV1View.refresh.spec.ts \
 	src/api/__tests__/admin.subscriptions.bulk.spec.ts \
 	src/components/admin/subscription/__tests__/BulkSubscriptionActionDialog.spec.ts \
 	src/components/admin/subscription/__tests__/bulkSubscriptionOperation.spec.ts \
 	src/views/admin/__tests__/SubscriptionsView.bulkActions.spec.ts \
+	src/views/admin/__tests__/SubscriptionsView.userUsageLink.spec.ts \
 	src/components/account/__tests__/AccountPriorityCell.spec.ts \
 	src/views/admin/ops/components/__tests__/OpsRequestDetailsModal.spec.ts \
+	src/views/admin/ops/components/__tests__/OpsSettingsDialog.loading.spec.ts \
+	src/views/admin/ops/components/__tests__/OpsAlertEventsCard.pagination.spec.ts \
 	src/api/__tests__/channelMonitorV2.spec.ts \
 	src/views/auth/__tests__/LinuxDoCallbackView.spec.ts \
 	src/views/auth/__tests__/WechatCallbackView.spec.ts \

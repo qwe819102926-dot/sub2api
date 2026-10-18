@@ -775,6 +775,7 @@ export default {
     codeRule4: 'Balance and concurrency updates are immediate',
     recentActivity: 'Recent Activity',
     historyWillAppear: 'Your redemption history will appear here',
+    historyLoadFailed: 'Failed to load redemption history. Please try again.',
     balanceAddedRedeem: 'Balance Added (Redeem)',
     balanceAddedAffiliate: 'Balance Added (Affiliate Transfer)',
     balanceAddedAdmin: 'Balance Added (Admin)',
