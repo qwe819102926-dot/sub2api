@@ -17,9 +17,14 @@ FRONTEND_CRITICAL_VITEST := \
 	src/views/admin/__tests__/SubscriptionsView.bulkActions.spec.ts \
 	src/views/admin/__tests__/SubscriptionsView.userUsageLink.spec.ts \
 	src/components/account/__tests__/AccountPriorityCell.spec.ts \
+	src/components/account/__tests__/UsageProgressBar.spec.ts \
+	src/components/admin/group/__tests__/GroupRateMultipliersModal.edit.spec.ts \
+	src/views/admin/__tests__/DashboardView.spec.ts \
 	src/views/admin/ops/components/__tests__/OpsRequestDetailsModal.spec.ts \
 	src/views/admin/ops/components/__tests__/OpsSettingsDialog.loading.spec.ts \
 	src/views/admin/ops/components/__tests__/OpsAlertEventsCard.pagination.spec.ts \
+	src/views/admin/ops/components/__tests__/OpsAlertRulesCard.duration.spec.ts \
+	src/views/admin/ops/components/__tests__/OpsOpenAITokenStatsCard.spec.ts \
 	src/api/__tests__/channelMonitorV2.spec.ts \
 	src/views/auth/__tests__/LinuxDoCallbackView.spec.ts \
 	src/views/auth/__tests__/WechatCallbackView.spec.ts \
@@ -27,10 +32,12 @@ FRONTEND_CRITICAL_VITEST := \
 	src/views/user/__tests__/PaymentResultView.spec.ts \
 	src/components/payment/__tests__/paymentFlow.spec.ts \
 	src/views/user/__tests__/ChannelStatusView.mode.spec.ts \
+	src/views/user/__tests__/ChannelStatusV2View.ranking.spec.ts \
 	src/components/user/profile/__tests__/ProfileInfoCard.spec.ts \
 	src/views/admin/__tests__/SettingsView.spec.ts \
 	src/features/channel-monitor-v2/__tests__/designSystem.structure.spec.ts \
 	src/features/channel-monitor-v2/__tests__/monitorFormat.spec.ts \
+	src/features/channel-monitor-v2/__tests__/MetricCell.spec.ts \
 	src/features/channel-monitor-v2/__tests__/monitorZoom.spec.ts
 
 # 一键编译前后端

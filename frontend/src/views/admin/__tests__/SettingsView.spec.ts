@@ -760,6 +760,26 @@ describe("admin SettingsView payment visible method controls", () => {
     );
   });
 
+  it("loads and saves the channel monitor user ranking visibility switch", async () => {
+    getSettings.mockResolvedValue({
+      ...baseSettingsResponse,
+      channel_monitor_enabled: true,
+      channel_monitor_mode: "v2",
+      channel_monitor_hide_user_ranking: true,
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    const toggle = wrapper.get('[data-testid="channel-monitor-hide-user-ranking"]');
+    expect((toggle.element as HTMLInputElement).checked).toBe(true);
+    await toggle.setValue(false);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ channel_monitor_hide_user_ranking: false }),
+    );
+    wrapper.unmount();
+  });
+
   it("renders panel rate limit card and saves settings", async () => {
     getPanelRateLimitSettings.mockClear();
     updatePanelRateLimitSettings.mockClear();
