@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Codex 配置教程：API 中转接入与一直思考、401、429 排查 | Key智中转</title>
+  <meta name="description" content="从创建 API Key、配置 Codex CLI 和 CC Switch，到排查 Codex 一直思考、连接超时、401、403、404、429 报错。附配置示例、接入步骤和检查清单。">
+  <link rel="canonical" href="https://aitokey.top/guides/codex-setup.html">
+  <meta property="og:type" content="article">
+  <meta property="og:locale" content="zh_CN">
+  <meta property="og:site_name" content="Key智中转">
+  <meta property="og:title" content="Codex 配置与常见故障排查">
+  <meta property="og:description" content="API 中转怎么接？Codex 一直思考怎么办？从配置到排错，按步骤完成首次调用。">
+  <meta property="og:url" content="https://aitokey.top/guides/codex-setup.html">
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/guides/guide.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到教程正文</a>
+  <header class="site-header">
+    <nav class="header-inner" aria-label="主导航">
+      <a class="brand" href="/home"><img src="/logo.svg" width="32" height="32" alt="">Key智中转<span>教程</span></a>
+      <div class="header-links"><a href="/usage-guide/guide.html">图文接入说明</a><a class="button small" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">进入中转站 ↗</a></div>
+    </nav>
+  </header>
+  <main id="main" class="layout">
+    <article itemscope itemtype="https://schema.org/TechArticle">
+      <header class="article-header">
+        <p class="eyebrow">开发者教程 / CODEX</p>
+        <h1 itemprop="headline">Codex 配置与<br>常见故障排查</h1>
+        <p class="intro" itemprop="description">从 API 中转接入到首次对话，逐步检查配置。遇到一直思考、连接超时或 API 报错，也可以在这里找到排查顺序。</p>
+        <p class="meta"><span itemprop="author">Key智中转</span><span>更新于 <time itemprop="dateModified" datetime="2026-10-18">2026 年 10 月 18 日</time></span><span>适合初次接入的用户</span></p>
+        <div class="quick-answer"><strong>只想快速排错？</strong><p>先核对 <b>API 地址、密钥、模型、Responses 协议</b>，再看错误码和调用记录。<a href="#troubleshooting">跳到故障排查 ↓</a></p></div>
+      </header>
+
+      <div itemprop="articleBody">
+        <section id="prepare">
+          <p class="section-number">01 / 准备</p>
+          <h2>接入 Codex 前，需要准备什么？</h2>
+          <p>Codex 是 OpenAI 的编程工具。这里介绍使用自定义 API 供应商的接入方式，命令行配置以 <strong>Codex CLI</strong> 为例；其他客户端请使用其对应设置入口。</p>
+          <ul class="checklist"><li>已经安装可用的 Codex 客户端。CLI 安装方式见 <a href="https://learn.chatgpt.com/docs/codex/cli">OpenAI 官方文档</a>。</li><li>一枚由你选择的 API 服务提供的有效密钥。</li><li>与该密钥匹配的 API 地址，以及支持 Codex Responses 请求的模型名称。</li></ul>
+          <p>下面用 Key智中转演示。它提供第三方 API 中转服务，账户、API Key 和用量在本站管理。ChatGPT 订阅与本站 API 用量分别管理。</p>
+        </section>
+
+        <section id="api-key">
+          <p class="section-number">02 / 获取参数</p>
+          <h2>创建 API Key，确认可用模型</h2>
+          <ol><li><a href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">注册 Key智中转账户</a>，已有账户可以直接<a href="/login">登录</a>。</li><li>进入控制台的 <a href="/keys">API 密钥</a> 页面，为这次接入创建一枚密钥。</li><li>确认账户额度、密钥分组和允许调用的模型。到 <a href="/model-plaza">模型广场</a> 查看当前模型信息，复制实际的模型 ID。</li></ol>
+          <div class="table-scroll" tabindex="0" role="region" aria-label="接入参数表"><table><thead><tr><th>参数</th><th>怎么填写</th></tr></thead><tbody><tr><td>服务地址</td><td><code>https://aitokey.top</code></td></tr><tr><td>Codex CLI 的 Base URL</td><td><code>https://aitokey.top/v1</code></td></tr><tr><td>API Key</td><td>在本站创建的密钥</td></tr><tr><td>模型</td><td>复制你的密钥可用且支持 Responses 的模型 ID</td></tr><tr><td>协议</td><td>Codex CLI 使用 <code>responses</code></td></tr></tbody></table></div>
+          <p class="note">不同客户端可能自动补上 <code>/v1</code>。请按对应教程填写；不要把 <code>/v1/responses</code> 完整接口路径当作 Base URL。</p>
+          <div class="inline-cta"><div><strong>还没有接入参数？</strong><p>先创建账户和密钥，再回到本页继续配置。</p></div><a class="button" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">注册并获取 API Key ↗</a></div>
+        </section>
+
+        <section id="configure">
+          <p class="section-number">03 / 配置</p>
+          <h2>两种配置方式，选择适合你的一种</h2>
+          <h3>方式 A：通过 CC Switch 导入</h3>
+          <p>如果已经安装 CC Switch，可在本站 API 密钥列表选择“导入到 CCS”，在弹出的窗口中核对供应商信息，确认导入后将对应供应商切换到“使用中”。随后完全退出并重新打开目标客户端，建立新会话验证。</p>
+          <p>按钮位置、导入窗口和使用状态都有截图说明：<a href="/usage-guide/guide.html#path-ccs">查看 CC Switch 图文接入步骤 →</a></p>
+          <h3>方式 B：手动配置 Codex CLI</h3>
+          <p>先备份已有配置，再编辑用户目录下的 <code>~/.codex/config.toml</code>。Windows 默认位置为 <code>%USERPROFILE%\.codex\config.toml</code>；如果设置了 <code>CODEX_HOME</code>，请使用该目录。供应商配置应放在用户级配置中。</p>
+          <p>合并下面的配置，不要覆盖原有的其他设置；把 <code>YOUR_MODEL_ID</code> 换成你的密钥实际可用、支持 Responses 的模型 ID。同名配置项或表已存在时，直接编辑原值。</p>
+          <div class="code-heading">config.toml · 用户配置</div>
+          <pre><code>model_provider = "keyzhongzhuan"
+model = "YOUR_MODEL_ID"
+
+[model_providers.keyzhongzhuan]
+name = "Key智中转"
+base_url = "https://aitokey.top/v1"
+env_key = "KEYZHONGZHUAN_API_KEY"
+wire_api = "responses"
+requires_openai_auth = false</code></pre>
+          <p>在启动 Codex 的终端会话中设置环境变量。以下以 Windows PowerShell 为例，密钥通过隐藏输入读取，不会写进命令历史：</p>
+          <div class="code-heading">PowerShell · 输入密钥后启动</div>
+          <pre><code>$relayCredential = Get-Credential -UserName "api" -Message "密码栏输入本站 API Key"
+$env:KEYZHONGZHUAN_API_KEY = $relayCredential.GetNetworkCredential().Password
+codex</code></pre>
+          <p class="note">这个环境变量只对当前终端及其启动的进程生效。另开终端需要重新设置。密钥只在本机输入；反馈问题时请遮盖密钥。</p>
+          <p>配置项依据 <a href="https://learn.chatgpt.com/docs/config-file/config-reference">OpenAI 官方配置文档</a>。客户端版本和供应商的功能兼容情况可能不同，其他客户端不要直接照搬 CLI 配置。</p>
+        </section>
+
+        <section id="verify">
+          <p class="section-number">04 / 验证</p>
+          <h2>用一次简单对话验证连接</h2>
+          <ol><li>重新启动目标客户端，确认正在使用刚配置的供应商和模型。</li><li>在新会话发送：“请只回复：连接成功。”</li><li>能够返回内容后，再在自己的项目中测试正常任务。</li><li>到控制台的 <a href="/usage">使用记录</a> 核对是否出现对应调用；若没有记录，继续检查客户端实际使用的供应商、请求地址和本地网络。</li></ol>
+          <p>简单对话成功只说明基础请求可用。工具调用、图片输入、长上下文等能力，还需要分别验证模型与接口的支持情况。</p>
+        </section>
+
+        <section id="troubleshooting">
+          <p class="section-number">05 / 排查</p>
+          <h2>Codex 一直思考、没有响应怎么办？</h2>
+          <p>“一直思考”可能来自模型推理、网络重试、工具等待或请求失败。先看客户端当前状态，再按下面的顺序缩小范围。</p>
+          <ol><li><strong>确认是否在等待操作。</strong>检查终端是否在等输入、客户端是否在等工具执行或权限确认。</li><li><strong>用新会话发送短问题。</strong>短问题也没有响应时，优先检查连接和参数；仅长任务慢时，再检查上下文大小、工具和推理设置。</li><li><strong>核对四个参数。</strong>确认 API 地址、API Key、模型 ID 和 Responses 协议相互匹配，尤其注意重复的 <code>/v1</code>。</li><li><strong>检查调用记录和服务状态。</strong>看控制台是否收到请求、返回什么错误，并查看 <a href="/monitor">通道状态</a>。记录出现可能有延迟，不能只凭一项判断。</li><li><strong>保留错误信息再重试。</strong>保存报错原文、请求时间和请求 ID，便于核查；不要连续提交同一个长任务，以免产生重复调用。</li></ol>
+
+          <h3>常见 API 错误对照表</h3>
+          <div class="table-scroll" tabindex="0" role="region" aria-label="错误码排查表"><table><thead><tr><th>现象</th><th>优先检查</th><th>下一步</th></tr></thead><tbody>
+            <tr><td><code>401</code> 鉴权失败</td><td>密钥错误、已失效或没有传入</td><td>检查环境变量与供应商配置，必要时重新创建密钥。</td></tr>
+            <tr><td><code>403</code> 请求被拒绝</td><td>权限、模型或访问策略限制</td><td>阅读错误正文，核对密钥分组和该模型的调用权限。</td></tr>
+            <tr><td><code>404</code> 找不到接口或模型</td><td>路径拼接、模型 ID、协议支持</td><td>检查有无重复的 <code>/v1</code>，并复制准确模型 ID。</td></tr>
+            <tr><td><code>429</code> 限流或配额问题</td><td>并发、请求频率、额度或上游限制</td><td>以错误正文为准；降低并发，按重试提示等待，核对额度。</td></tr>
+            <tr><td><code>5xx</code> 服务异常</td><td>网关或上游服务错误</td><td>查看通道状态，保留请求 ID，稍后重试或联系支持。</td></tr>
+            <tr><td>超时、流式中断</td><td>网络、代理、长连接或上游响应</td><td>用短问题复现，检查代理和网络，再对照调用记录。</td></tr>
+          </tbody></table></div>
+          <p class="note">错误码只是定位线索，同一状态码可能对应不同原因。以接口返回的具体错误正文和调用记录为准。</p>
+        </section>
+
+        <section id="faq">
+          <p class="section-number">06 / 常见问题</p>
+          <h2>接入前后，你可能还想知道</h2>
+          <details><summary>有 ChatGPT 订阅，还需要本站 API Key 吗？</summary><p>使用本文的第三方 API 接入方式，需要本站创建的 API Key。ChatGPT 登录凭证不能当作本站密钥使用；账户额度请分别查看对应服务。</p></details>
+          <details><summary>为什么改了配置还是使用旧供应商？</summary><p>检查修改的是当前使用的用户配置目录，是否存在其他配置覆盖，以及是否打开了旧客户端进程。用当前终端重新启动 CLI，在新会话中核对供应商与模型。</p></details>
+          <details><summary>能直接把任意模型名称填进去吗？</summary><p>不能。模型必须同时满足密钥有权限、接口可用、支持 Codex 所需 Responses 请求。请使用控制台显示的准确模型 ID。</p></details>
+          <details><summary>基础对话成功，为什么工具调用仍然报错？</summary><p>文本生成成功不代表所有工具都兼容。检查所选模型与供应商对工具调用、图片输入、上下文和流式响应的支持，并保留具体失败信息。</p></details>
+        </section>
+
+        <section class="closing-cta" aria-labelledby="start-title">
+          <p class="eyebrow">开始接入</p><h2 id="start-title">把教程里的步骤，变成你的第一次调用。</h2><p>在 Key智中转创建 API Key，按图文说明配置客户端，并在控制台查看自己的调用用量。</p>
+          <div class="cta-actions"><a class="button" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">前往 Key智中转 ↗</a><a href="/usage-guide/guide.html">查看完整接入说明 →</a></div>
+        </section>
+      </div>
+    </article>
+    <aside class="sidebar" aria-label="本页目录"><div class="toc"><p class="eyebrow">本页内容</p><nav aria-label="文章目录"><a href="#prepare">01　接入前准备</a><a href="#api-key">02　创建 API Key</a><a href="#configure">03　配置 Codex</a><a href="#verify">04　验证连接</a><a href="#troubleshooting">05　常见故障排查</a><a href="#faq">06　常见问题</a></nav><div class="sidebar-help"><strong>跟着截图操作</strong><p>密钥创建、CC Switch 导入与客户端配置。</p><a href="/usage-guide/guide.html">打开图文说明 ↗</a></div></div></aside>
+  </main>
+  <footer class="site-footer"><span>© 2026 Key智中转 · 开发者教程</span><a href="/home">访问中转站 ↗</a><a href="#main">回到顶部 ↑</a></footer>
+</body>
+</html>

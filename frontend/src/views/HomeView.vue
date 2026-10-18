@@ -19,7 +19,7 @@
       </nav>
     </header>
     <main class="flex min-w-0 flex-1 items-center justify-center px-4 py-16 sm:px-6"><div class="min-w-0 max-w-2xl text-center"><img :src="siteLogo || '/logo.svg'" alt="Logo" class="mx-auto mb-6 h-20 w-20 rounded-2xl object-contain" /><h1 class="[overflow-wrap:anywhere] text-3xl font-bold md:text-4xl">{{ siteName }}</h1><p class="mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-base text-gray-600 dark:text-dark-300">{{ siteSubtitle }}</p><router-link :to="isAuthenticated ? dashboardPath : '/login'" class="mt-8 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700">{{ isAuthenticated ? t('home.goToDashboard') : t('home.login') }}</router-link></div></main>
-    <footer class="border-t border-gray-200 px-4 py-5 text-center text-sm text-gray-500 dark:border-dark-800 dark:text-dark-400">&copy; {{ currentYear }} {{ siteName }}</footer>
+    <footer class="border-t border-gray-200 px-4 py-5 text-center text-sm text-gray-500 dark:border-dark-800 dark:text-dark-400">&copy; {{ currentYear }} {{ siteName }} · <a href="/guides/codex-setup.html" class="underline underline-offset-4">Codex 配置与故障排查</a></footer>
   </div>
 
   <div v-else class="home-page relative flex min-h-screen flex-col overflow-hidden bg-[#fbfaf8] text-[#11100e] dark:bg-[#111412] dark:text-white">
@@ -52,7 +52,7 @@
       <section class="home-features border-t border-black/[0.08] bg-white/55 dark:border-white/10 dark:bg-white/[0.025]"><div class="mx-auto grid max-w-[1200px] grid-cols-1 px-5 sm:px-8 md:grid-cols-3"><div class="home-feature"><span class="feature-icon"><Icon name="grid" size="lg" /></span><div><h2>模型广场</h2><p>聚合多种优质模型，支持快速接入与灵活路由。</p></div></div><div class="home-feature"><span class="feature-icon"><Icon name="lock" size="lg" /></span><div><h2>密钥管理</h2><p>集中管理 API 密钥，支持创建、轮换与权限控制。</p></div></div><div class="home-feature"><span class="feature-icon"><Icon name="trendingUp" size="lg" /></span><div><h2>用量可视化</h2><p>实时查看调用趋势与用量统计，助力成本优化。</p></div></div></div></section>
     </main>
 
-    <footer class="relative z-10 flex flex-col items-center justify-between gap-3 border-t border-black/[0.08] px-5 py-6 text-xs text-[#7a817c] dark:border-white/10 dark:text-[#aeb8b1] sm:flex-row sm:px-8"><span>&copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}</span><div class="flex items-center gap-4"><a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer" class="hover:text-[#168f85]">{{ t('home.docs') }}</a><a :href="githubUrl" target="_blank" rel="noopener noreferrer" class="hover:text-[#168f85]">GitHub</a></div></footer>
+    <footer class="relative z-10 flex flex-col items-center justify-between gap-3 border-t border-black/[0.08] px-5 py-6 text-xs text-[#7a817c] dark:border-white/10 dark:text-[#aeb8b1] sm:flex-row sm:px-8"><span>&copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}</span><div class="flex flex-wrap items-center justify-center gap-4"><a href="/guides/codex-setup.html" class="hover:text-[#168f85]">Codex 配置与故障排查</a><a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer" class="hover:text-[#168f85]">{{ t('home.docs') }}</a><a :href="githubUrl" target="_blank" rel="noopener noreferrer" class="hover:text-[#168f85]">GitHub</a></div></footer>
   </div>
 </template>
 
