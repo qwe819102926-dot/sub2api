@@ -1370,6 +1370,9 @@ func openAIStreamFailedEventSemanticStatus(payload []byte, message string) int {
 	if isOpenAIContextWindowError(message, payload) {
 		return http.StatusBadRequest
 	}
+	if isOpenAIRequestBodyTooLargeError(http.StatusBadRequest, message, payload) {
+		return http.StatusRequestEntityTooLarge
+	}
 
 	code := openAIStreamFailedEventErrorCode(payload)
 	errType := strings.ToLower(strings.TrimSpace(gjson.GetBytes(payload, "response.error.type").String()))
@@ -1407,7 +1410,7 @@ func openAIStreamFailureStatus(payload []byte, message string) int {
 	}
 	semanticStatus := openAIStreamFailedEventSemanticStatus(payload, message)
 	switch semanticStatus {
-	case http.StatusUnauthorized, http.StatusForbidden, http.StatusTooManyRequests, 529:
+	case http.StatusUnauthorized, http.StatusForbidden, http.StatusRequestEntityTooLarge, http.StatusTooManyRequests, 529:
 		return semanticStatus
 	case http.StatusServiceUnavailable:
 		if isOpenAIUpstreamCapacityShedEvent(payload) {
@@ -1534,6 +1537,9 @@ func openAIStreamFailedEventShouldFailover(payload []byte, message string) bool 
 		return true
 	}
 	semanticStatus := openAIStreamFailureStatus(payload, message)
+	if semanticStatus == http.StatusRequestEntityTooLarge {
+		return true
+	}
 	if semanticStatus == http.StatusForbidden {
 		return openAIStream403AccountFailure(payload, message)
 	}
@@ -1588,7 +1594,7 @@ func openAIStreamErrorEventShouldFailover(payload []byte, message string) bool {
 	switch openAIStreamFailedEventSemanticStatus(payload, message) {
 	case http.StatusForbidden:
 		return openAIStream403AccountFailure(payload, message)
-	case http.StatusUnauthorized, http.StatusTooManyRequests, 529:
+	case http.StatusUnauthorized, http.StatusRequestEntityTooLarge, http.StatusTooManyRequests, 529:
 		return true
 	}
 	if isOpenAITransientProcessingError(http.StatusBadRequest, message, payload) {

@@ -279,7 +279,47 @@ const OpenAIRequestBodyTooLargeClientMessage = "Request payload is too large"
 const openAIRequestBodyTooLargeReason = GatewayFailureReason("openai_request_body_too_large")
 
 func isOpenAIRequestBodyTooLargeError(statusCode int, upstreamMsg string, upstreamBody []byte) bool {
-	return statusCode == http.StatusRequestEntityTooLarge && !isOpenAIContextWindowError(upstreamMsg, upstreamBody)
+	if isOpenAIContextWindowError(upstreamMsg, upstreamBody) {
+		return false
+	}
+	if statusCode == http.StatusRequestEntityTooLarge {
+		return true
+	}
+	if statusCode != http.StatusBadRequest {
+		return false
+	}
+	// Relay gateways also report body limits as HTTP 400 or an invalid_request
+	// error inside HTTP 200 SSE. Inspect only error fields, never echoed input.
+	for _, path := range []string{"error.status_code", "response.error.status_code", "status_code"} {
+		if gjson.GetBytes(upstreamBody, path).Int() == http.StatusRequestEntityTooLarge {
+			return true
+		}
+	}
+	for _, path := range []string{"error.code", "response.error.code", "code"} {
+		switch strings.ToLower(strings.TrimSpace(gjson.GetBytes(upstreamBody, path).String())) {
+		case "request_body_too_large", "request_entity_too_large", "payload_too_large", "request_too_large":
+			return true
+		}
+	}
+	matchMessage := func(message string) bool {
+		switch strings.TrimRight(strings.ToLower(strings.TrimSpace(message)), ".!") {
+		case "request payload is too large", "request payload too large",
+			"request body is too large", "request body too large",
+			"request entity too large", "payload too large":
+			return true
+		default:
+			return false
+		}
+	}
+	if matchMessage(upstreamMsg) {
+		return true
+	}
+	for _, path := range []string{"error.message", "response.error.message", "message"} {
+		if matchMessage(gjson.GetBytes(upstreamBody, path).String()) {
+			return true
+		}
+	}
+	return !gjson.ValidBytes(upstreamBody) && matchMessage(string(upstreamBody))
 }
 
 func newOpenAIUpstreamFailoverError(

@@ -16,24 +16,33 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func TestOpenAIRequestBodyLimitFailover_HTTP413SwitchesAccountsBeforeWrite(t *testing.T) {
+func TestOpenAIRequestBodyLimitFailover_HTTPSwitchesAccountsBeforeWrite(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	requestBody := []byte(`{"model":"gpt-5.2","stream":false,"input":"hello"}`)
 
-	for _, passthrough := range []bool{false, true} {
+	for _, tt := range []struct {
+		passthrough bool
+		status      int
+	}{
+		{false, http.StatusRequestEntityTooLarge},
+		{true, http.StatusRequestEntityTooLarge},
+		{false, http.StatusBadRequest},
+		{true, http.StatusBadRequest},
+	} {
+		passthrough := tt.passthrough
 		name := "native_responses"
 		if passthrough {
 			name = "api_key_passthrough"
 		}
-		t.Run(name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s/http_%d", name, tt.status), func(t *testing.T) {
 			rec := httptest.NewRecorder()
 			c, _ := gin.CreateTestContext(rec)
 			c.Request = httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(nil))
 
-			const upstreamBody = `{"error":{"message":"request body exceeds this account's 16MB proxy limit; secret=must-not-leak","type":"invalid_request_error"}}`
+			const upstreamBody = `{"error":{"message":"Request payload is too large","type":"invalid_request_error"},"debug":"secret=must-not-leak"}`
 			body := &passthroughCloseTrackingReadCloser{Reader: strings.NewReader(upstreamBody)}
 			upstream := &httpUpstreamRecorder{resp: &http.Response{
-				StatusCode: http.StatusRequestEntityTooLarge,
+				StatusCode: tt.status,
 				Header: http.Header{
 					"Content-Type": []string{"application/json"},
 					"X-Request-Id": []string{"rid-body-limit"},
@@ -71,7 +80,7 @@ func TestOpenAIRequestBodyLimitFailover_HTTP413SwitchesAccountsBeforeWrite(t *te
 			require.Nil(t, result)
 			var failoverErr *UpstreamFailoverError
 			require.ErrorAs(t, err, &failoverErr)
-			require.Equal(t, http.StatusRequestEntityTooLarge, failoverErr.StatusCode)
+			require.Equal(t, tt.status, failoverErr.StatusCode)
 			require.Equal(t, GatewayFailureScopeAccount, failoverErr.Scope)
 			require.Equal(t, GatewayFailureReason("openai_request_body_too_large"), failoverErr.Reason)
 			require.Equal(t, NextAccountRetry, failoverErr.NextAccountAction)
