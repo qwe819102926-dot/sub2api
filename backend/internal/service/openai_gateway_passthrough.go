@@ -1161,9 +1161,70 @@ func openAIStreamAddedEventStartsClientOutput(payload []byte, eventType string) 
 	}
 }
 
+// Some relays emit a whitespace text delta as a heartbeat before an upstream
+// failure. Keep it buffered until meaningful output or a successful terminal;
+// flushing it early would prevent a safe account failover. Tool arguments and
+// binary output are deliberately excluded because their bytes may be meaningful.
+func openAIStreamIsWhitespaceTextEvent(data, eventType string) bool {
+	eventType = strings.TrimSpace(eventType)
+	if eventType == "" {
+		eventType = strings.TrimSpace(gjson.Get(data, "type").String())
+	}
+	switch eventType {
+	case "response.output_text.delta", "response.reasoning_text.delta",
+		"response.reasoning_summary_text.delta", "response.refusal.delta",
+		"response.audio_transcript.delta":
+		delta := gjson.Get(data, "delta")
+		return delta.Type == gjson.String && strings.TrimSpace(delta.String()) == ""
+	case "response.output_text.done", "response.reasoning_text.done",
+		"response.reasoning_summary_text.done", "response.audio_transcript.done":
+		text := gjson.Get(data, "text")
+		return text.Type == gjson.String && strings.TrimSpace(text.String()) == ""
+	case "response.content_part.added", "response.content_part.done",
+		"response.reasoning_summary_part.added", "response.reasoning_summary_part.done":
+		part := gjson.Get(data, "part")
+		field := "text"
+		switch part.Get("type").String() {
+		case "output_text", "summary_text":
+		case "refusal":
+			field = "refusal"
+		default:
+			return false
+		}
+		text := part.Get(field)
+		return text.Type == gjson.String && strings.TrimSpace(text.String()) == ""
+	case "response.output_item.added", "response.output_item.done":
+		item := gjson.Get(data, "item")
+		if item.Get("type").String() != "message" {
+			return false
+		}
+		parts := item.Get("content").Array()
+		if len(parts) == 0 {
+			return false
+		}
+		for _, part := range parts {
+			field := "text"
+			switch part.Get("type").String() {
+			case "output_text":
+			case "refusal":
+				field = "refusal"
+			default:
+				return false
+			}
+			text := part.Get(field)
+			if text.Type != gjson.String || strings.TrimSpace(text.String()) != "" {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
 func openAIStreamDataStartsClientOutput(data, eventType string) bool {
 	trimmed := strings.TrimSpace(data)
-	if trimmed == "" {
+	if trimmed == "" || openAIStreamIsWhitespaceTextEvent(trimmed, eventType) {
 		return false
 	}
 	switch strings.TrimSpace(eventType) {
@@ -1201,7 +1262,7 @@ func openAIStreamItemHasVisibleOutput(item gjson.Result) bool {
 // but TTFT should start only when the stream carries content a client can use.
 func openAIStreamDataStartsVisibleOutput(data, eventType string) bool {
 	trimmed := strings.TrimSpace(data)
-	if trimmed == "" || trimmed == "[DONE]" || !gjson.Valid(trimmed) {
+	if trimmed == "" || trimmed == "[DONE]" || !gjson.Valid(trimmed) || openAIStreamIsWhitespaceTextEvent(trimmed, eventType) {
 		return false
 	}
 	eventType = strings.TrimSpace(eventType)
@@ -1244,7 +1305,7 @@ func openAIStreamDataStartsVisibleOutput(data, eventType string) bool {
 // 口径：跳过 Responses preamble 后，首个语义 SSE 事件即视为首 token。
 func openAIStreamDataStartsSemanticTTFT(data, eventType string) bool {
 	trimmed := strings.TrimSpace(data)
-	if trimmed == "" || trimmed == "[DONE]" {
+	if trimmed == "" || trimmed == "[DONE]" || openAIStreamIsWhitespaceTextEvent(trimmed, eventType) {
 		return false
 	}
 	eventType = strings.TrimSpace(eventType)

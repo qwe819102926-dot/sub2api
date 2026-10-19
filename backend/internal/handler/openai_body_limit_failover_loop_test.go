@@ -40,6 +40,10 @@ func (u *bodyLimitFailoverUpstream) Do(req *http.Request, _ string, accountID in
 			Header:     http.Header{"Content-Type": {"text/event-stream"}},
 			Body: io.NopCloser(strings.NewReader(
 				"data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_rejected\"}}\n\n" +
+					"data: {\"type\":\"response.output_text.delta\",\"delta\":\" \"}\n\n" +
+					"data: {\"type\":\"response.output_text.done\",\"text\":\" \"}\n\n" +
+					"data: {\"type\":\"response.content_part.done\",\"part\":{\"type\":\"output_text\",\"text\":\" \"}}\n\n" +
+					"data: {\"type\":\"response.output_item.done\",\"item\":{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\" \"}]}}\n\n" +
 					"data: {\"type\":\"response.failed\",\"response\":{\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Request payload is too large\"}}}\n\n")),
 		}, nil
 	}
