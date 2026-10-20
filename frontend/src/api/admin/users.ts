@@ -59,6 +59,19 @@ export interface LotteryChancesResponse {
   remaining: number
 }
 
+export interface UserLotteryDraw {
+  id: number
+  order_id: number | null
+  prize_amount: number
+  is_winner: boolean
+  created_at: string
+}
+
+export interface UserLotteryHistory extends PaginatedResponse<UserLotteryDraw> {
+  winning_draws: number
+  total_prize_amount: number
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -228,6 +241,19 @@ export async function updateBonusBalance(
 /** Get and set a user's remaining recharge lottery chances. */
 export async function getLotteryChances(id: number): Promise<LotteryChancesResponse> {
   const { data } = await apiClient.get<LotteryChancesResponse>(`/admin/users/${id}/lottery-chances`)
+  return data
+}
+
+export async function getLotteryHistory(
+  id: number,
+  page = 1,
+  pageSize = 20,
+  options?: { signal?: AbortSignal }
+): Promise<UserLotteryHistory> {
+  const { data } = await apiClient.get<UserLotteryHistory>(`/admin/users/${id}/lottery-history`, {
+    params: { page, page_size: pageSize },
+    signal: options?.signal
+  })
   return data
 }
 
@@ -460,6 +486,7 @@ export const usersAPI = {
   updateBonusBalance,
   getBalanceSummary,
   getLotteryChances,
+  getLotteryHistory,
   updateLotteryChances,
   updateConcurrency,
   batchUpdateLimits,

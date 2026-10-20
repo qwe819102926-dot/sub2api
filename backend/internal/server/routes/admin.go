@@ -310,6 +310,7 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.POST("/:id/balance", h.Admin.User.UpdateBalance)
 		users.POST("/:id/bonus-balance", h.Admin.User.UpdateBonusBalance)
 		users.GET("/:id/lottery-chances", h.Admin.User.GetLotteryChances)
+		users.GET("/:id/lottery-history", h.Admin.User.GetLotteryHistory)
 		users.PUT("/:id/lottery-chances", h.Admin.User.UpdateLotteryChances)
 		users.GET("/:id/api-keys", h.Admin.User.GetUserAPIKeys)
 		users.GET("/:id/usage", h.Admin.User.GetUserUsage)
