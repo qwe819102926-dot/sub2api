@@ -20,8 +20,10 @@
         >
           <span v-if="bonusFor(amt) > 0" class="absolute right-2 top-2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">{{ t('payment.activities.giftBadge') }}</span>
           <span class="block text-lg">{{ amt }}</span>
-          <span class="mt-1 block text-xs font-medium text-gray-500 dark:text-gray-400">
-            {{ t('payment.activities.quickAmountSummary', { total: (amt * multiplier).toFixed(2), draws: Math.floor(amt / lotteryThreshold) }) }}
+          <span class="mt-1 flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">
+            <span class="whitespace-nowrap">{{ t('payment.activities.quickAmountSummary', { total: (amt * multiplier).toFixed(2) }) }}</span>
+            <span v-if="bonusFor(amt) > 0" class="whitespace-nowrap text-amber-600 dark:text-amber-300">{{ t('payment.activities.quickAmountBonus', { amount: bonusFor(amt).toFixed(2) }) }}</span>
+            <span v-if="lotteryThreshold > 0" class="whitespace-nowrap">・{{ t('payment.activities.quickAmountDraws', { draws: Math.floor(amt / lotteryThreshold) }) }}</span>
           </span>
         </button>
       </div>
@@ -67,7 +69,7 @@ const props = withDefaults(defineProps<{
   min: 0,
   max: 0,
   rewardTiers: () => [],
-  lotteryThreshold: 10,
+  lotteryThreshold: 0,
   multiplier: 1.1,
 })
 
@@ -91,7 +93,7 @@ const placeholderText = computed(() => {
   return t('payment.enterAmount')
 })
 
-const lotteryThreshold = computed(() => props.lotteryThreshold > 0 ? props.lotteryThreshold : 10)
+const lotteryThreshold = computed(() => props.lotteryThreshold > 0 ? props.lotteryThreshold : 0)
 const multiplier = computed(() => props.multiplier > 0 ? props.multiplier : 1.1)
 
 function bonusFor(amount: number): number {

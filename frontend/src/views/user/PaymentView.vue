@@ -52,7 +52,7 @@
                 :min="globalMinAmount"
                 :max="globalMaxAmount"
                 :reward-tiers="checkout.recharge_bonus?.enabled ? checkout.recharge_bonus.tiers : []"
-                :lottery-threshold="checkout.recharge_lottery?.enabled ? checkout.recharge_lottery.threshold : 10"
+                :lottery-threshold="checkout.recharge_lottery?.enabled ? checkout.recharge_lottery.threshold : 0"
                 :multiplier="balanceRechargeMultiplier"
               />
               <p v-if="amountError" class="mt-2 text-xs text-amber-600 dark:text-amber-300">{{ amountError }}</p>
