@@ -4,7 +4,7 @@
       <iframe
         class="guide-frame"
         src="/usage-guide/guide.html"
-        title="key智中转使用说明"
+        title="key智API使用说明"
         loading="eager"
       ></iframe>
     </div>
@@ -15,7 +15,7 @@
 import { onMounted } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 onMounted(() => {
-  document.title = 'key智中转使用说明'
+  document.title = 'key智API使用说明'
 })
 </script>
 

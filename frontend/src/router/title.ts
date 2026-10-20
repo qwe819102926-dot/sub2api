@@ -7,7 +7,7 @@ import type { CustomMenuItem } from '@/types'
  * 优先使用 titleKey 通过 i18n 翻译，fallback 到静态 routeTitle。
  */
 export function resolveDocumentTitle(routeTitle: unknown, siteName?: string, titleKey?: string): string {
-  const normalizedSiteName = typeof siteName === 'string' && siteName.trim() ? siteName.trim() : 'Key 智中转'
+  const normalizedSiteName = typeof siteName === 'string' && siteName.trim() ? siteName.trim() : 'key智API'
 
   if (typeof titleKey === 'string' && titleKey.trim()) {
     const translated = i18n.global.t(titleKey)

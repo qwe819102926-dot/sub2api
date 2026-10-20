@@ -11,7 +11,7 @@
           <div class="benefits-body">
             <div class="benefits-banner">
               <div class="benefits-banner-copy">
-                <p class="benefits-eyebrow"><Icon name="sparkles" size="sm" /> key智中转活动速览</p>
+                <p class="benefits-eyebrow"><Icon name="sparkles" size="sm" /> key智API活动速览</p>
                 <h1>欢迎回来，别错过本期福利</h1>
                 <p>充值、使用和分享都能获得额外回馈。现在就来看看限时开放的活动。</p>
               </div>

@@ -22,19 +22,19 @@ function mountGuide() {
 }
 
 describe('GuideView', () => {
-  it('renders the local key智中转 usage guide', async () => {
+  it('renders the local key智API usage guide', async () => {
     const wrapper = mountGuide()
     await flushPromises()
     const frame = wrapper.find('iframe.guide-frame')
     expect(frame.exists()).toBe(true)
     expect(frame.attributes('src')).toBe('/usage-guide/guide.html')
-    expect(frame.attributes('title')).toBe('key智中转使用说明')
+    expect(frame.attributes('title')).toBe('key智API使用说明')
   })
 
   it('sets the document title for the guide page', async () => {
     const wrapper = mountGuide()
     await flushPromises()
-    expect(document.title).toBe('key智中转使用说明')
+    expect(document.title).toBe('key智API使用说明')
     wrapper.unmount()
   })
 })

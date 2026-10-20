@@ -67,7 +67,7 @@ import { sanitizeUrl } from '@/utils/url'
 const { t } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Key 智中转')
+const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'key智API')
 const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || '一个密钥，统一接入多模型 API')
 const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))

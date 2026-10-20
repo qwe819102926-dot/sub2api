@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Codex 配置教程：API 中转接入与一直思考、401、429 排查 | Key智中转</title>
+  <title>Codex 配置教程：API 中转接入与一直思考、401、429 排查 | key智API</title>
   <meta name="description" content="从创建 API Key、配置 Codex CLI 和 CC Switch，到排查 Codex 一直思考、连接超时、401、403、404、429 报错。附配置示例、接入步骤和检查清单。">
   <link rel="canonical" href="https://aitokey.top/guides/codex-setup.html">
   <meta property="og:type" content="article">
   <meta property="og:locale" content="zh_CN">
-  <meta property="og:site_name" content="Key智中转">
+  <meta property="og:site_name" content="key智API">
   <meta property="og:title" content="Codex 配置与常见故障排查">
   <meta property="og:description" content="API 中转怎么接？Codex 一直思考怎么办？从配置到排错，按步骤完成首次调用。">
   <meta property="og:url" content="https://aitokey.top/guides/codex-setup.html">
@@ -19,7 +19,7 @@
   <a class="skip-link" href="#main">跳到教程正文</a>
   <header class="site-header">
     <nav class="header-inner" aria-label="主导航">
-      <a class="brand" href="/home"><img src="/logo.svg" width="32" height="32" alt="">Key智中转<span>教程</span></a>
+      <a class="brand" href="/home"><img src="/logo.svg" width="32" height="32" alt="">key智API<span>教程</span></a>
       <div class="header-links"><a href="/usage-guide/guide.html">图文接入说明</a><a class="button small" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">进入中转站 ↗</a></div>
     </nav>
   </header>
@@ -29,7 +29,7 @@
         <p class="eyebrow">开发者教程 / CODEX</p>
         <h1 itemprop="headline">Codex 配置与<br>常见故障排查</h1>
         <p class="intro" itemprop="description">从 API 中转接入到首次对话，逐步检查配置。遇到一直思考、连接超时或 API 报错，也可以在这里找到排查顺序。</p>
-        <p class="meta"><span itemprop="author">Key智中转</span><span>更新于 <time itemprop="dateModified" datetime="2026-10-18">2026 年 10 月 18 日</time></span><span>适合初次接入的用户</span></p>
+        <p class="meta"><span itemprop="author">key智API</span><span>更新于 <time itemprop="dateModified" datetime="2026-10-18">2026 年 10 月 18 日</time></span><span>适合初次接入的用户</span></p>
         <div class="quick-answer"><strong>只想快速排错？</strong><p>先核对 <b>API 地址、密钥、模型、Responses 协议</b>，再看错误码和调用记录。<a href="#troubleshooting">跳到故障排查 ↓</a></p></div>
       </header>
 
@@ -39,13 +39,13 @@
           <h2>接入 Codex 前，需要准备什么？</h2>
           <p>Codex 是 OpenAI 的编程工具。这里介绍使用自定义 API 供应商的接入方式，命令行配置以 <strong>Codex CLI</strong> 为例；其他客户端请使用其对应设置入口。</p>
           <ul class="checklist"><li>已经安装可用的 Codex 客户端。CLI 安装方式见 <a href="https://learn.chatgpt.com/docs/codex/cli">OpenAI 官方文档</a>。</li><li>一枚由你选择的 API 服务提供的有效密钥。</li><li>与该密钥匹配的 API 地址，以及支持 Codex Responses 请求的模型名称。</li></ul>
-          <p>下面用 Key智中转演示。它提供第三方 API 中转服务，账户、API Key 和用量在本站管理。ChatGPT 订阅与本站 API 用量分别管理。</p>
+          <p>下面用 key智API演示。它提供第三方 API 中转服务，账户、API Key 和用量在本站管理。ChatGPT 订阅与本站 API 用量分别管理。</p>
         </section>
 
         <section id="api-key">
           <p class="section-number">02 / 获取参数</p>
           <h2>创建 API Key，确认可用模型</h2>
-          <ol><li><a href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">注册 Key智中转账户</a>，已有账户可以直接<a href="/login">登录</a>。</li><li>进入控制台的 <a href="/keys">API 密钥</a> 页面，为这次接入创建一枚密钥。</li><li>确认账户额度、密钥分组和允许调用的模型。到 <a href="/model-plaza">模型广场</a> 查看当前模型信息，复制实际的模型 ID。</li></ol>
+          <ol><li><a href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">注册 key智API账户</a>，已有账户可以直接<a href="/login">登录</a>。</li><li>进入控制台的 <a href="/keys">API 密钥</a> 页面，为这次接入创建一枚密钥。</li><li>确认账户额度、密钥分组和允许调用的模型。到 <a href="/model-plaza">模型广场</a> 查看当前模型信息，复制实际的模型 ID。</li></ol>
           <div class="table-scroll" tabindex="0" role="region" aria-label="接入参数表"><table><thead><tr><th>参数</th><th>怎么填写</th></tr></thead><tbody><tr><td>服务地址</td><td><code>https://aitokey.top</code></td></tr><tr><td>Codex CLI 的 Base URL</td><td><code>https://aitokey.top/v1</code></td></tr><tr><td>API Key</td><td>在本站创建的密钥</td></tr><tr><td>模型</td><td>复制你的密钥可用且支持 Responses 的模型 ID</td></tr><tr><td>协议</td><td>Codex CLI 使用 <code>responses</code></td></tr></tbody></table></div>
           <p class="note">不同客户端可能自动补上 <code>/v1</code>。请按对应教程填写；不要把 <code>/v1/responses</code> 完整接口路径当作 Base URL。</p>
           <div class="inline-cta"><div><strong>还没有接入参数？</strong><p>先创建账户和密钥，再回到本页继续配置。</p></div><a class="button" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">注册并获取 API Key ↗</a></div>
@@ -65,7 +65,7 @@
 model = "YOUR_MODEL_ID"
 
 [model_providers.keyzhongzhuan]
-name = "Key智中转"
+name = "key智API"
 base_url = "https://aitokey.top/v1"
 env_key = "KEYZHONGZHUAN_API_KEY"
 wire_api = "responses"
@@ -114,13 +114,13 @@ codex</code></pre>
         </section>
 
         <section class="closing-cta" aria-labelledby="start-title">
-          <p class="eyebrow">开始接入</p><h2 id="start-title">把教程里的步骤，变成你的第一次调用。</h2><p>在 Key智中转创建 API Key，按图文说明配置客户端，并在控制台查看自己的调用用量。</p>
-          <div class="cta-actions"><a class="button" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">前往 Key智中转 ↗</a><a href="/usage-guide/guide.html">查看完整接入说明 →</a></div>
+          <p class="eyebrow">开始接入</p><h2 id="start-title">把教程里的步骤，变成你的第一次调用。</h2><p>在 key智API创建 API Key，按图文说明配置客户端，并在控制台查看自己的调用用量。</p>
+          <div class="cta-actions"><a class="button" href="/register?utm_source=guide&amp;utm_medium=organic&amp;utm_campaign=codex-setup">前往 key智API ↗</a><a href="/usage-guide/guide.html">查看完整接入说明 →</a></div>
         </section>
       </div>
     </article>
     <aside class="sidebar" aria-label="本页目录"><div class="toc"><p class="eyebrow">本页内容</p><nav aria-label="文章目录"><a href="#prepare">01　接入前准备</a><a href="#api-key">02　创建 API Key</a><a href="#configure">03　配置 Codex</a><a href="#verify">04　验证连接</a><a href="#troubleshooting">05　常见故障排查</a><a href="#faq">06　常见问题</a></nav><div class="sidebar-help"><strong>跟着截图操作</strong><p>密钥创建、CC Switch 导入与客户端配置。</p><a href="/usage-guide/guide.html">打开图文说明 ↗</a></div></div></aside>
   </main>
-  <footer class="site-footer"><span>© 2026 Key智中转 · 开发者教程</span><a href="/home">访问中转站 ↗</a><a href="#main">回到顶部 ↑</a></footer>
+  <footer class="site-footer"><span>© 2026 key智API · 开发者教程</span><a href="/home">访问中转站 ↗</a><a href="#main">回到顶部 ↑</a></footer>
 </body>
 </html>

@@ -74,7 +74,7 @@ import { sanitizeUrl } from '@/utils/url'
 
 const appStore = useAppStore()
 
-const siteName = computed(() => appStore.siteName || 'Key 智中转')
+const siteName = computed(() => appStore.siteName || 'key智API')
 const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
 const currentYear = computed(() => new Date().getFullYear())
 
