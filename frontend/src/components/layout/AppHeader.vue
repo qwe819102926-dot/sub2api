@@ -23,6 +23,7 @@
 
       <!-- Right: Announcements + Docs + Language + Subscriptions + Balance + User Dropdown -->
       <div class="flex min-w-0 items-center gap-1 sm:gap-3">
+        <DailyCheckinDialog v-if="user" :key="user.id" />
         <!-- Customer service entry -->
         <CustomerServiceButton />
 
@@ -277,6 +278,7 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import CustomerServiceButton from '@/components/common/CustomerServiceButton.vue'
+import DailyCheckinDialog from '@/components/payment/DailyCheckinDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { paymentAPI } from '@/api/payment'

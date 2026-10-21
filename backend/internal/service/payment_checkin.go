@@ -7,9 +7,31 @@ import (
 	"time"
 )
 
-// DailyCheckinRewardCycle is the recurring seven-day bonus-balance reward.
-// Check-in rewards are always credited to bonus_balance, never principal balance.
-var dailyCheckinRewardCycle = []float64{0.10, 0.10, 0.20, 0.20, 0.30, 0.50, 1.00}
+const (
+	dailyCheckinCycleLength = 30
+	dailyCheckinBaseReward  = 10.0
+)
+
+var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
+
+type DailyCheckinMilestone struct {
+	Day    int     `json:"day"`
+	Reward float64 `json:"reward"`
+}
+
+// Milestone rewards are the entire gift for that day, replacing the daily 10.
+var dailyCheckinMilestones = []DailyCheckinMilestone{{Day: 3, Reward: 20}, {Day: 7, Reward: 30}, {Day: 15, Reward: 50}, {Day: 30, Reward: 100}}
+
+var dailyCheckinRewardCycle = func() []float64 {
+	cycle := make([]float64, dailyCheckinCycleLength)
+	for i := range cycle {
+		cycle[i] = dailyCheckinBaseReward
+	}
+	for _, milestone := range dailyCheckinMilestones {
+		cycle[milestone.Day-1] = milestone.Reward
+	}
+	return cycle
+}()
 
 type DailyCheckinRecord struct {
 	Date      string  `json:"date"`
@@ -19,16 +41,27 @@ type DailyCheckinRecord struct {
 }
 
 type DailyCheckinStatus struct {
-	CheckedInToday bool                 `json:"checked_in_today"`
-	CurrentStreak  int                  `json:"current_streak"`
-	TotalDays      int                  `json:"total_days"`
-	TotalReward    float64              `json:"total_reward"`
-	CycleDay       int                  `json:"cycle_day"`
-	CycleLength    int                  `json:"cycle_length"`
-	TodayReward    float64              `json:"today_reward"`
-	RewardCycle    []float64            `json:"reward_cycle"`
-	Month          string               `json:"month"`
-	Records        []DailyCheckinRecord `json:"records"`
+	CheckedInToday  bool                    `json:"checked_in_today"`
+	CurrentStreak   int                     `json:"current_streak"`
+	TotalDays       int                     `json:"total_days"`
+	TotalReward     float64                 `json:"total_reward"`
+	CycleDay        int                     `json:"cycle_day"`
+	CycleLength     int                     `json:"cycle_length"`
+	TodayReward     float64                 `json:"today_reward"`
+	RewardCycle     []float64               `json:"reward_cycle"`
+	Month           string                  `json:"month"`
+	Records         []DailyCheckinRecord    `json:"records"`
+	Today           string                  `json:"today"`
+	NextResetAt     string                  `json:"next_reset_at"`
+	OrdinaryRewards []float64               `json:"ordinary_rewards"`
+	Milestones      []DailyCheckinMilestone `json:"milestones"`
+}
+
+// Store the business calendar date as UTC midnight so PostgreSQL DATE values
+// are independent of the application host's timezone.
+func dailyCheckinDate(now time.Time) time.Time {
+	local := now.In(dailyCheckinLocation)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
 }
 
 func dailyCheckinReward(streakDay int) float64 {
@@ -39,7 +72,8 @@ func dailyCheckinReward(streakDay int) float64 {
 }
 
 func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64, month string) (*DailyCheckinStatus, error) {
-	now := time.Now()
+	now := time.Now().In(dailyCheckinLocation)
+	today := dailyCheckinDate(now)
 	if month == "" {
 		month = now.Format("2006-01")
 	}
@@ -49,10 +83,14 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 	}
 	monthEnd := monthStart.AddDate(0, 1, 0)
 	status := &DailyCheckinStatus{
-		CycleLength: len(dailyCheckinRewardCycle),
-		RewardCycle: append([]float64(nil), dailyCheckinRewardCycle...),
-		Month:       month,
-		Records:     make([]DailyCheckinRecord, 0),
+		CycleLength:     len(dailyCheckinRewardCycle),
+		RewardCycle:     append([]float64(nil), dailyCheckinRewardCycle...),
+		Month:           month,
+		Records:         make([]DailyCheckinRecord, 0),
+		Today:           today.Format("2006-01-02"),
+		NextResetAt:     time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, dailyCheckinLocation).Format(time.RFC3339),
+		OrdinaryRewards: []float64{dailyCheckinBaseReward},
+		Milestones:      append([]DailyCheckinMilestone(nil), dailyCheckinMilestones...),
 	}
 	rows, err := s.entClient.QueryContext(ctx, `
 		SELECT checkin_date, streak_day, reward_amount, created_at
@@ -86,8 +124,12 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 		return nil, err
 	}
 	if !rows.Next() {
+		err := rows.Err()
 		_ = rows.Close()
-		return nil, rows.Err()
+		if err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("missing check-in totals")
 	}
 	if err := rows.Scan(&totalDays, &status.TotalReward); err != nil {
 		_ = rows.Close()
@@ -95,23 +137,16 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 	}
 	_ = rows.Close()
 	status.TotalDays = totalDays
-	if len(status.Records) > 0 {
-		last := status.Records[len(status.Records)-1]
-		lastDate, _ := time.Parse("2006-01-02", last.Date)
-		if lastDate.AddDate(0, 0, 1).Equal(now.Truncate(24*time.Hour)) || lastDate.Equal(now.Truncate(24*time.Hour)) {
-			status.CurrentStreak = last.StreakDay
-		}
-	}
-	// The current streak may be in a previous month, so read the latest row when
-	// the selected month does not contain it.
+	// Today's claim and streak must not change when browsing another month.
 	var latestDate time.Time
 	var latestStreak int
-	rows, err = s.entClient.QueryContext(ctx, `SELECT checkin_date, streak_day FROM user_daily_checkins WHERE user_id = $1 ORDER BY checkin_date DESC LIMIT 1`, userID)
+	var latestReward float64
+	rows, err = s.entClient.QueryContext(ctx, `SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins WHERE user_id = $1 ORDER BY checkin_date DESC LIMIT 1`, userID)
 	if err != nil {
 		return nil, err
 	}
 	if rows.Next() {
-		if err := rows.Scan(&latestDate, &latestStreak); err != nil {
+		if err := rows.Scan(&latestDate, &latestStreak, &latestReward); err != nil {
 			_ = rows.Close()
 			return nil, err
 		}
@@ -121,17 +156,14 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 	}
 	_ = rows.Close()
 	if !latestDate.IsZero() {
-		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 		latest := time.Date(latestDate.Year(), latestDate.Month(), latestDate.Day(), 0, 0, 0, 0, time.UTC)
 		if latest.Equal(today) || latest.AddDate(0, 0, 1).Equal(today) {
 			status.CurrentStreak = latestStreak
 		}
-	}
-	for _, record := range status.Records {
-		if record.Date == now.Format("2006-01-02") {
+		if latest.Equal(today) {
 			status.CheckedInToday = true
-			status.CycleDay = ((record.StreakDay - 1) % status.CycleLength) + 1
-			status.TodayReward = record.Reward
+			status.CycleDay = ((latestStreak - 1) % status.CycleLength) + 1
+			status.TodayReward = latestReward
 		}
 	}
 	if !status.CheckedInToday {
@@ -142,8 +174,7 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 }
 
 func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*DailyCheckinStatus, error) {
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	today := dailyCheckinDate(time.Now())
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("start check-in transaction: %w", err)

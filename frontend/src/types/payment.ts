@@ -107,6 +107,10 @@ export interface DailyCheckinStatus {
   reward_cycle: number[]
   month: string
   records: DailyCheckinRecord[]
+  today: string
+  next_reset_at: string
+  ordinary_rewards: number[]
+  milestones: { day: number; reward: number }[]
 }
 
 export interface MethodLimit {
