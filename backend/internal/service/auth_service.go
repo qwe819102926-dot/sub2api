@@ -245,7 +245,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Status:       StatusActive,
 	}
 
-	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode); err != nil {
+	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode, affiliateCode); err != nil {
 		// 优先检查邮箱冲突错误（竞态条件下可能发生）
 		switch {
 		case errors.Is(err, ErrEmailExists):
@@ -620,7 +620,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				SignupSource: signupSource,
 			}
 
-			if err := s.userRepo.Create(ctx, newUser); err != nil {
+			if err := s.createOAuthSignupUser(ctx, newUser, nil, ""); err != nil {
 				if errors.Is(err, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
 					user, err = s.userRepo.GetByEmail(ctx, email)
@@ -778,7 +778,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				defer func() { _ = tx.Rollback() }()
 				txCtx := dbent.NewTxContext(ctx, tx)
 
-				if err := s.userRepo.Create(txCtx, newUser); err != nil {
+				if err := s.createOAuthSignupUser(txCtx, newUser, nil, affiliateCode); err != nil {
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -806,7 +806,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 					s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 				}
 			} else {
-				if err := s.userRepo.Create(ctx, newUser); err != nil {
+				if err := s.createOAuthSignupUser(ctx, newUser, nil, affiliateCode); err != nil {
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -896,8 +896,14 @@ func (s *AuthService) assignSubscriptions(ctx context.Context, userID int64, ite
 	}
 }
 
-func (s *AuthService) resolveSignupGrantPlan(ctx context.Context, signupSource string) signupGrantPlan {
-	plan := signupGrantPlan{}
+func (s *AuthService) resolveSignupGrantPlan(ctx context.Context, signupSource string) (plan signupGrantPlan) {
+	defer func() {
+		if s != nil && s.settingService != nil {
+			if cfg, err := s.settingService.GetSignupPromotionConfig(ctx); err == nil && cfg.SignupBonusEnabled {
+				plan.Balance = 0
+			}
+		}
+	}()
 	if s != nil && s.cfg != nil {
 		plan.Balance = s.cfg.Default.UserBalance
 		plan.Concurrency = s.cfg.Default.UserConcurrency
@@ -1282,12 +1288,37 @@ func (s *AuthService) createUserWithRegistrationEmailGuard(ctx context.Context, 
 //   - 并发下只有一个事务能占用成功，其余事务回滚——既不产生多余账号，也不让码被烧掉；
 //   - 事务回滚同时撤销用户创建，避免“账号已建、码被占用”的中间态。
 //
-// 无邀请码时保持原单次创建路径（不开事务）；entClient 缺失的异常配置下退化为顺序执行，
-// 并发正确性仍由 Use 的条件更新兜底（可能产生孤儿用户，但不会放行第二个注册）。
-func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *User, invitation *RedeemCode) error {
+// 注册奖励开启时，即使没有一次性邀请码也开启事务，保证建号、绑定邀请人和双方奖励原子提交。
+func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *User, invitation *RedeemCode, affiliateCodes ...string) error {
+	var affiliateCode string
+	if len(affiliateCodes) > 0 {
+		affiliateCode = affiliateCodes[0]
+	}
+	return s.createSignupUser(ctx, user, invitation, affiliateCode, s.createUserWithRegistrationEmailGuard)
+}
+
+// Provider-generated identities must not be subjected to the local email-domain
+// allowlist (e.g. linuxdo synthetic addresses), but still use mailbox alias locks.
+func (s *AuthService) createOAuthSignupUser(ctx context.Context, user *User, invitation *RedeemCode, affiliateCode string) error {
+	return s.createSignupUser(ctx, user, invitation, affiliateCode, s.userRepo.CreateWithEmailAliasGuard)
+}
+
+func (s *AuthService) createSignupUser(ctx context.Context, user *User, invitation *RedeemCode, affiliateCode string, create func(context.Context, *User) error) error {
+	promotion, err := s.settingService.GetSignupPromotionConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if (promotion.SignupBonusEnabled || promotion.InviteBonusEnabled) && (s.affiliateService == nil || s.entClient == nil) {
+		return ErrServiceUnavailable
+	}
 	commitUser := func(execCtx context.Context) error {
-		if err := s.createUserWithRegistrationEmailGuard(execCtx, user); err != nil {
+		if err := create(execCtx, user); err != nil {
 			return err
+		}
+		if s.affiliateService != nil {
+			if err := s.affiliateService.ApplySignupPromotion(execCtx, user.ID, affiliateCode); err != nil {
+				return err
+			}
 		}
 		if invitation == nil {
 			return nil
@@ -1305,7 +1336,7 @@ func (s *AuthService) createUserAndClaimInvitation(ctx context.Context, user *Us
 		return nil
 	}
 
-	if invitation == nil {
+	if dbent.TxFromContext(ctx) != nil || (invitation == nil && !promotion.SignupBonusEnabled && !promotion.InviteBonusEnabled) {
 		return commitUser(ctx)
 	}
 	if s.entClient == nil {

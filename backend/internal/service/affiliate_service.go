@@ -274,9 +274,16 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 	if s == nil || s.repo == nil {
 		return infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
-	// 总开关关闭时，注册阶段静默忽略 aff 参数（不报错，避免阻断注册流程）
+	// Either program may bind a referral; disabling recharge rebates must not
+	// disable registration gifts. Ignore the code when both programs are off.
 	if !s.IsEnabled(ctx) {
-		return nil
+		promotion, err := s.settingService.GetSignupPromotionConfig(ctx)
+		if err != nil {
+			return err
+		}
+		if !promotion.InviteBonusEnabled {
+			return nil
+		}
 	}
 	if !isValidAffiliateCodeFormat(code) {
 		return ErrAffiliateCodeInvalid

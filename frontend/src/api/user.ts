@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from './client'
+import type { SignupPromotionDetail } from '@/types'
 import {
   resolveWeChatOAuthStartStrict,
   prepareOAuthBindAccessTokenCookie,
@@ -176,6 +177,11 @@ export async function startOAuthBinding(
   window.location.href = startURL
 }
 
+export async function getSignupPromotion(page = 1): Promise<SignupPromotionDetail> {
+  const { data } = await apiClient.get<SignupPromotionDetail>('/user/invite-rewards', { params: { page, page_size: 20 } })
+  return data
+}
+
 export async function getAffiliateDetail(): Promise<UserAffiliateDetail> {
   const { data } = await apiClient.get<UserAffiliateDetail>('/user/aff')
   return data
@@ -207,6 +213,7 @@ export const userAPI = {
   unbindAuthIdentity,
   buildOAuthBindingStartURL,
   startOAuthBinding,
+  getSignupPromotion,
   getAffiliateDetail,
   transferAffiliateQuota,
   getMyPlatformQuotas,

@@ -1119,6 +1119,22 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(payload).not.toHaveProperty("payment_visible_method_wxpay_enabled");
   });
 
+  it("saves signup gifts and invitation rewards independently of disabled recharge rebates", async () => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse, affiliate_enabled: false,
+      signup_bonus_enabled: true, signup_bonus_amount: 50,
+      invite_bonus_enabled: true, invite_bonus_amount: 50,
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      affiliate_enabled: false, signup_bonus_enabled: true, signup_bonus_amount: 50,
+      invite_bonus_enabled: true, invite_bonus_amount: 50,
+    }));
+  });
+
   it("submits the admin recharge affiliate rebate setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

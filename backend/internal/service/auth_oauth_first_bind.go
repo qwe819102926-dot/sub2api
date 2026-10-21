@@ -51,6 +51,13 @@ func (s *AuthService) applyProviderDefaultSettingsOnFirstBind(
 	if !enabled {
 		return nil
 	}
+	promotion, err := s.settingService.GetSignupPromotionConfig(ctx)
+	if err != nil {
+		return err
+	}
+	if promotion.SignupBonusEnabled {
+		providerDefaults.Balance = 0
+	}
 
 	client := s.entClient
 	if tx := dbent.TxFromContext(ctx); tx != nil {

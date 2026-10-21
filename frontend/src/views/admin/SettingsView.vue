@@ -7490,6 +7490,31 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('inviteRewards.settingsTitle') }}</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('inviteRewards.settingsHint') }}</p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between gap-4">
+              <label class="text-sm font-medium">{{ t('inviteRewards.signupEnabled') }}</label>
+              <Toggle v-model="form.signup_bonus_enabled" />
+            </div>
+            <div v-if="form.signup_bonus_enabled">
+              <label for="signup-bonus-amount" class="input-label">{{ t('inviteRewards.signupAmount') }}</label>
+              <input id="signup-bonus-amount" v-model.number="form.signup_bonus_amount" type="number" min="0" max="1000000" step="0.01" class="input" />
+            </div>
+            <div class="flex items-center justify-between gap-4">
+              <label class="text-sm font-medium">{{ t('inviteRewards.inviteEnabled') }}</label>
+              <Toggle v-model="form.invite_bonus_enabled" />
+            </div>
+            <div v-if="form.invite_bonus_enabled">
+              <label for="invite-bonus-amount" class="input-label">{{ t('inviteRewards.inviteAmount') }}</label>
+              <input id="invite-bonus-amount" v-model.number="form.invite_bonus_amount" type="number" min="0" max="1000000" step="0.01" class="input" />
+            </div>
+          </div>
+        </div>
+
         <!-- Affiliate (邀请返利) feature card -->
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -9696,6 +9721,10 @@ type SettingsForm = Omit<
   channel_monitor_hide_throughput: boolean;
   channel_monitor_show_quota: boolean;
   channel_monitor_hide_user_ranking: boolean;
+  signup_bonus_enabled: boolean;
+  signup_bonus_amount: number;
+  invite_bonus_enabled: boolean;
+  invite_bonus_amount: number;
   smtp_password: string;
   turnstile_secret_key: string;
   tencent_captcha_app_secret_key: string;
@@ -10022,6 +10051,11 @@ const form = reactive<SettingsForm>({
   plugin_management_enabled: false,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
+  signup_bonus_enabled: false,
+  signup_bonus_amount: 50,
+  invite_bonus_enabled: false,
+  invite_bonus_amount: 50,
+
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
@@ -11686,6 +11720,11 @@ async function saveSettings() {
       plugin_management_enabled: form.plugin_management_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
+      signup_bonus_enabled: form.signup_bonus_enabled,
+      signup_bonus_amount: form.signup_bonus_amount,
+      invite_bonus_enabled: form.invite_bonus_enabled,
+      invite_bonus_amount: form.invite_bonus_amount,
+
       allow_user_view_error_requests: form.allow_user_view_error_requests,
     };
 

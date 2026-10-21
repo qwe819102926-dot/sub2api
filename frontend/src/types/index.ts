@@ -146,6 +146,21 @@ export interface RegisterRequest {
   aff_code?: string
 }
 
+export interface SignupPromotionDetail {
+  signup_bonus_enabled: boolean
+  signup_bonus_amount: number
+  invite_bonus_enabled: boolean
+  invite_bonus_amount: number
+  aff_code: string
+  invited_count: number
+  total_bonus: number
+  page: number
+  page_size: number
+  records: { user_id: number; email: string; created_at: string; amount: number; status: 'credited' | 'no_reward' }[]
+  legacy_quota: number
+  legacy_frozen_quota: number
+}
+
 export interface AffiliateInvitee {
   user_id: number
   email: string
@@ -283,6 +298,11 @@ export interface PublicSettings {
   plugin_management_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
+  signup_bonus_enabled?: boolean
+  signup_bonus_amount?: number
+  invite_bonus_enabled?: boolean
+  invite_bonus_amount?: number
+
   allow_user_view_error_requests?: boolean
 }
 

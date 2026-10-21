@@ -298,6 +298,11 @@ func (s *AuthService) FinalizeOAuthEmailAccount(
 	s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 	// snapshot user × platform quota（fail-open）
 	_ = s.snapshotPlatformQuotaDefaults(ctx, user.ID, &grantPlan)
+	if s.affiliateService != nil {
+		if err := s.affiliateService.ApplySignupPromotion(ctx, user.ID, affiliateCode); err != nil {
+			return err
+		}
+	}
 	s.bindOAuthAffiliate(ctx, user.ID, affiliateCode)
 	return nil
 }

@@ -591,6 +591,18 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ModelPlazaDescription != after.ModelPlazaDescription {
 		changed = append(changed, "model_plaza_description")
 	}
+	if before.SignupBonusEnabled != after.SignupBonusEnabled {
+		changed = append(changed, "signup_bonus_enabled")
+	}
+	if before.SignupBonusAmount != after.SignupBonusAmount {
+		changed = append(changed, "signup_bonus_amount")
+	}
+	if before.InviteBonusEnabled != after.InviteBonusEnabled {
+		changed = append(changed, "invite_bonus_enabled")
+	}
+	if before.InviteBonusAmount != after.InviteBonusAmount {
+		changed = append(changed, "invite_bonus_amount")
+	}
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
 	}

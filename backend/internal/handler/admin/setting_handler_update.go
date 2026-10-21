@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"math"
 	"net/http"
 	"reflect"
 	"strconv"
@@ -354,7 +355,11 @@ type UpdateSettingsRequest struct {
 	PluginManagementEnabled *bool `json:"plugin_management_enabled"`
 
 	// Affiliate (邀请返利) feature switch
-	AffiliateEnabled *bool `json:"affiliate_enabled"`
+	AffiliateEnabled   *bool    `json:"affiliate_enabled"`
+	SignupBonusEnabled *bool    `json:"signup_bonus_enabled"`
+	SignupBonusAmount  *float64 `json:"signup_bonus_amount"`
+	InviteBonusEnabled *bool    `json:"invite_bonus_enabled"`
+	InviteBonusAmount  *float64 `json:"invite_bonus_amount"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -511,6 +516,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	sessionBindingEnabled := previousSettings.SessionBindingEnabled
 	if req.SessionBindingEnabled != nil {
 		sessionBindingEnabled = *req.SessionBindingEnabled
+	}
+	for _, amount := range []*float64{req.SignupBonusAmount, req.InviteBonusAmount} {
+		if amount != nil && (math.IsNaN(*amount) || math.IsInf(*amount, 0) || *amount < 0 || *amount > 1000000) {
+			response.BadRequest(c, "Promotion bonus must be between 0 and 1000000")
+			return
+		}
 	}
 	stepUpEnabled := previousSettings.StepUpEnabled
 	if req.StepUpEnabled != nil {
@@ -1963,6 +1974,30 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.PluginManagementEnabled
 		}(),
+		SignupBonusEnabled: func() bool {
+			if req.SignupBonusEnabled != nil {
+				return *req.SignupBonusEnabled
+			}
+			return previousSettings.SignupBonusEnabled
+		}(),
+		SignupBonusAmount: func() float64 {
+			if req.SignupBonusAmount != nil {
+				return *req.SignupBonusAmount
+			}
+			return previousSettings.SignupBonusAmount
+		}(),
+		InviteBonusEnabled: func() bool {
+			if req.InviteBonusEnabled != nil {
+				return *req.InviteBonusEnabled
+			}
+			return previousSettings.InviteBonusEnabled
+		}(),
+		InviteBonusAmount: func() float64 {
+			if req.InviteBonusAmount != nil {
+				return *req.InviteBonusAmount
+			}
+			return previousSettings.InviteBonusAmount
+		}(),
 		AffiliateEnabled: func() bool {
 			if req.AffiliateEnabled != nil {
 				return *req.AffiliateEnabled
@@ -2389,7 +2424,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaDescription:   updatedSettings.ModelPlazaDescription,
 		PluginManagementEnabled: updatedSettings.PluginManagementEnabled,
 
-		AffiliateEnabled: updatedSettings.AffiliateEnabled,
+		AffiliateEnabled:   updatedSettings.AffiliateEnabled,
+		SignupBonusEnabled: updatedSettings.SignupBonusEnabled,
+		SignupBonusAmount:  updatedSettings.SignupBonusAmount,
+		InviteBonusEnabled: updatedSettings.InviteBonusEnabled,
+		InviteBonusAmount:  updatedSettings.InviteBonusAmount,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,

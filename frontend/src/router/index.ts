@@ -275,6 +275,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/invite-rewards',
+    name: 'InviteRewards',
+    component: () => import('@/views/user/InviteRewardsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Invite & Earn',
+      titleKey: 'inviteRewards.title',
+      descriptionKey: 'inviteRewards.eyebrow'
+    }
+  },
+  {
     path: '/affiliate',
     name: 'Affiliate',
     component: () => import('@/views/user/AffiliateView.vue'),

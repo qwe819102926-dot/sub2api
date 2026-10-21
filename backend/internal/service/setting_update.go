@@ -99,6 +99,11 @@ func (s *SettingService) refreshCachedSettingsAfterWrite(ctx context.Context, se
 }
 
 func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, settings *SystemSettings) (map[string]string, error) {
+	for _, amount := range []float64{settings.SignupBonusAmount, settings.InviteBonusAmount} {
+		if math.IsNaN(amount) || math.IsInf(amount, 0) || amount < 0 || amount > 1000000 {
+			return nil, infraerrors.BadRequest("INVALID_PROMOTION_BONUS", "promotion bonus must be between 0 and 1000000")
+		}
+	}
 	if err := s.validateDefaultSubscriptionGroups(ctx, settings.DefaultSubscriptions); err != nil {
 		return nil, err
 	}
@@ -440,6 +445,10 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyPluginManagementEnabled] = strconv.FormatBool(settings.PluginManagementEnabled)
 
 	// Affiliate (邀请返利) feature switch
+	updates[SettingKeySignupBonusEnabled] = strconv.FormatBool(settings.SignupBonusEnabled)
+	updates[SettingKeySignupBonusAmount] = strconv.FormatFloat(settings.SignupBonusAmount, 'f', 8, 64)
+	updates[SettingKeyInviteBonusEnabled] = strconv.FormatBool(settings.InviteBonusEnabled)
+	updates[SettingKeyInviteBonusAmount] = strconv.FormatFloat(settings.InviteBonusAmount, 'f', 8, 64)
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 
 	// 风控中心功能开关

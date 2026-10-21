@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -204,6 +205,22 @@ func (h *UserHandler) GetAffiliate(c *gin.Context) {
 	}
 
 	detail, err := h.affiliateService.GetAffiliateDetail(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, detail)
+}
+
+func (h *UserHandler) GetSignupPromotion(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	detail, err := h.affiliateService.GetSignupPromotionDetail(c.Request.Context(), subject.UserID, page, pageSize)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

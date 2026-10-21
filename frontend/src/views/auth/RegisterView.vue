@@ -11,6 +11,10 @@
         </p>
       </div>
 
+      <div v-if="registrationEnabled && signupBonusAmount !== null" class="rounded-xl bg-primary-50 p-4 text-sm text-primary-700 dark:bg-primary-900/20 dark:text-primary-300">
+        {{ t('inviteRewards.signupRule', { amount: formatCurrency(signupBonusAmount) }) }}
+      </div>
+
       <!-- Registration Disabled Message -->
       <div
         v-if="!registrationEnabled && settingsLoaded"
@@ -333,6 +337,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatCurrency } from '@/utils/format'
 import { computed, ref, reactive, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -391,6 +396,7 @@ const emailVerifyEnabled = ref<boolean>(false)
 const promoCodeEnabled = ref<boolean>(true)
 const invitationCodeEnabled = ref<boolean>(false)
 const affiliateEnabled = ref<boolean>(false)
+const signupBonusAmount = ref<number | null>(null)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const tencentCaptchaEnabled = ref<boolean>(false)
@@ -525,7 +531,8 @@ onMounted(async () => {
     emailVerifyEnabled.value = settings.email_verify_enabled
     promoCodeEnabled.value = settings.promo_code_enabled
     invitationCodeEnabled.value = settings.invitation_code_enabled
-    affiliateEnabled.value = settings.affiliate_enabled
+    affiliateEnabled.value = settings.affiliate_enabled || settings.invite_bonus_enabled === true
+    signupBonusAmount.value = settings.signup_bonus_enabled ? (settings.signup_bonus_amount ?? 50) : null
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     tencentCaptchaEnabled.value = settings.tencent_captcha_enabled === true

@@ -1,0 +1,20 @@
+export default {
+  inviteRewards: {
+    title: '邀请有礼', eyebrow: '分享好用的 AI，一起获得奖励',
+    description: '每成功邀请一位新用户注册，即可获得 {amount} 赠送余额，自动到账。',
+    loading: '正在加载邀请奖励', loadFailed: '邀请奖励加载失败，请重试', retry: '重试',
+    paused: '邀请奖励活动已暂停，历史邀请记录和已到账奖励继续保留。', wallet: '查看钱包',
+    invitedCount: '成功邀请人数', countHint: '仅统计本次活动期间通过你的邀请成功注册的用户',
+    totalBonus: '累计获得赠送余额', totalHint: '仅统计邀请注册奖励，消费后不会减少；剩余额度请查看钱包。',
+    shareTitle: '分享你的专属邀请', code: '我的邀请码', link: '专属邀请链接', copy: '复制', copyLink: '复制链接', copied: '已复制',
+    signupRule: '新用户首次注册获得 {amount} 赠送余额，每人仅限一次。',
+    inviteRule: '通过有效邀请链接成功注册后，直接邀请人获得 {amount} 赠送余额。',
+    rules: '奖励直接进入赠送余额，无需领取或转入；按现有赠送余额规则消费。已有账号登录或绑定第三方不重复发放，历史邀请不补发。',
+    records: '邀请明细', refresh: '刷新', empty: '还没有邀请记录，复制邀请链接分享给朋友吧。', emptyPaused: '暂无邀请记录，活动暂停期间不会产生新的邀请奖励。',
+    account: '受邀用户', date: '注册时间', amount: '赠送余额', status: '到账状态', credited: '已到账', noReward: '未发放奖励', previous: '上一页', next: '下一页',
+    legacyTitle: '历史返利权益', legacyHint: '可转入 {available}，冻结中 {frozen}。旧充值返利关闭后，原有权益仍按原规则保留。',
+    legacyTransfer: '将历史返利转入普通余额', legacySuccess: '历史返利已转入普通余额', legacyFailed: '转入失败，请重试',
+    settingsTitle: '注册赠送与邀请有礼', settingsHint: '独立于旧邀请返利。奖励直接进入赠送余额，不计入充值金额。开启注册赠送后，注册默认普通余额不再叠加。',
+    signupEnabled: '开启新用户注册赠送', signupAmount: '每位新用户赠送金额', inviteEnabled: '开启邀请注册奖励', inviteAmount: '每成功邀请一人赠送金额',
+  },
+}

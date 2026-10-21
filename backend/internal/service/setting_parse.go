@@ -208,7 +208,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPluginManagementEnabled: "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
-		SettingKeyAffiliateEnabled:              "false",
+		SettingKeyAffiliateEnabled:   "false",
+		SettingKeySignupBonusEnabled: "false",
+		SettingKeySignupBonusAmount:  "50",
+		SettingKeyInviteBonusEnabled: "false",
+		SettingKeyInviteBonusAmount:  "50",
+
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
 		// 风控中心功能（默认关闭，显式启用）
@@ -827,6 +832,11 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.PluginManagementEnabled = settings[SettingKeyPluginManagementEnabled] == "true"
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
+	promotion := promotionConfigFromValues(settings)
+	result.SignupBonusEnabled = promotion.SignupBonusEnabled
+	result.SignupBonusAmount = promotion.SignupBonusAmount
+	result.InviteBonusEnabled = promotion.InviteBonusEnabled
+	result.InviteBonusAmount = promotion.InviteBonusAmount
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 
 	// 风控中心功能（默认关闭，严格 true 才启用）

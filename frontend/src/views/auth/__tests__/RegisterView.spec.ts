@@ -33,6 +33,7 @@ vi.mock('vue-router', () => ({
 vi.mock('vue-i18n', () => ({
   createI18n: () => ({
     global: {
+      locale: { value: 'en' },
       t: (key: string) => key
     }
   }),
@@ -88,6 +89,22 @@ describe('RegisterView invitation layout', () => {
     showErrorMock.mockReset()
     getPublicSettingsMock.mockResolvedValue(publicSettings)
     registerMock.mockResolvedValue({})
+  })
+
+  it('accepts a referral and advertises signup gifts when legacy commissions are disabled', async () => {
+    getPublicSettingsMock.mockResolvedValueOnce({
+      ...publicSettings, affiliate_enabled: false, invite_bonus_enabled: true,
+      signup_bonus_enabled: true, signup_bonus_amount: 50, turnstile_enabled: false,
+    })
+    const wrapper = mountRegister()
+    await flushPromises()
+    expect(wrapper.text()).toContain('inviteRewards.signupRule')
+    await wrapper.get('#email').setValue('friend@example.com')
+    await wrapper.get('#password').setValue('secret-123')
+    await wrapper.get('#affiliate_code').setValue('FRIEND2026')
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({ aff_code: 'FRIEND2026' }))
   })
 
   it('keeps the optional affiliate invitation field before Turnstile', async () => {

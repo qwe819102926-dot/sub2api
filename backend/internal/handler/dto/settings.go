@@ -332,7 +332,11 @@ type SystemSettings struct {
 	CyberSessionBlockTTLSeconds int  `json:"cyber_session_block_ttl_seconds"`
 
 	// Affiliate (邀请返利) feature switch
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled   bool    `json:"affiliate_enabled"`
+	SignupBonusEnabled bool    `json:"signup_bonus_enabled"`
+	SignupBonusAmount  float64 `json:"signup_bonus_amount"`
+	InviteBonusEnabled bool    `json:"invite_bonus_enabled"`
+	InviteBonusAmount  float64 `json:"invite_bonus_amount"`
 
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
@@ -428,7 +432,11 @@ type PublicSettings struct {
 	ModelPlazaRequireAuth   bool `json:"model_plaza_require_auth"`
 	PluginManagementEnabled bool `json:"plugin_management_enabled"`
 
-	AffiliateEnabled bool `json:"affiliate_enabled"`
+	AffiliateEnabled   bool    `json:"affiliate_enabled"`
+	SignupBonusEnabled bool    `json:"signup_bonus_enabled"`
+	SignupBonusAmount  float64 `json:"signup_bonus_amount"`
+	InviteBonusEnabled bool    `json:"invite_bonus_enabled"`
+	InviteBonusAmount  float64 `json:"invite_bonus_amount"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
 

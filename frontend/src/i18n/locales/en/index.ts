@@ -1,3 +1,4 @@
+import inviteRewards from './inviteRewards'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -8,6 +9,7 @@ import misc from './misc'
 import imageGeneration from './imageGeneration'
 
 export default {
+  ...inviteRewards,
   ...landing,
   ...common,
   ...dashboard,

@@ -742,6 +742,11 @@ export interface SystemSettings {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
+  signup_bonus_enabled?: boolean;
+  signup_bonus_amount?: number;
+  invite_bonus_enabled?: boolean;
+  invite_bonus_amount?: number;
+
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
@@ -1045,6 +1050,11 @@ export interface UpdateSettingsRequest {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
+  signup_bonus_enabled?: boolean;
+  signup_bonus_amount?: number;
+  invite_bonus_enabled?: boolean;
+  invite_bonus_amount?: number;
+
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
