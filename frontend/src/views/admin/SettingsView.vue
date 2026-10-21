@@ -10052,9 +10052,9 @@ const form = reactive<SettingsForm>({
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
   signup_bonus_enabled: false,
-  signup_bonus_amount: 10,
+  signup_bonus_amount: 20,
   invite_bonus_enabled: false,
-  invite_bonus_amount: 10,
+  invite_bonus_amount: 20,
 
   // Allow user view error requests
   allow_user_view_error_requests: false,

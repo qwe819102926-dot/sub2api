@@ -4,6 +4,7 @@ export default {
     welcomeMessage: '欢迎回来！这是您账户的概览。',
     balance: '余额',
     bonusBalance: '赠送余额',
+    bonusBalanceHint: '$10 赠送余额可抵扣 $1 余额的消费',
     apiKeys: 'API 密钥',
     todayRequests: '今日请求',
     todayCost: '今日消费',

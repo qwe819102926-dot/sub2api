@@ -4,6 +4,7 @@ export default {
     welcomeMessage: "Welcome back! Here's an overview of your account.",
     balance: 'Balance',
     bonusBalance: 'Bonus Balance',
+    bonusBalanceHint: '$10 in bonus balance can offset $1 of wallet-balance usage',
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
     todayCost: 'Today Cost',

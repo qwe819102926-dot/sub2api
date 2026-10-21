@@ -72,7 +72,7 @@ func TestPromotionSignupDoesNotStackDefaultPrincipal(t *testing.T) {
 func TestPromotionAmountParsingRejectsNonFiniteValues(t *testing.T) {
 	for _, value := range []string{"NaN", "+Inf", "-Inf", "-1", "bad", ""} {
 		cfg := promotionConfigFromValues(map[string]string{SettingKeySignupBonusAmount: value})
-		require.Equal(t, float64(10), cfg.SignupBonusAmount)
+		require.Equal(t, float64(20), cfg.SignupBonusAmount)
 	}
 	require.Zero(t, promotionConfigFromValues(map[string]string{SettingKeySignupBonusAmount: "0"}).SignupBonusAmount)
 }

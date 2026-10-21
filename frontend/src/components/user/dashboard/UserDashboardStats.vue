@@ -28,6 +28,7 @@
             {{ t('dashboard.bonusBalance') }}
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalanceHint') }}</p>
         </div>
       </div>
     </div>

@@ -67,7 +67,7 @@ func promotionConfigFromValues(values map[string]string) SignupPromotionConfig {
 	amount := func(key string) float64 {
 		v, err := strconv.ParseFloat(values[key], 64)
 		if err != nil || math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1000000 {
-			return 10
+			return 20
 		}
 		return QuantizeUsageBillingAmount(v)
 	}

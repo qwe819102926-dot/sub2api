@@ -532,7 +532,7 @@ onMounted(async () => {
     promoCodeEnabled.value = settings.promo_code_enabled
     invitationCodeEnabled.value = settings.invitation_code_enabled
     affiliateEnabled.value = settings.affiliate_enabled || settings.invite_bonus_enabled === true
-    signupBonusAmount.value = settings.signup_bonus_enabled ? (settings.signup_bonus_amount ?? 10) : null
+    signupBonusAmount.value = settings.signup_bonus_enabled ? (settings.signup_bonus_amount ?? 20) : null
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
     tencentCaptchaEnabled.value = settings.tencent_captcha_enabled === true
