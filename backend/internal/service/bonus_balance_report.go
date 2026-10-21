@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -133,8 +134,7 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		return nil, err
 	}
 	if !rows.Next() {
-		err = rows.Err()
-		rows.Close()
+		err = errors.Join(rows.Err(), rows.Close())
 		if err == nil {
 			err = sql.ErrNoRows
 		}
@@ -142,7 +142,7 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 	}
 	s := &result.Summary
 	err = rows.Scan(&s.Issued, &s.Consumed, &s.Remaining, &s.Adjustments, &s.HistoricalOutflow, &s.DeletedUserRemaining, &s.ReconciliationDifference)
-	rows.Close()
+	err = errors.Join(err, rows.Close())
 	if err != nil {
 		return nil, err
 	}
@@ -153,16 +153,13 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 	for rows.Next() {
 		var item BonusBalanceReportSource
 		if err := rows.Scan(&item.Source, &item.Amount, &item.Grants, &item.Users); err != nil {
-			rows.Close()
-			return nil, err
+			return nil, errors.Join(err, rows.Close())
 		}
 		result.Sources = append(result.Sources, item)
 	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
-	rows.Close()
 	search := ""
 	if id, err := strconv.ParseInt(f.Search, 10, 64); err == nil && id > 0 {
 		f.Search = strconv.FormatInt(id, 10)
@@ -175,15 +172,14 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		return nil, err
 	}
 	if !rows.Next() {
-		err = rows.Err()
-		rows.Close()
+		err = errors.Join(rows.Err(), rows.Close())
 		if err == nil {
 			err = sql.ErrNoRows
 		}
 		return nil, err
 	}
 	err = rows.Scan(&result.Total)
-	rows.Close()
+	err = errors.Join(err, rows.Close())
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +188,7 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var item BonusBalanceReportRecord
 		if err := rows.Scan(&item.ID, &item.UserID, &item.Email, &item.Source, &item.Amount, &item.BalanceAfter, &item.Historical, &item.CreatedAt, &item.UpdatedAt); err != nil {
@@ -200,5 +196,5 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		}
 		result.Records = append(result.Records, item)
 	}
-	return result, rows.Err()
+	return result, errors.Join(rows.Err(), rows.Close())
 }

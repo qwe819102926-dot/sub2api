@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -22,16 +23,13 @@ func (r *affiliateRepository) ApplySignupPromotion(ctx context.Context, userID i
 			if rows.Next() {
 				var id int64
 				if err := rows.Scan(&id); err != nil {
-					rows.Close()
-					return err
+					return errors.Join(err, rows.Close())
 				}
 				inviterID = &id
 			}
-			if err := rows.Err(); err != nil {
-				rows.Close()
+			if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 				return err
 			}
-			rows.Close()
 		}
 		signupBonus, inviteBonus := 0.0, 0.0
 		if config.SignupBonusEnabled {
@@ -143,7 +141,7 @@ func (r *affiliateRepository) GetSignupPromotionDetail(ctx context.Context, user
 	if err == nil {
 		err = rows.Err()
 	}
-	rows.Close()
+	err = errors.Join(err, rows.Close())
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +153,7 @@ WHERE p.inviter_id = $1 ORDER BY p.created_at DESC, p.user_id DESC LIMIT $2 OFFS
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var record service.SignupPromotionRecord
 		if err := rows.Scan(&record.UserID, &record.Email, &record.CreatedAt, &record.Amount, &record.Status); err != nil {
@@ -163,5 +161,5 @@ WHERE p.inviter_id = $1 ORDER BY p.created_at DESC, p.user_id DESC LIMIT $2 OFFS
 		}
 		detail.Records = append(detail.Records, record)
 	}
-	return detail, rows.Err()
+	return detail, errors.Join(rows.Err(), rows.Close())
 }
