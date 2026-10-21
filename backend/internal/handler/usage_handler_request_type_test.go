@@ -417,18 +417,20 @@ func TestUserUsagePrincipalCostCannotBeOverridden(t *testing.T) {
 
 func TestUserUsageDetailPrincipalCostAndOwnership(t *testing.T) {
 	for _, tc := range []struct {
-		name   string
-		userID int64
-		wallet float64
-		status int
-		amount string
+		name        string
+		userID      int64
+		wallet      float64
+		billingType int8
+		status      int
+		amount      string
 	}{
-		{"gift-only", 42, 0, http.StatusOK, `"actual_cost":0`},
-		{"mixed", 42, 0.4, http.StatusOK, `"actual_cost":0.4`},
-		{"other-user", 99, 0, http.StatusForbidden, ""},
+		{"gift-only", 42, 0, service.BillingTypeBalance, http.StatusOK, `"actual_cost":0`},
+		{"mixed", 42, 0.4, service.BillingTypeBalance, http.StatusOK, `"actual_cost":0.4`},
+		{"subscription", 42, 0, service.BillingTypeSubscription, http.StatusOK, `"actual_cost":1`},
+		{"other-user", 99, 0, service.BillingTypeBalance, http.StatusForbidden, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			repo := &userUsageRepoCapture{detail: &service.UsageLog{ID: 1, UserID: tc.userID, ActualCost: 1, WalletCost: &tc.wallet}}
+			repo := &userUsageRepoCapture{detail: &service.UsageLog{ID: 1, UserID: tc.userID, ActualCost: 1, WalletCost: &tc.wallet, BillingType: tc.billingType}}
 			router := newUserUsageRequestTypeTestRouter(repo)
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/usage/1", nil))

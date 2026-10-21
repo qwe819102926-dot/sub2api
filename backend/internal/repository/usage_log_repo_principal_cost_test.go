@@ -69,12 +69,12 @@ func TestUsageLogPrincipalCostPostgres(t *testing.T) {
 		(1,42,'model',1,'/v1/responses','/v1/responses',10,1,1,0,2.5,0,$1),
 		(2,42,'model',1,'/v1/responses','/v1/responses',10,1,1,0.4,1.5,0,$1),
 		(3,42,'model',1,'/v1/responses','/v1/responses',10,1,1,1,0,0,$1),
-		(4,42,'model',1,'/v1/responses','/v1/responses',10,1,1,1,0,1,$1),
+		(4,42,'model',1,'/v1/responses','/v1/responses',10,1,1,0,0,1,$1),
 		(5,42,'model',1,'/v1/responses','/v1/responses',10,1,1,NULL,NULL,0,$1),
 		(6,99,'model',1,'/v1/responses','/v1/responses',10,9,9,9,0,0,$1)`, now)
 	require.NoError(t, err)
 	repo := &usageLogRepository{sql: tx}
-	expected := []float64{0, 0.4, 1, 0, 1}
+	expected := []float64{0, 0.4, 1, 1, 1}
 	for i, want := range expected {
 		userLog, err := repo.GetByIDWithPrincipalCost(ctx, int64(i+1))
 		require.NoError(t, err)
@@ -103,13 +103,13 @@ func TestUsageLogPrincipalCostPostgres(t *testing.T) {
 			}
 		}
 		require.Equal(t, 5, logsCount)
-		require.InDelta(t, 2.4, sum, 1e-9)
+		require.InDelta(t, 3.4, sum, 1e-9)
 	}
 	start, end := now.Add(-time.Hour), now.Add(time.Hour)
 	for _, principalOnly := range []bool{true, false} {
 		want := 5.0
 		if principalOnly {
-			want = 2.4
+			want = 3.4
 		}
 		filters := UsageLogFilters{UserID: 42, StartTime: &start, EndTime: &end, PrincipalCostOnly: principalOnly}
 		stats, err := repo.GetStatsWithFilters(ctx, filters)
@@ -133,10 +133,10 @@ func TestUsageLogPrincipalCostPostgres(t *testing.T) {
 	}
 	dashboard, err := repo.GetUserDashboardStats(ctx, 42)
 	require.NoError(t, err)
-	require.InDelta(t, 2.4, dashboard.TotalActualCost, 1e-9)
-	require.InDelta(t, 2.4, dashboard.TodayActualCost, 1e-9)
+	require.InDelta(t, 3.4, dashboard.TotalActualCost, 1e-9)
+	require.InDelta(t, 3.4, dashboard.TodayActualCost, 1e-9)
 	require.Len(t, dashboard.ByPlatform, 1)
-	require.InDelta(t, 2.4, dashboard.ByPlatform[0].TotalActualCost, 1e-9)
+	require.InDelta(t, 3.4, dashboard.ByPlatform[0].TotalActualCost, 1e-9)
 	var rawCost, giftCost float64
 	require.NoError(t, tx.QueryRowContext(ctx, "SELECT actual_cost, bonus_cost FROM usage_logs WHERE id = 1").Scan(&rawCost, &giftCost))
 	require.Equal(t, 1.0, rawCost)

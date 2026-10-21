@@ -157,7 +157,7 @@ func (s *UsageService) GetByID(ctx context.Context, id int64) (*UsageLog, error)
 	return log, nil
 }
 
-// GetByIDForUser projects the principal cost without changing the stored bill.
+// GetByIDForUser excludes bonus deductions from balance charges while preserving subscription costs.
 func (s *UsageService) GetByIDForUser(ctx context.Context, id int64) (*UsageLog, error) {
 	type principalUsageReader interface {
 		GetByIDWithPrincipalCost(context.Context, int64) (*UsageLog, error)
@@ -174,9 +174,7 @@ func (s *UsageService) GetByIDForUser(ctx context.Context, id int64) (*UsageLog,
 		return log, err
 	}
 	copy := *log
-	if copy.BillingType != BillingTypeBalance {
-		copy.ActualCost = 0
-	} else if copy.WalletCost != nil {
+	if copy.BillingType == BillingTypeBalance && copy.WalletCost != nil {
 		copy.ActualCost = *copy.WalletCost
 	}
 	return &copy, nil
