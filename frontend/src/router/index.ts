@@ -672,7 +672,7 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/bonus-balance',
     name: 'AdminBonusBalance',
     component: () => import('@/views/admin/BonusBalanceView.vue'),
-    meta: { requiresAuth: true, requiresAdmin: true, title: 'Bonus Balance Report', titleKey: 'bonusBalanceAdmin.title', descriptionKey: 'bonusBalanceAdmin.description' }
+    meta: { requiresAuth: true, requiresAdmin: true, title: 'Bonus Points Report', titleKey: 'bonusBalanceAdmin.title', descriptionKey: 'bonusBalanceAdmin.description' }
   },
   {
     path: '/admin/affiliates',

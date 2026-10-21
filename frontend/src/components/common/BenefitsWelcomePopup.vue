@@ -57,9 +57,9 @@ const router = useRouter(); const appStore = useAppStore(); const authStore = us
 const rechargeBonusEnabled = ref(false); const consumptionEnabled = ref(false); const lotteryEnabled = ref(false)
 const affiliateEnabled = computed(() => appStore.cachedPublicSettings?.affiliate_enabled === true)
 const activities = computed(() => [
-  { id: 'recharge', icon: 'gift' as const, tone: 'coral', title: '充值赠送', description: '充值时按活动规则额外到账赠送额度，到账后可直接用于 API 消费。', action: '去充值', target: '/purchase', enabled: rechargeBonusEnabled.value },
+  { id: 'recharge', icon: 'gift' as const, tone: 'coral', title: '充值赠送', description: '充值时按活动规则额外到账赠送积分，到账后可直接用于 API 消费。', action: '去充值', target: '/purchase', enabled: rechargeBonusEnabled.value },
   { id: 'lottery', icon: 'sparkles' as const, tone: 'gold', title: '充值抽奖', description: '单次充值满 10 即可获得一次抽奖机会，奖品随机发放。', action: '查看奖励', target: '/dashboard?openLottery=1', enabled: lotteryEnabled.value },
-  { id: 'consumption', icon: 'chartBar' as const, tone: 'teal', title: '消费奖励', description: '累计消费达到阶梯目标后，可领取对应的赠送额度。', action: '进入主页面', target: '/dashboard#consumption-reward', enabled: consumptionEnabled.value },
+  { id: 'consumption', icon: 'chartBar' as const, tone: 'teal', title: '消费奖励', description: '累计消费达到阶梯目标后，可领取对应的赠送积分。', action: '进入主页面', target: '/dashboard#consumption-reward', enabled: consumptionEnabled.value },
 ])
 const hasActive = computed(() => rechargeBonusEnabled.value || consumptionEnabled.value || lotteryEnabled.value || affiliateEnabled.value)
 
