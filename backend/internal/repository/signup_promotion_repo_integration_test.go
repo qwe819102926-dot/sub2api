@@ -62,6 +62,16 @@ func TestSignupPromotion_ConcurrentDuplicateDelivery(t *testing.T) {
 	ctx := context.Background()
 	client := integrationEntClient
 	u := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("promotion-concurrent-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 1})
+	// This test commits across concurrent transactions, so clean up its foreign
+	// keys before later repository suites delete users from the shared database.
+	t.Cleanup(func() {
+		_, err := client.ExecContext(ctx, `DELETE FROM signup_promotion_grants WHERE source_user_id=$1`, u.ID)
+		require.NoError(t, err)
+		_, err = client.ExecContext(ctx, `DELETE FROM signup_promotions WHERE user_id=$1`, u.ID)
+		require.NoError(t, err)
+		_, err = client.ExecContext(ctx, `DELETE FROM users WHERE id=$1`, u.ID)
+		require.NoError(t, err)
+	})
 	repo := &affiliateRepository{client: client}
 	var wg sync.WaitGroup
 	errors := make(chan error, 8)
