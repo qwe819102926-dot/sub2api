@@ -18,7 +18,7 @@
     </div>
 
     <!-- Bonus Balance -->
-    <div v-if="!isSimple" class="card flex min-w-0 flex-col p-4" data-testid="bonus-balance-card">
+    <div v-if="!isSimple" class="card min-w-0 p-4" data-testid="bonus-balance-card">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
           <Icon name="gift" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
@@ -26,14 +26,17 @@
         <div>
           <p class="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t('dashboard.bonusBalance') }}
+            <HelpTooltip :content="t('dashboard.bonusBalanceHint')" trigger="click" width-class="w-64">
+              <template #trigger>
+                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="t('dashboard.bonusBalanceHint')">
+                  <Icon name="infoCircle" size="xs" />
+                </button>
+              </template>
+            </HelpTooltip>
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
-          <p class="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusEquivalent) }) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusEquivalent) }) }}</p>
         </div>
-      </div>
-      <div class="mt-4 flex items-start gap-1 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500 dark:border-dark-700 dark:text-gray-400">
-        <Icon name="infoCircle" size="xs" class="mt-1 shrink-0" />
-        <p>{{ t('dashboard.bonusBalanceHint') }}</p>
       </div>
     </div>
 
@@ -158,6 +161,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 
 const props = defineProps<{

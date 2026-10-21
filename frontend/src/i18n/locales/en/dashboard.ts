@@ -4,7 +4,7 @@ export default {
     welcomeMessage: "Welcome back! Here's an overview of your account.",
     balance: 'Balance',
     bonusBalance: 'Bonus Balance',
-    bonusBalanceEquivalent: 'Approximately {amount} of standard usage',
+    bonusBalanceEquivalent: '≈ {amount} of usage',
     bonusBalanceHint: 'Bonus balance is deducted at 10×: $1 of standard usage deducts $10 of bonus balance',
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
