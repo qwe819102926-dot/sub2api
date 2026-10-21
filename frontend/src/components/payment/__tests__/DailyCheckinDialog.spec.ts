@@ -19,9 +19,9 @@ function translate(key: string, params: Record<string, string | number> = {}) {
 function initialStatus(): DailyCheckinStatus {
   return {
     checked_in_today: false, current_streak: 3, total_days: 3, total_reward: 40,
-    cycle_day: 4, cycle_length: 30, today_reward: 10, reward_cycle: [],
+    cycle_day: 4, cycle_length: 30, today_reward: 5, reward_cycle: [],
     today: '2026-10-21', next_reset_at: '2026-10-22T00:00:00+08:00', month: '2026-10',
-    ordinary_rewards: [10], milestones: [{ day: 3, reward: 20 }, { day: 7, reward: 30 }, { day: 15, reward: 50 }, { day: 30, reward: 100 }],
+    ordinary_rewards: [5], milestones: [{ day: 3, reward: 10 }, { day: 7, reward: 30 }, { day: 15, reward: 50 }, { day: 30, reward: 100 }],
     records: [{ date: '2026-10-20', streak_day: 3, reward: 20, created_at: '2026-10-20T01:00:00Z' }]
   }
 }
@@ -34,8 +34,8 @@ async function render() {
 }
 async function open() { document.querySelector<HTMLButtonElement>('.ci-trigger')!.click(); await flushPromises() }
 function claimedStatus(): DailyCheckinStatus {
-  return { ...server, checked_in_today: true, current_streak: 4, total_days: 4, total_reward: 50, today_reward: 10,
-    records: [...server.records, { date: '2026-10-21', streak_day: 4, reward: 10, created_at: '2026-10-21T04:00:00Z' }] }
+  return { ...server, checked_in_today: true, current_streak: 4, total_days: 4, total_reward: 45, today_reward: 5,
+    records: [...server.records, { date: '2026-10-21', streak_day: 4, reward: 5, created_at: '2026-10-21T04:00:00Z' }] }
 }
 beforeEach(() => {
   vi.useFakeTimers()
@@ -50,12 +50,12 @@ afterEach(() => { wrapper?.unmount(); wrapper = undefined; document.body.innerHT
 
 describe('daily check-in header and calendar', () => {
   it('uses the fixed milestone total while retaining historical credited amounts', async () => {
-    server = { ...server, current_streak: 2, cycle_day: 3, today_reward: 20,
+    server = { ...server, current_streak: 2, cycle_day: 3, today_reward: 10,
       records: [{ date: '2026-10-20', streak_day: 2, reward: 0.5, created_at: '2026-10-20T01:00:00Z' }] }
     await render(); await open()
-    expect(document.querySelector('.ci-claim')?.textContent).toContain('+20')
-    expect(document.querySelector('.ci-milestone')?.textContent).toContain('+20当天到账')
-    expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+20')
+    expect(document.querySelector('.ci-claim')?.textContent).toContain('+10')
+    expect(document.querySelector('.ci-milestone')?.textContent).toContain('+10当天到账')
+    expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+10')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-20"]')?.textContent).toContain('+0.50')
   })
   it('opens a centered dialog and marks milestones by streak dates, including across months', async () => {
@@ -65,7 +65,7 @@ describe('daily check-in header and calendar', () => {
     expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
     expect(document.querySelector('.ci-weekday')?.textContent).toBe('一')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-24"]')?.textContent).toContain('7 天')
-    expect(document.querySelector('.ci-claim')?.textContent).toContain('+10')
+    expect(document.querySelector('.ci-claim')?.textContent).toContain('+5')
     const node = document.querySelector<HTMLButtonElement>('.ci-milestone[aria-label*="2026-11-01"]')!
     node.click(); await flushPromises()
     expect(mocks.get).toHaveBeenLastCalledWith('2026-11')
@@ -81,7 +81,7 @@ describe('daily check-in header and calendar', () => {
     expect(mocks.claim).toHaveBeenCalledTimes(1)
     server = claimedStatus(); resolveClaim({ data: server }); await flushPromises()
     expect(document.querySelector('.ci-trigger')?.textContent).toContain('今日已签到')
-    expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+10')
+    expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+5')
     expect(mocks.refresh).toHaveBeenCalledTimes(1)
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); await flushPromises()
     expect(document.querySelector('[role="dialog"]')).toBeNull()
