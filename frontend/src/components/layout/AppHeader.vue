@@ -104,6 +104,17 @@
           </div>
         </div>
 
+        <!-- Bonus Balance Display -->
+        <div
+          v-if="user"
+          class="hidden shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-amber-50 px-2.5 py-1.5 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 sm:flex"
+          :title="t('common.bonusBalance')"
+        >
+          <Icon name="gift" size="sm" />
+          <span class="hidden text-xs xl:inline">{{ t('common.bonusBalance') }}</span>
+          <span class="text-sm font-semibold tabular-nums">{{ bonusBalanceDisplay }}</span>
+        </div>
+
         <!-- User Dropdown -->
         <div v-if="user" class="relative" ref="dropdownRef">
           <button
@@ -152,6 +163,10 @@
                 </div>
                 <div v-if="frozenBalance > 0" class="mt-1 text-xs text-amber-600 dark:text-amber-300">
                   {{ balanceFrozenText }} {{ formatHeaderMoney(frozenBalance) }}
+                </div>
+                <div class="mt-2 flex items-center justify-between gap-2 text-amber-700 dark:text-amber-300">
+                  <span class="text-xs">{{ t('common.bonusBalance') }}</span>
+                  <span class="text-sm font-semibold tabular-nums">{{ bonusBalanceDisplay }}</span>
                 </div>
               </div>
 
@@ -253,7 +268,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
@@ -264,6 +279,7 @@ import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
 import CustomerServiceButton from '@/components/common/CustomerServiceButton.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
+import { paymentAPI } from '@/api/payment'
 import { getContactDisplayText } from '@/utils/customerService'
 import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
 
@@ -283,6 +299,26 @@ const contactDisplayText = computed(() => getContactDisplayText(contactInfo.valu
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
+const bonusBalance = ref<number | null>(null)
+const bonusBalanceDisplay = computed(() => bonusBalance.value === null ? '—' : formatHeaderMoney(bonusBalance.value))
+
+// Reuse the existing user refresh cycle; no additional polling timer is needed.
+watch(user, async (current, previous, onCleanup) => {
+  if (!current || current.id !== previous?.id) bonusBalance.value = null
+  if (!current) return
+
+  let cancelled = false
+  onCleanup(() => { cancelled = true })
+  try {
+    const { data } = await paymentAPI.getRewardCampaigns()
+    if (cancelled) return
+    const amount = Number(data.bonus_balance)
+    bonusBalance.value = data.bonus_balance != null && Number.isFinite(amount) ? amount : null
+  } catch {
+    // Retain the last known value for this user when a refresh fails.
+  }
+}, { immediate: true })
+
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
 const totalBalance = computed(() => availableBalance.value + frozenBalance.value)
