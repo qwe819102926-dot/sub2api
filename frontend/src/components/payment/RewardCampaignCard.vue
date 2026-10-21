@@ -92,7 +92,7 @@ function labelClass(tier: RewardTierStatus) { return tier.claimed || reached(tie
 async function load() { status.value = (await paymentAPI.getRewardCampaigns()).data }
 async function claim(threshold: number) {
   if (claiming.value !== null) return; claiming.value = threshold
-  try { const tier = tiers.value.find(item => item.threshold === threshold); const response = await paymentAPI.claimConsumptionReward(threshold); if (authStore.user) authStore.user.balance = response.data.balance; await Promise.all([load(), authStore.refreshUser().catch(() => undefined)]); appStore.showSuccess(t('payment.activities.claimSuccess', { amount: `$${format(tier?.bonus ?? 0)}` })); emit('claimed') }
+  try { const tier = tiers.value.find(item => item.threshold === threshold); const response = await paymentAPI.claimConsumptionReward(threshold); if (authStore.user) authStore.user.balance = response.data.balance; await Promise.all([load(), authStore.refreshUser().catch(() => undefined)]); appStore.showSuccess(t('payment.activities.claimSuccess', { amount: format(tier?.bonus ?? 0) })); emit('claimed') }
   catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { claiming.value = null }
 }

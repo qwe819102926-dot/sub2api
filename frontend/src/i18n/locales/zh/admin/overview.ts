@@ -682,7 +682,7 @@ export default {
       adjustBonusBalanceTitle: '调整赠送积分',
       adjustBonusBalanceAction: '调整',
       currentBonusBalance: '当前赠送积分',
-      bonusBalanceAmount: '调整金额',
+      bonusBalanceAmount: '调整积分',
       bonusBalanceAdd: '增加',
       bonusBalanceSubtract: '扣减',
       newBonusBalance: '操作后赠送积分',

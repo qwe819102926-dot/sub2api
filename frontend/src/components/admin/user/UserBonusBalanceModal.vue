@@ -12,7 +12,7 @@
             <span
               data-test="current-bonus-balance"
               :title="bonusBalanceKnown ? undefined : t('admin.users.bonusBalanceUnavailable')"
-            >{{ bonusBalanceKnown ? `$${formatAmount(currentBonusBalance)}` : '—' }}</span>
+            >{{ bonusBalanceKnown ? formatAmount(currentBonusBalance) : '—' }}</span>
           </p>
         </div>
       </div>
@@ -47,7 +47,6 @@
         <label class="input-label">{{ t('admin.users.bonusBalanceAmount') }}</label>
         <div class="relative flex gap-2">
           <div class="relative flex-1">
-            <div class="absolute left-3 top-1/2 -translate-y-1/2 font-medium text-gray-500">$</div>
             <input
               v-model.number="form.amount"
               data-test="bonus-amount-input"
@@ -55,7 +54,7 @@
               step="any"
               min="0"
               required
-              class="input pl-8"
+              class="input"
             />
           </div>
           <button
@@ -85,7 +84,7 @@
         <div class="flex items-center justify-between text-sm">
           <span class="text-gray-700 dark:text-gray-300">{{ t('admin.users.newBonusBalance') }}:</span>
           <span class="font-bold" :class="previewNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-gray-100'">
-            ${{ formatAmount(calculateNewBonusBalance()) }}
+            {{ formatAmount(calculateNewBonusBalance()) }}
           </span>
         </div>
       </div>

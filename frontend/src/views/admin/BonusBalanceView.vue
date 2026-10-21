@@ -11,18 +11,18 @@
         <section class="grid gap-4 md:grid-cols-3">
           <div v-for="metric in metrics" :key="metric.key" class="card p-6">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t(`bonusBalanceAdmin.${metric.key}`) }}</p>
-            <p class="mt-3 text-3xl font-semibold tabular-nums" :class="metric.color" :data-testid="metric.key">{{ formatCurrency(metric.value) }}</p>
+            <p class="mt-3 text-3xl font-semibold tabular-nums" :class="metric.color" :data-testid="metric.key">{{ formatPoints(metric.value) }}</p>
             <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t(`bonusBalanceAdmin.${metric.key}Hint`) }}</p>
           </div>
         </section>
 
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-600 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-300">
-          <p>{{ t('bonusBalanceAdmin.reconcile', { adjustments: formatCurrency(report.summary.adjustments), historical: formatCurrency(report.summary.historical_outflow) }) }}</p>
+          <p>{{ t('bonusBalanceAdmin.reconcile', { adjustments: formatPoints(report.summary.adjustments), historical: formatPoints(report.summary.historical_outflow) }) }}</p>
           <p>{{ t('bonusBalanceAdmin.equation') }}</p>
           <p>{{ t('bonusBalanceAdmin.historyHint') }}</p>
-          <p v-if="report.summary.deleted_user_remaining > 0">{{ t('bonusBalanceAdmin.deletedHint', { amount: formatCurrency(report.summary.deleted_user_remaining) }) }}</p>
+          <p v-if="report.summary.deleted_user_remaining > 0">{{ t('bonusBalanceAdmin.deletedHint', { amount: formatPoints(report.summary.deleted_user_remaining) }) }}</p>
         </div>
-        <p v-if="Math.abs(report.summary.reconciliation_difference) > 0.00000001" role="alert" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{{ t('bonusBalanceAdmin.variance', { amount: formatCurrency(report.summary.reconciliation_difference) }) }}</p>
+        <p v-if="Math.abs(report.summary.reconciliation_difference) > 0.00000001" role="alert" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{{ t('bonusBalanceAdmin.variance', { amount: formatPoints(report.summary.reconciliation_difference) }) }}</p>
 
         <section class="card overflow-hidden">
           <div class="border-b border-gray-100 p-6 dark:border-dark-700">
@@ -40,7 +40,7 @@
               </tr></thead>
               <tbody><tr v-for="source in report.sources" :key="source.source" class="border-b border-gray-100 last:border-0 dark:border-dark-800">
                 <td class="px-6 py-4"><button class="text-primary-600 hover:underline dark:text-primary-400" @click="selectSource(source.source)">{{ sourceLabel(source.source) }}</button></td>
-                <td class="px-6 py-4 font-medium tabular-nums">{{ formatCurrency(source.amount) }}</td>
+                <td class="px-6 py-4 font-medium tabular-nums">{{ formatPoints(source.amount) }}</td>
                 <td class="px-6 py-4"><div class="flex items-center gap-3"><div class="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 dark:bg-dark-700"><div class="h-full rounded-full bg-emerald-500" :style="{ width: `${share(source.amount)}%` }" /></div><span class="tabular-nums">{{ share(source.amount).toFixed(1) }}%</span></div></td>
                 <td class="px-6 py-4 tabular-nums">{{ source.grants.toLocaleString() }}</td>
                 <td class="px-6 py-4 tabular-nums">{{ source.users.toLocaleString() }}</td>
@@ -76,8 +76,8 @@
               <tbody><tr v-for="record in report.records" :key="record.id" class="border-b border-gray-100 last:border-0 dark:border-dark-800">
                 <td class="px-6 py-4"><p class="max-w-60 truncate" :title="record.email">{{ record.email || '—' }}</p><p class="mt-1 text-xs text-gray-400">ID {{ record.user_id }}</p></td>
                 <td class="px-6 py-4">{{ sourceLabel(record.source) }}</td>
-                <td class="px-6 py-4 font-medium tabular-nums" :class="record.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'">{{ record.amount > 0 ? '+' : '' }}{{ formatCurrency(record.amount) }}</td>
-                <td class="px-6 py-4 tabular-nums">{{ record.balance_after == null ? '—' : formatCurrency(record.balance_after) }}</td>
+                <td class="px-6 py-4 font-medium tabular-nums" :class="record.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'">{{ record.amount > 0 ? '+' : '' }}{{ formatPoints(record.amount) }}</td>
+                <td class="px-6 py-4 tabular-nums">{{ record.balance_after == null ? '—' : formatPoints(record.balance_after) }}</td>
                 <td class="px-6 py-4 text-xs text-gray-500 dark:text-dark-400">{{ t(record.historical ? 'bonusBalanceAdmin.historical' : record.source === 'consumption' ? 'bonusBalanceAdmin.dailyAggregate' : 'bonusBalanceAdmin.live') }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-dark-400">{{ formatDateTime(record.updated_at) }}</td>
               </tr></tbody>
@@ -104,7 +104,7 @@ import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { getBonusBalanceReport, type BonusBalanceReport } from '@/api/admin/bonusBalance'
-import { formatCurrency, formatDateTime } from '@/utils/format'
+import { formatPoints, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()

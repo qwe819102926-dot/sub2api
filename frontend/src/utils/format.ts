@@ -447,3 +447,10 @@ export function formatRelativeWithDateTime(date: string | Date | null | undefine
 
   return `${relativeTime} · ${dateTime}`
 }
+
+/** Format bonus points as a number without a currency symbol. */
+export function formatPoints(amount: number | null | undefined): string {
+  const value = amount ?? 0
+  const digits = Math.abs(value) > 0 && Math.abs(value) < 0.01 ? 6 : 2
+  return new Intl.NumberFormat(getLocale(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+}

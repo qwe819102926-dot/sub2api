@@ -38,10 +38,10 @@ describe('UserLotteryHistoryModal', () => {
     const wrapper = mountModal()
     await flushPromises()
     expect(getLotteryHistory).toHaveBeenCalledWith(7, 1, 20, { signal: expect.any(AbortSignal) })
-    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('$12.50')
+    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('12.50')
     const draws = wrapper.findAll('[data-test="lottery-draw"]')
     expect(draws).toHaveLength(2)
-    expect(draws[0].text()).toContain('$7.50')
+    expect(draws[0].text()).toContain('7.50')
     expect(draws[0].text()).toContain('admin.users.lotteryAdminSource')
     expect(draws[1].text()).toContain('admin.users.lotteryNotWon')
     expect(draws[1].text()).toContain('admin.users.lotteryOrderSource:42')
@@ -53,7 +53,7 @@ describe('UserLotteryHistoryModal', () => {
     await wrapper.get('[data-test="next-page"]').trigger('click')
     await flushPromises()
     expect(getLotteryHistory).toHaveBeenLastCalledWith(7, 2, 20, { signal: expect.any(AbortSignal) })
-    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('$12.50')
+    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('12.50')
   })
 
   it('shows an explicit empty state for users without draws', async () => {
@@ -61,7 +61,7 @@ describe('UserLotteryHistoryModal', () => {
     const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.get('[data-test="lottery-empty"]').text()).toBe('admin.users.noLotteryHistory')
-    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('$0.00')
+    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('0.00')
   })
 
   it('shows an error instead of treating a failed request as zero winnings, and retries', async () => {
@@ -82,10 +82,10 @@ describe('UserLotteryHistoryModal', () => {
     const wrapper = mountModal()
     await wrapper.setProps({ user: { ...user, id: 8 } })
     await flushPromises()
-    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('$12.50')
+    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('12.50')
     resolveFirst({ ...result, total_prize_amount: 999 })
     await flushPromises()
-    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('$12.50')
+    expect(wrapper.get('[data-test="lottery-total-prize"]').text()).toBe('12.50')
     expect(getLotteryHistory.mock.calls[0][3].signal.aborted).toBe(true)
   })
 })

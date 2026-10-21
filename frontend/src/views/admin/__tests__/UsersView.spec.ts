@@ -189,7 +189,7 @@ describe('admin UsersView', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-test="user-balance-summary"]').text()).toContain('$12.50')
-    expect(wrapper.get('[data-test="user-balance-summary"]').text()).toContain('$3.25')
+    expect(wrapper.get('[data-test="user-balance-summary"]').text()).toContain('totalBonusBalance3.25')
     expect(getBalanceSummary).toHaveBeenCalled()
 
     const columns = wrapper.get('[data-test="columns"]').text()
@@ -435,7 +435,7 @@ describe('admin UsersView', () => {
 
     const cells = wrapper.findAll('[data-test="bonus-balance-value"]')
     expect(cells).toHaveLength(2)
-    expect(cells[0].text()).toBe('$0.00')
+    expect(cells[0].text()).toBe('0.00')
     expect(cells[1].text()).toBe('—')
     expect(cells[1].attributes('title')).toBe('admin.users.bonusBalanceUnavailable')
   })

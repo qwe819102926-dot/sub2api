@@ -37,6 +37,7 @@ describe('InviteRewardsView', () => {
     expect(wrapper.get('[data-testid="invited-count"]').text()).toBe('21')
     expect(wrapper.get('[data-testid="total-bonus"]').text()).toContain('1,050')
     expect(wrapper.text()).toContain('f***@e***.com')
+    expect(wrapper.get('[data-testid="total-bonus"]').text()).not.toContain('$')
     await button(wrapper, 'inviteRewards.copyLink').trigger('click')
     expect(copyToClipboard).toHaveBeenCalledWith(`${window.location.origin}/register?aff=FRIEND2026`, 'inviteRewards.copied')
   })

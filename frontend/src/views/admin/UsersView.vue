@@ -139,7 +139,7 @@
               :title="t('admin.users.totalBonusBalanceHint')"
             >
               <span class="text-emerald-700 dark:text-emerald-300">{{ t('admin.users.totalBonusBalance') }}</span>
-              <span class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-200">{{ formatSummaryAmount(balanceSummary?.total_bonus_balance) }}</span>
+              <span class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-200">{{ balanceSummary ? formatPoints(balanceSummary.total_bonus_balance) : '—' }}</span>
             </div>
           </div>
 
@@ -474,7 +474,7 @@
                 :class="formatBonusBalance(value) == null ? 'text-gray-400 dark:text-dark-400' : 'text-gray-900 dark:text-white'"
                 :title="formatBonusBalance(value) == null ? t('admin.users.bonusBalanceUnavailable') : undefined"
               >
-                {{ formatBonusBalance(value) == null ? '—' : `$${formatBonusBalance(value)}` }}
+                {{ formatBonusBalance(value) == null ? '—' : formatBonusBalance(value) }}
               </span>
               <button
                 @click.stop="handleAdjustBonusBalance(row)"
@@ -846,7 +846,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useTableSelection } from '@/composables/useTableSelection'
-import { formatDateTime } from '@/utils/format'
+import { formatDateTime, formatPoints } from '@/utils/format'
 import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()

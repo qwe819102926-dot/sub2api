@@ -473,7 +473,7 @@ export default {
       code: 'Promo Code',
       autoGenerate: 'auto-generate if empty',
       codePlaceholder: 'Enter promo code or leave empty',
-      bonusAmount: 'Bonus Amount ($)',
+      bonusAmount: 'Bonus Points',
       maxUses: 'Max Uses',
       zeroUnlimited: '0 = unlimited',
       expiresAt: 'Expires At',

@@ -681,7 +681,7 @@ export default {
       adjustBonusBalanceTitle: 'Adjust Bonus Points',
       adjustBonusBalanceAction: 'Adjust',
       currentBonusBalance: 'Current Bonus Points',
-      bonusBalanceAmount: 'Adjustment Amount',
+      bonusBalanceAmount: 'Adjustment Points',
       bonusBalanceAdd: 'Add',
       bonusBalanceSubtract: 'Subtract',
       newBonusBalance: 'Bonus Points After Adjustment',

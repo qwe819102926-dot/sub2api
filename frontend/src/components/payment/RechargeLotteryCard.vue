@@ -31,7 +31,7 @@
               class="lottery-prize rounded-lg border border-gray-200 bg-white px-2 py-4 text-center shadow-sm dark:border-dark-600 dark:bg-dark-800"
               :class="{ 'lottery-prize--active': activePrizeIndex === index }"
             >
-              <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">${{ prize.amount.toFixed(2) }}</p>
+              <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">{{ prize.amount.toFixed(2) }}</p>
             </div>
           </div>
           <button type="button" class="mt-5 w-full rounded-xl bg-gray-600 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50" :disabled="status.remaining_draws <= 0 || drawing" @click="draw">
