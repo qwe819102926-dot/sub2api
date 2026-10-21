@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatPoints } from '@/utils/format'
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
@@ -135,7 +136,7 @@ watch(() => props.show, (visible) => {
   }
 })
 
-const formatAmount = (value: number) => (Number(value) || 0).toFixed(2)
+const formatAmount = formatPoints
 
 const fillAllBonus = () => {
   form.amount = currentBonusBalance.value

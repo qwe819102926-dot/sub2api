@@ -1906,7 +1906,7 @@ const bonusBalanceUser = ref<AdminUser | null>(null)
 const formatBonusBalance = (value: unknown) => {
   if (value === null || value === undefined || value === '') return null
   const amount = Number(value)
-  return Number.isFinite(amount) ? amount.toFixed(2) : null
+  return Number.isFinite(amount) ? formatPoints(amount) : null
 }
 
 const handleAdjustBonusBalance = (user: AdminUser) => {

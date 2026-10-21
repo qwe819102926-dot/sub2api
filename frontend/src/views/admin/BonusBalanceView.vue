@@ -76,7 +76,7 @@
               <tbody><tr v-for="record in report.records" :key="record.id" class="border-b border-gray-100 last:border-0 dark:border-dark-800">
                 <td class="px-6 py-4"><p class="max-w-60 truncate" :title="record.email">{{ record.email || '—' }}</p><p class="mt-1 text-xs text-gray-400">ID {{ record.user_id }}</p></td>
                 <td class="px-6 py-4">{{ sourceLabel(record.source) }}</td>
-                <td class="px-6 py-4 font-medium tabular-nums" :class="record.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'">{{ record.amount > 0 ? '+' : '' }}{{ formatPoints(record.amount) }}</td>
+                <td class="px-6 py-4 font-medium tabular-nums" :class="record.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'">{{ formatPoints(record.amount) }}</td>
                 <td class="px-6 py-4 tabular-nums">{{ record.balance_after == null ? '—' : formatPoints(record.balance_after) }}</td>
                 <td class="px-6 py-4 text-xs text-gray-500 dark:text-dark-400">{{ t(record.historical ? 'bonusBalanceAdmin.historical' : record.source === 'consumption' ? 'bonusBalanceAdmin.dailyAggregate' : 'bonusBalanceAdmin.live') }}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-gray-500 dark:text-dark-400">{{ formatDateTime(record.updated_at) }}</td>

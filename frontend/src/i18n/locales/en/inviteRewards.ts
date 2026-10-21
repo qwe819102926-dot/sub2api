@@ -1,14 +1,14 @@
 export default {
   inviteRewards: {
     title: 'Invite & Earn', eyebrow: 'Share AI access. Earn rewards together.',
-    description: 'Earn {amount} in bonus points for each new user who registers with your invitation. Rewards arrive automatically.',
+    description: 'Earn {amount} for each new user who registers with your invitation. Rewards arrive automatically.',
     loading: 'Loading invitation rewards', loadFailed: 'Unable to load invitation rewards. Please retry.', retry: 'Retry',
     paused: 'Invitation rewards are paused. Your records and credited rewards are retained.', wallet: 'View wallet',
     invitedCount: 'Successful invitations', countHint: 'New users referred during this campaign only',
     totalBonus: 'Total invitation bonus earned', totalHint: 'Invitation signup rewards only. Spending does not reduce this total. See your wallet for the remaining balance.',
     shareTitle: 'Share your invitation', code: 'Your invite code', link: 'Your invitation link', copy: 'Copy', copyLink: 'Copy link', copied: 'Copied',
-    signupRule: 'Each new user receives {amount} in bonus points once on first registration.',
-    inviteRule: 'The direct inviter receives {amount} in bonus points after a successful referred registration.',
+    signupRule: 'Each new user receives {amount} once on first registration.',
+    inviteRule: 'The direct inviter receives {amount} after a successful referred registration.',
     rules: 'Rewards are credited to bonus points automatically and follow existing bonus consumption rules. Existing-account logins and identity bindings do not qualify. Historical invitations are not rewarded retroactively.',
     records: 'Invitation records', refresh: 'Refresh', empty: 'No invitations yet. Share your invitation link with a friend.', emptyPaused: 'No invitation records. New invitation rewards are paused.',
     account: 'Referred user', date: 'Registered at', amount: 'Bonus points', status: 'Reward status', credited: 'Credited', noReward: 'No reward issued', previous: 'Previous', next: 'Next',

@@ -32,7 +32,7 @@
               </template>
             </HelpTooltip>
           </p>
-          <p class="text-xl font-bold text-amber-600 dark:text-amber-400">{{ formatBalance(bonusBalance) }}</p>
+          <p class="text-xl font-bold text-amber-600 dark:text-amber-400">{{ formatPoints(bonusBalance) }}</p>
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalanceHint') }}</p>
         </div>
       </div>
@@ -156,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import { formatPoints } from '@/utils/format'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
