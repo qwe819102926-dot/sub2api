@@ -18,7 +18,7 @@
     </div>
 
     <!-- Bonus Balance -->
-    <div v-if="!isSimple" class="card p-4">
+    <div v-if="!isSimple" class="card flex min-w-0 flex-col p-4" data-testid="bonus-balance-card">
       <div class="flex items-center gap-3">
         <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
           <Icon name="gift" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
@@ -28,8 +28,12 @@
             {{ t('dashboard.bonusBalance') }}
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('dashboard.bonusBalanceHint') }}</p>
+          <p class="mt-1 text-xs leading-5 text-gray-600 dark:text-gray-300" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusEquivalent) }) }}</p>
         </div>
+      </div>
+      <div class="mt-4 flex items-start gap-1 border-t border-gray-100 pt-3 text-xs leading-5 text-gray-500 dark:border-dark-700 dark:text-gray-400">
+        <Icon name="infoCircle" size="xs" class="mt-1 shrink-0" />
+        <p>{{ t('dashboard.bonusBalanceHint') }}</p>
       </div>
     </div>
 
@@ -151,17 +155,21 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 
-defineProps<{
+const props = defineProps<{
   stats: UserStatsType
   balance: number
   bonusBalance: number
   isSimple: boolean
 }>()
 const { t } = useI18n()
+
+// Display the advertised 10:1 conversion without changing billing.
+const bonusEquivalent = computed(() => props.bonusBalance / 10)
 
 const formatBalance = (b: number) =>
   new Intl.NumberFormat('en-US', {
