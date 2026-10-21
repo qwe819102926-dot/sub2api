@@ -27,6 +27,18 @@ func NewPaymentHandler(paymentService *service.PaymentService, configService *se
 
 // --- Dashboard ---
 
+func (h *PaymentHandler) GetBonusBalanceReport(c *gin.Context) {
+	page, pageSize := response.ParsePagination(c)
+	report, err := h.paymentService.GetBonusBalanceReport(c.Request.Context(), service.BonusBalanceReportFilter{
+		Page: page, PageSize: pageSize, Source: c.Query("source"), Kind: c.Query("kind"), Search: c.Query("search"),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, report)
+}
+
 // GetDashboard returns payment dashboard statistics.
 // GET /api/v1/admin/payment/dashboard
 func (h *PaymentHandler) GetDashboard(c *gin.Context) {

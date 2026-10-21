@@ -295,7 +295,7 @@ func deductUsageBillingBalanceDetailed(ctx context.Context, tx *sql.Tx, userID i
 		}
 		usedBonus := service.QuantizeUsageBillingAmount(math.Min(amount*rate, math.Max(0, bonusBalance)))
 		if usedBonus > 0 {
-			if _, err := tx.ExecContext(ctx, `UPDATE users SET bonus_balance = bonus_balance - $1, updated_at = NOW() WHERE id = $2`, usedBonus, userID); err != nil {
+			if _, err := tx.ExecContext(ctx, `/* bonus_source:consumption */ UPDATE users SET bonus_balance = bonus_balance - $1, updated_at = NOW() WHERE id = $2`, usedBonus, userID); err != nil {
 				return 0, false, 0, 0, err
 			}
 			bonusDeducted = usedBonus

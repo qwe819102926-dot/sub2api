@@ -1,0 +1,20 @@
+export default {
+  bonusBalanceAdmin: {
+    title: 'Bonus Balance Report', description: 'Lifetime grants, actual consumption, remaining balance, and campaign sources. All amounts use bonus-wallet units.',
+    issued: 'Total issued', issuedHint: 'Campaign gifts, admin increases, and historical credits of unknown origin',
+    consumed: 'Consumed', consumedHint: 'Actual bonus-wallet deductions, including its independent consumption multiplier',
+    remaining: 'Unconsumed balance', remainingHint: 'Current bonus balance across all retained accounts',
+    reconcile: 'Other deductions: {adjustments}. Unclassified historical outflows: {historical}. Neither is counted as consumption.',
+    equation: 'Issued = consumed + remaining + other deductions + unclassified historical outflows.',
+    historyHint: 'Historical totals are reconstructed from retained records; deleted, untraceable data cannot be recovered. New wallet accounting survives usage-log cleanup.',
+    deletedHint: 'Remaining balance includes {amount} retained in deleted accounts.',
+    variance: 'Ledger and account balances differ by {amount}. Please investigate unrecorded balance changes.',
+    sourcesTitle: 'Grants by campaign', sourceHint: 'Signup and invitation rewards are separate. Source totals describe grants, without inferring campaign-level consumption from a shared wallet. Unknown historical credits are listed separately.',
+    source: 'Source', share: 'Share of grants', grants: 'Grants', users: 'Recipients',
+    recordsTitle: 'Bonus balance movements', filterHint: 'Filters apply to records only. Summary totals remain global. Consumption is grouped by user and Asia/Shanghai calendar day. Imported history may lack individual request details.',
+    search: 'Search email or user ID', allSources: 'All sources', kind: 'Movement type', allKinds: 'All types', grant: 'Credits', consumption: 'Consumption', adjustment: 'Other outflows', query: 'Search',
+    account: 'User', movement: 'Amount', after: 'Balance after', recordType: 'Record type', date: 'Last updated',
+    historical: 'Imported history', dailyAggregate: 'Daily consumption', live: 'Live record', total: '{total} records', empty: 'No matching records', retry: 'Retry', loadFailed: 'Unable to load the bonus balance report. Please retry.',
+    sources: { signup: 'New-user signup', invite: 'Invitation reward', checkin: 'Daily check-in', recharge: 'Recharge gift', consumption_reward: 'Spend milestone', lottery: 'Recharge lottery', admin: 'Admin adjustment', consumption: 'Consumption', historical_credit: 'Unknown historical credit', historical_outflow: 'Unknown historical outflow', account_removed: 'Account removal', other: 'Other movement' },
+  },
+}

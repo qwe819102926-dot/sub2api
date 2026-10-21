@@ -102,7 +102,11 @@ func promotionInviterID(id *int64) int64 {
 // Balance and grant are written in one transaction; the source registration's
 // primary key serializes concurrent retries before either balance is touched.
 func creditSignupPromotion(ctx context.Context, client affiliateQueryExecer, sourceID, userID int64, kind string, amount float64) error {
-	result, err := client.ExecContext(ctx, `WITH credited AS (
+	source := "signup"
+	if kind == "invite" {
+		source = "invite"
+	}
+	result, err := client.ExecContext(ctx, "/* bonus_source:"+source+" */ "+`WITH credited AS (
 UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL AND status = 'active'
 RETURNING bonus_balance

@@ -1097,7 +1097,7 @@ func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs 
 
 func (r *userRepository) AdjustBonusBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
 	const updateSQL = `
-		UPDATE users
+		/* bonus_source:admin */ UPDATE users
 		SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW()
 		WHERE id = $2 AND deleted_at IS NULL AND COALESCE(bonus_balance, 0) + $1 >= 0
 		RETURNING COALESCE(bonus_balance, 0) - $1, COALESCE(bonus_balance, 0)
@@ -1125,7 +1125,7 @@ func (r *userRepository) SetBonusBalance(ctx context.Context, id int64, value fl
 		return service.BalanceChange{Old: current, New: value}, service.ErrBalanceNegative
 	}
 	const updateSQL = `
-		UPDATE users AS u
+		/* bonus_source:admin */ UPDATE users AS u
 		SET bonus_balance = $1, updated_at = NOW()
 		FROM (SELECT id, COALESCE(bonus_balance, 0) AS bonus_balance FROM users WHERE id = $2 AND deleted_at IS NULL) AS prev
 		WHERE u.id = prev.id AND u.deleted_at IS NULL

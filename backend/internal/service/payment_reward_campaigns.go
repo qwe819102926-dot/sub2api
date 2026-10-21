@@ -65,7 +65,7 @@ func (s *PaymentService) grantRechargeBonus(ctx context.Context, order *dbent.Pa
 		return fmt.Errorf("read recharge bonus grant result: %w", err)
 	}
 	if granted == 1 {
-		if _, err := tx.Client().ExecContext(ctx, `UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, tier.Bonus, order.UserID); err != nil {
+		if _, err := tx.Client().ExecContext(ctx, `/* bonus_source:recharge */ UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, tier.Bonus, order.UserID); err != nil {
 			return fmt.Errorf("credit recharge bonus: %w", err)
 		}
 	}
@@ -154,7 +154,7 @@ func (s *PaymentService) ClaimConsumptionReward(ctx context.Context, userID int6
 	if claimed != 1 {
 		return 0, infraerrors.Conflict("CONSUMPTION_REWARD_ALREADY_CLAIMED", "consumption reward has already been claimed")
 	}
-	if _, err := tx.Client().ExecContext(ctx, `UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, tier.Bonus, userID); err != nil {
+	if _, err := tx.Client().ExecContext(ctx, `/* bonus_source:consumption_reward */ UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, tier.Bonus, userID); err != nil {
 		return 0, fmt.Errorf("credit consumption reward: %w", err)
 	}
 	var balance float64

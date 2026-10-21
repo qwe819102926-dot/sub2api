@@ -237,7 +237,7 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 	if recordID == 0 {
 		return nil, fmt.Errorf("check-in was not recorded")
 	}
-	result, err := tx.Client().ExecContext(ctx, `UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, reward, userID)
+	result, err := tx.Client().ExecContext(ctx, `/* bonus_source:checkin */ UPDATE users SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW() WHERE id = $2 AND deleted_at IS NULL`, reward, userID)
 	if err != nil {
 		return nil, fmt.Errorf("credit check-in bonus: %w", err)
 	}

@@ -1,4 +1,5 @@
 import inviteRewards from './inviteRewards'
+import bonusBalanceAdmin from './bonusBalanceAdmin'
 import landing from './landing'
 import common from './common'
 import dashboard from './dashboard'
@@ -10,6 +11,7 @@ import imageGeneration from './imageGeneration'
 
 export default {
   ...inviteRewards,
+  ...bonusBalanceAdmin,
   ...landing,
   ...common,
   ...dashboard,
