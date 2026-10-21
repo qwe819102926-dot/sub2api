@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({ get: vi.fn(), claim: vi.fn(), refresh: vi.fn()
 vi.mock('@/api/payment', () => ({ paymentAPI: { getDailyCheckin: mocks.get, claimDailyCheckin: mocks.claim } }))
 vi.mock('@/stores/auth', () => ({ useAuthStore: () => ({ user: { id: 42 }, refreshUser: mocks.refresh }) }))
 vi.mock('@/stores/app', () => ({ useAppStore: () => ({ showSuccess: mocks.success, showError: mocks.error }) }))
-vi.mock('vue-i18n', async (original) => ({ ...await original<typeof import('vue-i18n')>(), useI18n: () => ({ locale: ref('zh-CN'), t: translate }) }))
+vi.mock('vue-i18n', () => ({ useI18n: () => ({ locale: ref('zh-CN'), t: translate }) }))
 
 function translate(key: string, params: Record<string, string | number> = {}) {
   let value: unknown = zh

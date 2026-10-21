@@ -16,7 +16,7 @@
               <p class="text-sm font-medium text-primary-600 dark:text-primary-400">{{ t('inviteRewards.eyebrow') }}</p>
               <h2 class="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{{ t('inviteRewards.title') }}</h2>
               <p v-if="detail.invite_bonus_enabled" class="mt-3 max-w-xl text-sm leading-6 text-gray-600 dark:text-dark-300">
-                {{ t('inviteRewards.description', { amount: formatPoints(detail.invite_bonus_amount) }) }}
+                {{ t('inviteRewards.description', { amount: formatCurrency(detail.invite_bonus_amount) }) }}
               </p>
               <p v-else class="mt-3 text-sm text-amber-700 dark:text-amber-400">{{ t('inviteRewards.paused') }}</p>
             </div>
@@ -32,7 +32,7 @@
           </div>
           <div class="card p-6">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('inviteRewards.totalBonus') }}</p>
-            <p class="mt-3 text-3xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400" data-testid="total-bonus">{{ formatPoints(detail.total_bonus) }}</p>
+            <p class="mt-3 text-3xl font-semibold tabular-nums text-emerald-600 dark:text-emerald-400" data-testid="total-bonus">{{ formatCurrency(detail.total_bonus) }}</p>
             <p class="mt-2 text-xs text-gray-500 dark:text-dark-400">{{ t('inviteRewards.totalHint') }}</p>
           </div>
         </section>
@@ -56,8 +56,8 @@
             </div>
           </div>
           <div class="mt-5 rounded-xl bg-primary-50 p-4 text-sm leading-6 text-primary-800 dark:bg-primary-900/20 dark:text-primary-200">
-            <p v-if="detail.signup_bonus_enabled">{{ t('inviteRewards.signupRule', { amount: formatPoints(detail.signup_bonus_amount) }) }}</p>
-            <p v-if="detail.invite_bonus_enabled">{{ t('inviteRewards.inviteRule', { amount: formatPoints(detail.invite_bonus_amount) }) }}</p>
+            <p v-if="detail.signup_bonus_enabled">{{ t('inviteRewards.signupRule', { amount: formatCurrency(detail.signup_bonus_amount) }) }}</p>
+            <p v-if="detail.invite_bonus_enabled">{{ t('inviteRewards.inviteRule', { amount: formatCurrency(detail.invite_bonus_amount) }) }}</p>
             <p>{{ t('inviteRewards.rules') }}</p>
           </div>
         </section>
@@ -79,7 +79,7 @@
               <tbody><tr v-for="record in detail.records" :key="record.user_id" class="border-b border-gray-100 last:border-0 dark:border-dark-800">
                 <td class="px-3 py-4">{{ record.email }}</td>
                 <td class="px-3 py-4 text-gray-500 dark:text-dark-400">{{ formatDateTime(record.created_at) }}</td>
-                <td class="px-3 py-4 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatPoints(record.amount) }}</td>
+                <td class="px-3 py-4 font-medium tabular-nums text-emerald-600 dark:text-emerald-400">{{ formatCurrency(record.amount) }}</td>
                 <td class="px-3 py-4"><span class="rounded-full bg-gray-100 px-2.5 py-1 text-xs dark:bg-dark-700">{{ t(record.status === 'credited' ? 'inviteRewards.credited' : 'inviteRewards.noReward') }}</span></td>
               </tr></tbody>
             </table>
@@ -110,7 +110,7 @@ import type { SignupPromotionDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
-import { formatCurrency, formatPoints, formatDateTime } from '@/utils/format'
+import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()

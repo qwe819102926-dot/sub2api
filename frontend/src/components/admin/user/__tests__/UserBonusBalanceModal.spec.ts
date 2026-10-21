@@ -59,7 +59,7 @@ describe('UserBonusBalanceModal', () => {
     await wrapper.get('[data-test="bonus-amount-input"]').setValue('2.5')
     await flushPromises()
 
-    expect(wrapper.get('[data-test="bonus-preview"]').text()).toContain('🎁 15 points')
+    expect(wrapper.get('[data-test="bonus-preview"]').text()).toContain('15.00')
     expect(wrapper.get('[data-test="bonus-submit"]').text()).toBe('admin.users.adjustBonusBalanceAction')
   })
 

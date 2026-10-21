@@ -21,7 +21,6 @@ describe('BonusBalanceView', () => {
     expect(w.get('[data-testid="issued"]').text()).toContain('1,000')
     expect(w.get('[data-testid="consumed"]').text()).toContain('600')
     expect(w.get('[data-testid="remaining"]').text()).toContain('300')
-    expect(w.text()).not.toContain('$')
     expect(w.text()).toContain('bonusBalanceAdmin.sources.signup')
     expect(w.text()).toContain('bonusBalanceAdmin.sources.checkin')
     expect(w.text()).toContain('friend@example.com')

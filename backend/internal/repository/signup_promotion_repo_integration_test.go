@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/migrations"
 	"github.com/stretchr/testify/require"
 )
 
@@ -168,4 +169,40 @@ func TestSignupPromotion_OuterRollbackRestoresBothBalances(t *testing.T) {
 	require.Zero(t, querySingleFloat(t, ctx, client, `SELECT bonus_balance::double precision FROM users WHERE id=$1`, u.ID))
 	require.Zero(t, querySingleFloat(t, ctx, client, `SELECT bonus_balance::double precision FROM users WHERE id=$1`, inviter.ID))
 	require.Zero(t, querySingleInt(t, ctx, client, `SELECT COUNT(*) FROM signup_promotions WHERE user_id=$1`, u.ID))
+}
+
+func TestSignupPromotion_RewardAmountMigrationPreservesHistory(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	store := NewSettingRepository(client)
+	require.NoError(t, store.SetMultiple(ctx, map[string]string{
+		"signup_bonus_enabled": "true", "invite_bonus_enabled": "false",
+		"signup_bonus_amount": "50", "invite_bonus_amount": "50",
+	}))
+	repo := &affiliateRepository{client: client}
+	oldUser := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("old-reward-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 1})
+	_, err := repo.ApplySignupPromotion(ctx, oldUser.ID, "", service.SignupPromotionConfig{SignupBonusEnabled: true, SignupBonusAmount: 50})
+	require.NoError(t, err)
+	migration, err := migrations.FS.ReadFile("249_signup_promotion_reward_amounts.sql")
+	require.NoError(t, err)
+	_, err = client.ExecContext(ctx, string(migration))
+	require.NoError(t, err)
+	settings := service.NewSettingService(store, &config.Config{})
+	rewardConfig, err := settings.GetSignupPromotionConfig(ctx)
+	require.NoError(t, err)
+	require.Equal(t, float64(10), rewardConfig.SignupBonusAmount)
+	require.Equal(t, float64(10), rewardConfig.InviteBonusAmount)
+	require.True(t, rewardConfig.SignupBonusEnabled)
+	require.False(t, rewardConfig.InviteBonusEnabled)
+	require.Equal(t, float64(50), querySingleFloat(t, ctx, client, "SELECT bonus_balance::double precision FROM users WHERE id=$1", oldUser.ID))
+	require.Equal(t, float64(50), querySingleFloat(t, ctx, client, "SELECT amount::double precision FROM signup_promotion_grants WHERE source_user_id=$1", oldUser.ID))
+	newUser := mustCreateUser(t, client, &service.User{Email: fmt.Sprintf("new-reward-%d@example.com", time.Now().UnixNano()), PasswordHash: "hash", Role: service.RoleUser, Status: service.StatusActive, Concurrency: 1})
+	summary, err := repo.EnsureUserAffiliate(ctx, oldUser.ID)
+	require.NoError(t, err)
+	rewardConfig.InviteBonusEnabled = true
+	_, err = repo.ApplySignupPromotion(ctx, newUser.ID, summary.AffCode, rewardConfig)
+	require.NoError(t, err)
+	require.Equal(t, float64(10), querySingleFloat(t, ctx, client, "SELECT bonus_balance::double precision FROM users WHERE id=$1", newUser.ID))
+	require.Equal(t, float64(60), querySingleFloat(t, ctx, client, "SELECT bonus_balance::double precision FROM users WHERE id=$1", oldUser.ID))
 }

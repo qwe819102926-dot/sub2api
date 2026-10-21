@@ -210,9 +210,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:   "false",
 		SettingKeySignupBonusEnabled: "false",
-		SettingKeySignupBonusAmount:  "50",
+		SettingKeySignupBonusAmount:  "10",
 		SettingKeyInviteBonusEnabled: "false",
-		SettingKeyInviteBonusAmount:  "50",
+		SettingKeyInviteBonusAmount:  "10",
 
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 

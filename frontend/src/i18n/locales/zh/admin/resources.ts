@@ -457,7 +457,7 @@ export default {
       allStatus: '全部状态',
       columns: {
         code: '优惠码',
-        bonusAmount: '赠送积分',
+        bonusAmount: '赠送金额',
         maxUses: '最大使用次数',
         usedCount: '已使用',
         usage: '使用量',
@@ -470,7 +470,7 @@ export default {
       code: '优惠码',
       autoGenerate: '留空自动生成',
       codePlaceholder: '输入优惠码或留空',
-      bonusAmount: '赠送积分',
+      bonusAmount: '赠送金额 ($)',
       maxUses: '最大使用次数',
       zeroUnlimited: '0 = 无限制',
       expiresAt: '过期时间',

@@ -447,11 +447,3 @@ export function formatRelativeWithDateTime(date: string | Date | null | undefine
 
   return `${relativeTime} · ${dateTime}`
 }
-
-/** Format bonus points with a gift marker and a distinct unit. */
-export function formatPoints(amount: number | null | undefined): string {
-  const value = amount ?? 0
-  const digits = Math.abs(value) > 0 && Math.abs(value) < 0.01 ? 6 : 2
-  const number = new Intl.NumberFormat(getLocale(), { maximumFractionDigits: digits }).format(value)
-  return `🎁 ${number} ${getLocale() === 'zh' ? '积分' : 'points'}`
-}

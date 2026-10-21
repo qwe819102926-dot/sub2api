@@ -175,7 +175,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
-import {formatDateTime, formatPoints } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import type { AdminUser } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
@@ -317,7 +317,6 @@ const getItemTitle = (item: BalanceHistoryItem) => {
 const formatValue = (item: BalanceHistoryItem) => {
   if (isBalanceType(item.type)) {
     const sign = item.value >= 0 ? '+' : ''
-    if (item.type === 'admin_bonus') return formatPoints(item.value)
     return `${sign}$${item.value.toFixed(2)}`
   }
   if (isSubscriptionType(item.type)) {

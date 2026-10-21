@@ -269,7 +269,6 @@
 </template>
 
 <script setup lang="ts">
-import { formatPoints } from '@/utils/format'
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -303,7 +302,7 @@ const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const modelPlazaEnabled = computed(() => isFeatureFlagEnabled(FeatureFlags.modelPlaza))
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const bonusBalance = ref<number | null>(null)
-const bonusBalanceDisplay = computed(() => bonusBalance.value === null ? '—' : formatPoints(bonusBalance.value))
+const bonusBalanceDisplay = computed(() => bonusBalance.value === null ? '—' : formatHeaderMoney(bonusBalance.value))
 
 // Reuse the existing user refresh cycle; no additional polling timer is needed.
 watch(user, async (current, previous, onCleanup) => {

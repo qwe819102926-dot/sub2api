@@ -76,7 +76,7 @@ import { useI18n } from 'vue-i18n'
 import { adminAPI } from '@/api/admin'
 import type { UserLotteryHistory } from '@/api/admin/users'
 import type { AdminUser } from '@/types'
-import { formatDateTime, formatPoints } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -90,7 +90,7 @@ const refreshKey = ref(0)
 const loading = ref(false)
 const failed = ref(false)
 const history = ref<UserLotteryHistory | null>(null)
-const money = formatPoints
+const money = (amount: number) => `$${amount.toFixed(2)}`
 
 watch(() => [props.show, props.user?.id], () => { page.value = 1 })
 watch(() => [props.show, props.user?.id, page.value, refreshKey.value] as const, async ([show, userID, currentPage], _, onCleanup) => {
