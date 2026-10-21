@@ -157,6 +157,31 @@ func (s *UsageService) GetByID(ctx context.Context, id int64) (*UsageLog, error)
 	return log, nil
 }
 
+// GetByIDForUser projects the principal cost without changing the stored bill.
+func (s *UsageService) GetByIDForUser(ctx context.Context, id int64) (*UsageLog, error) {
+	type principalUsageReader interface {
+		GetByIDWithPrincipalCost(context.Context, int64) (*UsageLog, error)
+	}
+	if reader, ok := s.usageRepo.(principalUsageReader); ok {
+		log, err := reader.GetByIDWithPrincipalCost(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("get user usage log: %w", err)
+		}
+		return log, nil
+	}
+	log, err := s.GetByID(ctx, id)
+	if err != nil || log == nil {
+		return log, err
+	}
+	copy := *log
+	if copy.BillingType != BillingTypeBalance {
+		copy.ActualCost = 0
+	} else if copy.WalletCost != nil {
+		copy.ActualCost = *copy.WalletCost
+	}
+	return &copy, nil
+}
+
 // ListByUser 获取用户的使用日志列表
 func (s *UsageService) ListByUser(ctx context.Context, userID int64, params pagination.PaginationParams) ([]UsageLog, *pagination.PaginationResult, error) {
 	logs, pagination, err := s.usageRepo.ListByUser(ctx, userID, params)

@@ -705,7 +705,7 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 				cache_creation_tokens,
 				cache_read_tokens,
 				total_cost,
-				actual_cost,
+				%s AS actual_cost,
 				COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1) AS account_cost,
 				CASE WHEN billing_type = 0 THEN COALESCE(wallet_cost, actual_cost) ELSE 0 END AS wallet_cost,
 				CASE WHEN billing_type = 0 THEN COALESCE(bonus_cost, GREATEST(actual_cost - COALESCE(wallet_cost, actual_cost), 0)) ELSE 0 END AS bonus_cost,
@@ -736,7 +736,7 @@ func (r *usageLogRepository) GetStatsWithFilters(ctx context.Context, filters Us
 			(upstream_endpoint),
 			(inbound_endpoint, upstream_endpoint)
 		)
-	`, buildWhere(conditions))
+	`, usageCostExpression(filters.PrincipalCostOnly, ""), buildWhere(conditions))
 
 	stats := &UsageStats{}
 	var totalAccountCost, totalWalletCost, totalBonusCost float64

@@ -287,6 +287,8 @@ type UsageLogFilters struct {
 	EndTime               *time.Time
 	// ExactTotal requests exact COUNT(*) for pagination. Default false for fast large-table paging.
 	ExactTotal bool
+	// PrincipalCostOnly is set by user handlers, never by admin query parameters.
+	PrincipalCostOnly bool
 }
 
 // UsageStats represents usage statistics

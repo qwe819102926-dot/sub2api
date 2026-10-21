@@ -21,8 +21,10 @@ type userUsageRepoCapture struct {
 	listFilters  usagestats.UsageLogFilters
 	statsFilters usagestats.UsageLogFilters
 	trendFilters usagestats.UsageLogFilters
+	modelFilters usagestats.UsageLogFilters
 	groupFilters usagestats.UsageLogFilters
 	listRows     []service.UsageLog
+	detail       *service.UsageLog
 	stats        *usagestats.UsageStats
 	modelStats   []usagestats.ModelStat
 	groupStats   []usagestats.GroupStat
@@ -78,6 +80,25 @@ func (s *userUsageRepoCapture) GetGroupStatsWithFilters(ctx context.Context, sta
 	return s.groupStats, nil
 }
 
+func (s *userUsageRepoCapture) GetUsageTrendWithUsageFilters(ctx context.Context, start, end time.Time, granularity string, filters usagestats.UsageLogFilters) ([]usagestats.TrendDataPoint, error) {
+	s.trendFilters = filters
+	return []usagestats.TrendDataPoint{}, nil
+}
+
+func (s *userUsageRepoCapture) GetModelStatsWithUsageFiltersBySource(ctx context.Context, start, end time.Time, filters usagestats.UsageLogFilters, source string) ([]usagestats.ModelStat, error) {
+	s.modelFilters = filters
+	return s.modelStats, nil
+}
+
+func (s *userUsageRepoCapture) GetGroupStatsWithUsageFilters(ctx context.Context, start, end time.Time, filters usagestats.UsageLogFilters) ([]usagestats.GroupStat, error) {
+	s.groupFilters = filters
+	return s.groupStats, nil
+}
+
+func (s *userUsageRepoCapture) GetByID(ctx context.Context, id int64) (*service.UsageLog, error) {
+	return s.detail, nil
+}
+
 func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	usageSvc := service.NewUsageService(repo, nil, nil, nil)
@@ -88,6 +109,7 @@ func newUserUsageRequestTypeTestRouter(repo *userUsageRepoCapture) *gin.Engine {
 		c.Next()
 	})
 	router.GET("/usage", handler.List)
+	router.GET("/usage/:id", handler.GetByID)
 	router.GET("/usage/stats", handler.Stats)
 	router.GET("/usage/dashboard/models", handler.DashboardModels)
 	router.GET("/usage/dashboard/snapshot-v2", handler.DashboardSnapshotV2)
@@ -104,6 +126,7 @@ func TestUserUsageListRequestTypePriority(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, int64(42), repo.listFilters.UserID)
+	require.True(t, repo.listFilters.PrincipalCostOnly)
 	require.NotNil(t, repo.listFilters.RequestType)
 	require.Equal(t, int16(service.RequestTypeWSV2), *repo.listFilters.RequestType)
 	require.Nil(t, repo.listFilters.Stream)
@@ -167,6 +190,7 @@ func TestUserUsageListAdvancedFilters(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, int64(42), repo.listFilters.UserID)
+	require.True(t, repo.listFilters.PrincipalCostOnly)
 	require.Equal(t, int64(7), repo.listFilters.GroupID)
 	require.Equal(t, "gpt-5", repo.listFilters.Model)
 	require.Equal(t, usagestats.ModelSourceRequested, repo.listFilters.ModelFilterSource)
@@ -351,6 +375,9 @@ func TestUserUsageSnapshotUsesScopedFilters(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, int64(42), repo.trendFilters.UserID)
+	require.True(t, repo.trendFilters.PrincipalCostOnly)
+	require.True(t, repo.modelFilters.PrincipalCostOnly)
+	require.True(t, repo.groupFilters.PrincipalCostOnly)
 	require.Equal(t, int64(11), repo.trendFilters.GroupID)
 	require.NotNil(t, repo.trendFilters.RequestType)
 	require.Equal(t, int16(service.RequestTypeStream), *repo.trendFilters.RequestType)
@@ -373,5 +400,43 @@ func TestUserUsageSnapshotRejectsInvalidIncludeFlags(t *testing.T) {
 		router.ServeHTTP(rec, req)
 
 		require.Equal(t, http.StatusBadRequest, rec.Code, query)
+	}
+}
+
+func TestUserUsagePrincipalCostCannotBeOverridden(t *testing.T) {
+	repo := &userUsageRepoCapture{}
+	router := newUserUsageRequestTypeTestRouter(repo)
+	for _, endpoint := range []string{"/usage?principal_cost_only=false", "/usage/stats?start_date=2026-10-01&end_date=2026-10-21&principal_cost_only=false"} {
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, endpoint, nil))
+		require.Equal(t, http.StatusOK, rec.Code)
+	}
+	require.True(t, repo.listFilters.PrincipalCostOnly)
+	require.True(t, repo.statsFilters.PrincipalCostOnly)
+}
+
+func TestUserUsageDetailPrincipalCostAndOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		userID int64
+		wallet float64
+		status int
+		amount string
+	}{
+		{"gift-only", 42, 0, http.StatusOK, `"actual_cost":0`},
+		{"mixed", 42, 0.4, http.StatusOK, `"actual_cost":0.4`},
+		{"other-user", 99, 0, http.StatusForbidden, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := &userUsageRepoCapture{detail: &service.UsageLog{ID: 1, UserID: tc.userID, ActualCost: 1, WalletCost: &tc.wallet}}
+			router := newUserUsageRequestTypeTestRouter(repo)
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/usage/1", nil))
+			require.Equal(t, tc.status, rec.Code)
+			if tc.status == http.StatusOK {
+				require.Contains(t, rec.Body.String(), tc.amount)
+			}
+			require.Equal(t, 1.0, repo.detail.ActualCost, "user projection must not change the stored/admin value")
+		})
 	}
 }
