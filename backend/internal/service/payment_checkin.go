@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math/rand/v2"
 	"time"
 )
 
 const (
 	dailyCheckinCycleLength = 30
-	dailyCheckinBaseReward  = 0.5
+	dailyCheckinMinCents    = 20
+	dailyCheckinMaxCents    = 50
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
@@ -25,7 +27,7 @@ var dailyCheckinMilestones = []DailyCheckinMilestone{{Day: 3, Reward: 1}, {Day: 
 var dailyCheckinRewardCycle = func() []float64 {
 	cycle := make([]float64, dailyCheckinCycleLength)
 	for i := range cycle {
-		cycle[i] = dailyCheckinBaseReward
+		cycle[i] = float64(dailyCheckinMinCents) / 100
 	}
 	for _, milestone := range dailyCheckinMilestones {
 		cycle[milestone.Day-1] = milestone.Reward
@@ -47,13 +49,13 @@ type DailyCheckinStatus struct {
 	TotalReward     float64                 `json:"total_reward"`
 	CycleDay        int                     `json:"cycle_day"`
 	CycleLength     int                     `json:"cycle_length"`
-	TodayReward     float64                 `json:"today_reward"`
-	RewardCycle     []float64               `json:"reward_cycle"`
+	TodayReward     float64                 `json:"today_reward"` // Credited amount, or the minimum before an ordinary claim.
+	RewardCycle     []float64               `json:"reward_cycle"` // Ordinary entries preview the minimum reward.
 	Month           string                  `json:"month"`
 	Records         []DailyCheckinRecord    `json:"records"`
 	Today           string                  `json:"today"`
 	NextResetAt     string                  `json:"next_reset_at"`
-	OrdinaryRewards []float64               `json:"ordinary_rewards"`
+	OrdinaryRewards []float64               `json:"ordinary_rewards"` // Inclusive [minimum, maximum] range.
 	Milestones      []DailyCheckinMilestone `json:"milestones"`
 }
 
@@ -64,11 +66,20 @@ func dailyCheckinDate(now time.Time) time.Time {
 	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.UTC)
 }
 
-func dailyCheckinReward(streakDay int) float64 {
+// Preview ordinary days with the minimum; draw the actual amount only on claim.
+func dailyCheckinRewardPreview(streakDay int) float64 {
 	if streakDay < 1 {
 		streakDay = 1
 	}
 	return dailyCheckinRewardCycle[(streakDay-1)%len(dailyCheckinRewardCycle)]
+}
+
+func dailyCheckinReward(streakDay int) float64 {
+	preview := dailyCheckinRewardPreview(streakDay)
+	if preview > float64(dailyCheckinMaxCents)/100 {
+		return preview
+	}
+	return float64(dailyCheckinMinCents+rand.IntN(dailyCheckinMaxCents-dailyCheckinMinCents+1)) / 100
 }
 
 func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64, month string) (*DailyCheckinStatus, error) {
@@ -89,7 +100,7 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 		Records:         make([]DailyCheckinRecord, 0),
 		Today:           today.Format("2006-01-02"),
 		NextResetAt:     time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, dailyCheckinLocation).Format(time.RFC3339),
-		OrdinaryRewards: []float64{dailyCheckinBaseReward},
+		OrdinaryRewards: []float64{float64(dailyCheckinMinCents) / 100, float64(dailyCheckinMaxCents) / 100},
 		Milestones:      append([]DailyCheckinMilestone(nil), dailyCheckinMilestones...),
 	}
 	rows, err := s.entClient.QueryContext(ctx, `
@@ -168,7 +179,7 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 	}
 	if !status.CheckedInToday {
 		status.CycleDay = (status.CurrentStreak % status.CycleLength) + 1
-		status.TodayReward = dailyCheckinReward(status.CurrentStreak + 1)
+		status.TodayReward = dailyCheckinRewardPreview(status.CurrentStreak + 1)
 	}
 	return status, nil
 }

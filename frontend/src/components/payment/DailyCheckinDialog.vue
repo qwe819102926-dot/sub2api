@@ -29,7 +29,7 @@
             </aside>
           </div>
           <footer class="ci-footer"><span>{{ t('checkin.totalReward') }} <strong>+{{ format(status.total_reward) }}</strong></span><button type="button" class="ci-link" :aria-expanded="showRules" @click="showRules = !showRules">{{ t('checkin.rules') }}<Icon :name="showRules ? 'chevronUp' : 'chevronDown'" size="xs" /></button></footer>
-          <div v-if="showRules" class="ci-rules"><p>{{ t('checkin.ordinaryRule', { rewards: status.ordinary_rewards.map(format).join(' / ') }) }}</p><p>{{ t('checkin.milestoneRule') }}</p><p>{{ t('checkin.resetRule', { days: status.cycle_length }) }}</p></div>
+          <div v-if="showRules" class="ci-rules"><p>{{ t('checkin.ordinaryRule', { rewards: status.ordinary_rewards.map(format).join('～') }) }}</p><p>{{ t('checkin.milestoneRule') }}</p><p>{{ t('checkin.resetRule', { days: status.cycle_length }) }}</p></div>
         </div>
       </section>
     </div>
@@ -82,6 +82,9 @@ const nextMilestone = computed(() => milestones.value.find(milestone => mileston
 const todayRewardLabel = computed(() => {
   const current = status.value
   if (!current) return '—'
+  if (!current.checked_in_today && !current.milestones.some(milestone => milestone.day === current.cycle_day)) {
+    return `+${current.ordinary_rewards.map(format).join('～')}`
+  }
   return `+${format(current.today_reward)}`
 })
 function milestoneOn(date: string) {

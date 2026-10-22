@@ -50,8 +50,8 @@ export default {
     pending: '待签到',
     noRecord: '暂无签到记录',
     projectedNode: '预计连续第 {day} 天',
-    ordinaryRule: '每日可签到一次，固定领取 {rewards} 赠送余额。',
-    milestoneRule: '普通日签到获得 0.5 赠送余额；连续第 3、7、15、30 天当天分别到账 1、3、5、10，不再叠加普通日奖励。',
+    ordinaryRule: '每日可签到一次，普通日随机领取 {rewards} 赠送余额，签到后显示实际到账金额。',
+    milestoneRule: '连续第 3、7、15、30 天当天分别到账 1、3、5、10，不再叠加普通日奖励。',
     resetRule: '每 {days} 天一个奖励周期，跨月继续累计；中断后从第 1 天开始。每天北京时间 00:00 重置签到，奖励全部计入赠送余额。'
   },
 

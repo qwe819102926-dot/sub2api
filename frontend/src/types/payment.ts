@@ -103,12 +103,14 @@ export interface DailyCheckinStatus {
   total_reward: number
   cycle_day: number
   cycle_length: number
+  /** Credited amount after check-in; minimum preview on an unclaimed ordinary day. */
   today_reward: number
   reward_cycle: number[]
   month: string
   records: DailyCheckinRecord[]
   today: string
   next_reset_at: string
+  /** Inclusive ordinary-day reward range: [minimum, maximum]. */
   ordinary_rewards: number[]
   milestones: { day: number; reward: number }[]
 }

@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -40,22 +42,37 @@ func TestQueryTotalConsumptionCountsPrincipalBalanceUsageOnly(t *testing.T) {
 
 func TestDailyCheckinRewardCycle(t *testing.T) {
 	wantMilestones := map[int]float64{3: 1, 7: 3, 15: 5, 30: 10}
-	total := 0.0
-	for day := 1; day <= 60; day++ {
-		expected := 0.5
+	for day := 0; day <= 300; day++ {
+		reward := dailyCheckinReward(day)
 		if amount, ok := wantMilestones[(day-1)%30+1]; ok {
-			expected = amount
-		}
-		require.Equal(t, expected, dailyCheckinReward(day))
-		if day <= 30 {
-			total += dailyCheckinReward(day)
+			require.Equal(t, amount, reward)
+			require.Equal(t, amount, dailyCheckinRewardPreview(day))
+		} else {
+			require.GreaterOrEqual(t, reward, 0.2)
+			require.LessOrEqual(t, reward, 0.5)
+			require.InDelta(t, math.Round(reward*100), reward*100, 1e-9)
+			require.Equal(t, 0.2, dailyCheckinRewardPreview(day))
 		}
 	}
-	require.Equal(t, 32.0, total)
-	require.Equal(t, 0.5, dailyCheckinReward(0))
 	for _, milestone := range dailyCheckinMilestones {
 		require.Equal(t, milestone.Reward, dailyCheckinReward(milestone.Day))
 	}
+}
+
+// Capture the random insert amount and require the balance credit to match it.
+type checkinRewardArgument struct {
+	amount float64
+}
+
+func (r *checkinRewardArgument) Match(value driver.Value) bool {
+	amount, ok := value.(float64)
+	if !ok || amount < 0.2 || amount > 0.5 || math.Abs(amount*100-math.Round(amount*100)) > 1e-9 {
+		return false
+	}
+	if r.amount == 0 {
+		r.amount = amount
+	}
+	return r.amount == amount
 }
 
 func TestDailyCheckinBusinessDateAtShanghaiMidnight(t *testing.T) {
@@ -97,7 +114,7 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(today, 1))
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*ON CONFLICT \(user_id, checkin_date\) DO NOTHING.*RETURNING id`).
-		WithArgs(int64(42), today, 1, 0.5).
+		WithArgs(int64(42), today, 1, &checkinRewardArgument{}).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 	mock.ExpectRollback()
 
@@ -120,7 +137,7 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 }
 
 func TestClaimDailyCheckinRollsBackWhenUserIsNotUpdated(t *testing.T) {
-	reward := 0.5
+	reward := &checkinRewardArgument{}
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -145,7 +162,7 @@ func TestClaimDailyCheckinRollsBackWhenUserIsNotUpdated(t *testing.T) {
 }
 
 func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
-	reward := 0.5
+	reward := &checkinRewardArgument{}
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -169,19 +186,19 @@ func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
 
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day, reward_amount, created_at.*FROM user_daily_checkins`).
 		WithArgs(int64(42), sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 1, reward, createdAt))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 1, 0.37, createdAt))
 	mock.ExpectQuery(`SELECT COUNT\(\*\), COALESCE\(SUM\(reward_amount\), 0\) FROM user_daily_checkins`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(5, 11.0))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, reward))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, 0.37))
 
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
 	require.Equal(t, 1, status.CurrentStreak)
 	require.Equal(t, 1, status.Records[0].StreakDay)
-	require.Equal(t, 0.5, status.TodayReward)
+	require.Equal(t, 0.37, status.TodayReward)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -208,7 +225,7 @@ func TestGetDailyCheckinHistoricalMonthPreservesToday(t *testing.T) {
 	require.Equal(t, today.Format("2006-01-02"), status.Today)
 	require.Empty(t, status.Records)
 	require.Len(t, status.Milestones, 4)
-	require.Equal(t, []float64{0.5}, status.OrdinaryRewards)
+	require.Equal(t, []float64{0.2, 0.5}, status.OrdinaryRewards)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
