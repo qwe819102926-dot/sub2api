@@ -5,7 +5,7 @@ export default {
     balance: '余额',
     bonusBalance: '赠送余额',
     bonusBalanceEquivalent: '约抵扣 {amount}',
-    bonusBalanceHint: '赠送余额按10倍扣费，例如原价 $1，扣赠送余额 $10',
+    bonusBalanceHint: '赠送余额按 {rate} 倍扣费，每消费 $1，扣除赠送余额 {amount}。',
     apiKeys: 'API 密钥',
     todayRequests: '今日请求',
     todayCost: '今日消费',

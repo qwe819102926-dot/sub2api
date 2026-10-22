@@ -28,9 +28,10 @@ type ConsumptionRewardStatus struct {
 // RewardCampaignStatus is returned to the dashboard and keeps recharge rewards
 // visible without exposing any mutable campaign state to the user.
 type RewardCampaignStatus struct {
-	RechargeBonus     TieredRewardConfig      `json:"recharge_bonus"`
-	ConsumptionReward ConsumptionRewardStatus `json:"consumption_reward"`
-	BonusBalance      float64                 `json:"bonus_balance"`
+	RechargeBonus               TieredRewardConfig      `json:"recharge_bonus"`
+	ConsumptionReward           ConsumptionRewardStatus `json:"consumption_reward"`
+	BonusBalance                float64                 `json:"bonus_balance"`
+	BonusBalanceConsumptionRate float64                 `json:"bonus_balance_consumption_rate"`
 }
 
 // grantRechargeBonus credits the highest matching tier for one completed balance order.
@@ -83,7 +84,7 @@ func (s *PaymentService) GetRewardCampaignStatus(ctx context.Context, userID int
 	if err != nil {
 		return nil, err
 	}
-	status := &RewardCampaignStatus{RechargeBonus: cfg.RechargeBonus}
+	status := &RewardCampaignStatus{RechargeBonus: cfg.RechargeBonus, BonusBalanceConsumptionRate: cfg.BonusBalanceConsumptionRate}
 	if err := querySingleFloat(ctx, s.entClient, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1`, &status.BonusBalance, userID); err != nil {
 		return nil, fmt.Errorf("query bonus balance: %w", err)
 	}

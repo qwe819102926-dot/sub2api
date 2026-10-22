@@ -82,6 +82,7 @@ export interface RewardTierStatus extends RewardTier {
 export interface RewardCampaignStatus {
   recharge_bonus: TieredRewardConfig
   bonus_balance: number
+  bonus_balance_consumption_rate?: number
   consumption_reward: {
     enabled: boolean
     total_spent: number

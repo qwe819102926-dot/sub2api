@@ -26,9 +26,9 @@
         <div>
           <p class="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t('dashboard.bonusBalance') }}
-            <HelpTooltip :content="t('dashboard.bonusBalanceHint')" trigger="click" width-class="w-64">
+            <HelpTooltip :content="bonusBalanceHint" trigger="click" width-class="w-64">
               <template #trigger>
-                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="t('dashboard.bonusBalanceHint')">
+                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="bonusBalanceHint">
                   <Icon name="infoCircle" size="xs" />
                 </button>
               </template>
@@ -168,12 +168,20 @@ const props = defineProps<{
   stats: UserStatsType
   balance: number
   bonusBalance: number
+  bonusConsumptionRate?: number
   isSimple: boolean
 }>()
 const { t } = useI18n()
 
-// Display the advertised 10:1 conversion without changing billing.
-const bonusEquivalent = computed(() => props.bonusBalance / 10)
+const bonusRate = computed(() => {
+  const rate = props.bonusConsumptionRate ?? 1
+  return Number.isFinite(rate) && rate > 0 ? rate : 1
+})
+const bonusEquivalent = computed(() => props.bonusBalance / bonusRate.value)
+const bonusBalanceHint = computed(() => t('dashboard.bonusBalanceHint', {
+  rate: bonusRate.value,
+  amount: '$' + formatBalance(bonusRate.value)
+}))
 
 const formatBalance = (b: number) =>
   new Intl.NumberFormat('en-US', {
