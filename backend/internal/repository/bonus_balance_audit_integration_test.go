@@ -80,8 +80,11 @@ func TestBonusBalanceAudit_RecordsActualWalletUnitsAndActivitySources(t *testing
 	_, err := users.AdjustBonusBalance(ctx, u.ID, 10)
 	require.NoError(t, err)
 	payments := service.NewPaymentService(client, nil, nil, nil, nil, nil, nil, nil, nil)
-	_, err = payments.ClaimDailyCheckin(ctx, u.ID)
+	checkin, err := payments.ClaimDailyCheckin(ctx, u.ID)
 	require.NoError(t, err)
+	require.GreaterOrEqual(t, checkin.TodayReward, 0.2)
+	require.LessOrEqual(t, checkin.TodayReward, 0.5)
+	require.Equal(t, checkin.TodayReward, querySingleFloat(t, ctx, client, `SELECT reward_amount::double precision FROM user_daily_checkins WHERE user_id=$1`, u.ID))
 	repo := &affiliateRepository{client: client}
 	_, err = repo.ApplySignupPromotion(ctx, u.ID, "", service.SignupPromotionConfig{SignupBonusEnabled: true, SignupBonusAmount: 50})
 	require.NoError(t, err)
@@ -92,10 +95,12 @@ func TestBonusBalanceAudit_RecordsActualWalletUnitsAndActivitySources(t *testing
 	require.Equal(t, 6.0, bonus)
 	require.Zero(t, principal)
 	require.NoError(t, tx.Commit())
-	for source, amount := range map[string]float64{"admin": 10, "checkin": 0.5, "signup": 50, "consumption": -6} {
+	for source, amount := range map[string]float64{"admin": 10, "checkin": checkin.TodayReward, "signup": 50, "consumption": -6} {
 		require.Equal(t, amount, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1 AND source=$2`, u.ID, source))
 	}
-	require.Equal(t, 54.5, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1`, u.ID))
+	expectedBalance := 54 + checkin.TodayReward
+	require.InDelta(t, expectedBalance, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1`, u.ID), 1e-8)
+	require.InDelta(t, expectedBalance, querySingleFloat(t, ctx, client, `SELECT bonus_balance::double precision FROM users WHERE id=$1`, u.ID), 1e-8)
 }
 
 func TestBonusBalanceAudit_HistoricalMigration(t *testing.T) {
