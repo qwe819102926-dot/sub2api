@@ -92,10 +92,10 @@ func TestBonusBalanceAudit_RecordsActualWalletUnitsAndActivitySources(t *testing
 	require.Equal(t, 6.0, bonus)
 	require.Zero(t, principal)
 	require.NoError(t, tx.Commit())
-	for source, amount := range map[string]float64{"admin": 10, "checkin": 5, "signup": 50, "consumption": -6} {
+	for source, amount := range map[string]float64{"admin": 10, "checkin": 0.5, "signup": 50, "consumption": -6} {
 		require.Equal(t, amount, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1 AND source=$2`, u.ID, source))
 	}
-	require.Equal(t, 59.0, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1`, u.ID))
+	require.Equal(t, 54.5, querySingleFloat(t, ctx, client, `SELECT SUM(amount)::double precision FROM bonus_balance_events WHERE user_id=$1`, u.ID))
 }
 
 func TestBonusBalanceAudit_HistoricalMigration(t *testing.T) {

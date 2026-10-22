@@ -9,7 +9,7 @@ import (
 
 const (
 	dailyCheckinCycleLength = 30
-	dailyCheckinBaseReward  = 5.0
+	dailyCheckinBaseReward  = 0.5
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
@@ -19,8 +19,8 @@ type DailyCheckinMilestone struct {
 	Reward float64 `json:"reward"`
 }
 
-// Milestone rewards are the entire gift for that day, replacing the daily 5.
-var dailyCheckinMilestones = []DailyCheckinMilestone{{Day: 3, Reward: 10}, {Day: 7, Reward: 30}, {Day: 15, Reward: 50}, {Day: 30, Reward: 100}}
+// Milestone rewards are the entire gift for that day, replacing the ordinary reward.
+var dailyCheckinMilestones = []DailyCheckinMilestone{{Day: 3, Reward: 1}, {Day: 7, Reward: 3}, {Day: 15, Reward: 5}, {Day: 30, Reward: 10}}
 
 var dailyCheckinRewardCycle = func() []float64 {
 	cycle := make([]float64, dailyCheckinCycleLength)

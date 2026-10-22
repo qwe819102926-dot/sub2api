@@ -39,10 +39,10 @@ func TestQueryTotalConsumptionCountsPrincipalBalanceUsageOnly(t *testing.T) {
 }
 
 func TestDailyCheckinRewardCycle(t *testing.T) {
-	wantMilestones := map[int]float64{3: 10, 7: 30, 15: 50, 30: 100}
+	wantMilestones := map[int]float64{3: 1, 7: 3, 15: 5, 30: 10}
 	total := 0.0
 	for day := 1; day <= 60; day++ {
-		expected := 5.0
+		expected := 0.5
 		if amount, ok := wantMilestones[(day-1)%30+1]; ok {
 			expected = amount
 		}
@@ -51,8 +51,8 @@ func TestDailyCheckinRewardCycle(t *testing.T) {
 			total += dailyCheckinReward(day)
 		}
 	}
-	require.Equal(t, 320.0, total)
-	require.Equal(t, 5.0, dailyCheckinReward(0))
+	require.Equal(t, 32.0, total)
+	require.Equal(t, 0.5, dailyCheckinReward(0))
 	for _, milestone := range dailyCheckinMilestones {
 		require.Equal(t, milestone.Reward, dailyCheckinReward(milestone.Day))
 	}
@@ -97,7 +97,7 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(today, 1))
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*ON CONFLICT \(user_id, checkin_date\) DO NOTHING.*RETURNING id`).
-		WithArgs(int64(42), today, 1, 5.0).
+		WithArgs(int64(42), today, 1, 0.5).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
 	mock.ExpectRollback()
 
@@ -115,11 +115,12 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)
 	require.Equal(t, 1, status.TotalDays)
+	require.Equal(t, 0.10, status.TodayReward, "duplicate claims preserve the amount originally credited")
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestClaimDailyCheckinRollsBackWhenUserIsNotUpdated(t *testing.T) {
-	reward := 5.0
+	reward := 0.5
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -144,7 +145,7 @@ func TestClaimDailyCheckinRollsBackWhenUserIsNotUpdated(t *testing.T) {
 }
 
 func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
-	reward := 5.0
+	reward := 0.5
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -168,18 +169,19 @@ func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
 
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day, reward_amount, created_at.*FROM user_daily_checkins`).
 		WithArgs(int64(42), sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 1, 10.0, createdAt))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 1, reward, createdAt))
 	mock.ExpectQuery(`SELECT COUNT\(\*\), COALESCE\(SUM\(reward_amount\), 0\) FROM user_daily_checkins`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(5, 11.0))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, 10.0))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, reward))
 
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
 	require.Equal(t, 1, status.CurrentStreak)
 	require.Equal(t, 1, status.Records[0].StreakDay)
+	require.Equal(t, 0.5, status.TodayReward)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -196,17 +198,17 @@ func TestGetDailyCheckinHistoricalMonthPreservesToday(t *testing.T) {
 	mock.ExpectQuery(`SELECT COUNT\(\*\), COALESCE\(SUM\(reward_amount\), 0\) FROM user_daily_checkins`).
 		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(30, 35.8))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
-		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 10.0))
+		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 100.0))
 	status, err := service.GetDailyCheckinStatus(context.Background(), 42, "2025-01")
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)
 	require.Equal(t, 30, status.CurrentStreak)
 	require.Equal(t, 30, status.CycleDay)
-	require.Equal(t, 10.0, status.TodayReward)
+	require.Equal(t, 100.0, status.TodayReward, "historical credits retain the original reward amount")
 	require.Equal(t, today.Format("2006-01-02"), status.Today)
 	require.Empty(t, status.Records)
 	require.Len(t, status.Milestones, 4)
-	require.Equal(t, []float64{5}, status.OrdinaryRewards)
+	require.Equal(t, []float64{0.5}, status.OrdinaryRewards)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -220,22 +222,22 @@ func TestClaimDailyCheckinMilestoneCreditsOnlyBonusBalance(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(today.AddDate(0, 0, -1), 29))
-	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*RETURNING id`).WithArgs(int64(42), today, 30, 100.0).
+	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*RETURNING id`).WithArgs(int64(42), today, 30, 10.0).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(30))
 	mock.ExpectExec(`UPDATE users SET bonus_balance = COALESCE\(bonus_balance, 0\) \+ \$1, updated_at = NOW\(\) WHERE id = \$2 AND deleted_at IS NULL`).
-		WithArgs(100.0, int64(42)).WillReturnResult(sqlmock.NewResult(0, 1))
+		WithArgs(10.0, int64(42)).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day, reward_amount, created_at.*FROM user_daily_checkins`).
 		WithArgs(int64(42), sqlmock.AnyArg(), sqlmock.AnyArg()).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 30, 100.0, today))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount", "created_at"}).AddRow(today, 30, 10.0, today))
 	mock.ExpectQuery(`SELECT COUNT\(\*\), COALESCE\(SUM\(reward_amount\), 0\) FROM user_daily_checkins`).
-		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(30, 320.0))
+		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(30, 32.0))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 100.0))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 10.0))
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)
-	require.Equal(t, 100.0, status.TodayReward)
+	require.Equal(t, 10.0, status.TodayReward)
 	require.Equal(t, 30, status.CurrentStreak)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
