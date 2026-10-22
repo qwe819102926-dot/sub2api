@@ -26,16 +26,16 @@
         <div>
           <p class="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t('dashboard.bonusBalance') }}
-            <HelpTooltip :content="bonusBalanceHint" trigger="click" width-class="w-64">
+            <HelpTooltip :content="t('dashboard.bonusBalanceHint')" trigger="click" width-class="w-64">
               <template #trigger>
-                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="bonusBalanceHint">
+                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="t('dashboard.bonusBalanceHint')">
                   <Icon name="infoCircle" size="xs" />
                 </button>
               </template>
             </HelpTooltip>
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusEquivalent) }) }}</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusBalance) }) }}</p>
         </div>
       </div>
     </div>
@@ -158,30 +158,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 import type { UserDashboardStats as UserStatsType } from '@/api/usage'
 
-const props = defineProps<{
+defineProps<{
   stats: UserStatsType
   balance: number
   bonusBalance: number
-  bonusConsumptionRate?: number
   isSimple: boolean
 }>()
 const { t } = useI18n()
-
-const bonusRate = computed(() => {
-  const rate = props.bonusConsumptionRate ?? 1
-  return Number.isFinite(rate) && rate > 0 ? rate : 1
-})
-const bonusEquivalent = computed(() => props.bonusBalance / bonusRate.value)
-const bonusBalanceHint = computed(() => t('dashboard.bonusBalanceHint', {
-  rate: bonusRate.value,
-  amount: '$' + formatBalance(bonusRate.value)
-}))
 
 const formatBalance = (b: number) =>
   new Intl.NumberFormat('en-US', {

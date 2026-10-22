@@ -5,7 +5,7 @@ export default {
     balance: 'Balance',
     bonusBalance: 'Bonus Balance',
     bonusBalanceEquivalent: '≈ {amount} of usage',
-    bonusBalanceHint: 'Bonus balance is deducted at {rate}×: each $1 of usage deducts {amount} of bonus balance.',
+    bonusBalanceHint: 'Bonus balance offsets usage at 1:1: each $1 of usage uses $1 of bonus balance.',
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
     todayCost: 'Today Cost',
