@@ -6,6 +6,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -26,6 +27,36 @@ func NewPaymentHandler(paymentService *service.PaymentService, configService *se
 }
 
 // --- Dashboard ---
+
+func (h *PaymentHandler) GetBonusBalanceConversion(c *gin.Context) {
+	result, err := h.paymentService.GetBonusBalanceConversion(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *PaymentHandler) ConvertBonusBalances(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req struct {
+		Confirmation string `json:"confirmation" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request")
+		return
+	}
+	result, err := h.paymentService.ConvertBonusBalances(c.Request.Context(), subject.UserID, req.Confirmation)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
 
 func (h *PaymentHandler) GetBonusBalanceReport(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)

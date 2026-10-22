@@ -1,5 +1,13 @@
 export default {
   bonusBalanceAdmin: {
+    conversionTitle: '剩余赠送余额转换',
+    conversionButton: '剩余赠送余额 ÷10', conversionDone: '已完成转换',
+    conversionHint: '全站一次性操作：将执行时所有账户大于 0 的剩余赠送余额除以 10，包含已删除账户留存额度。转换保留 8 位小数，并记录每个账户转换前后的余额。',
+    conversionWarning: '此操作不可在页面撤销，且全站只能执行一次。不受当前筛选条件影响。充值本金、消费倍率、后续发奖金额和历史流水金额均不改变。请先核对发奖配置，并安排在暂停消费与发奖的维护窗口执行；消费倍率请通过已有设置自行调整。历史金额仍为转换前单位，转换差额计入“其他扣减”，不计为消费。',
+    conversionPreview: '当前预览：{users} 个账户，赠送余额合计 {before} → {after}。实际以执行时余额为准。',
+    conversionConfirmLabel: '输入 DIVIDE_BY_10 确认全站转换', conversionExecute: '确认除以 10',
+    conversionReceipt: '已于 {date} 转换 {users} 个账户：{before} → {after}。',
+    conversionFailed: '转换操作失败或结果尚未确认，请检查状态后重试。',
     title: '赠送余额统计', description: '查看全站累计发放、实际消耗、未消耗余额与活动来源。金额均为赠送余额单位。',
     issued: '累计发放', issuedHint: '含活动赠送、管理员增加及历史来源不明的入账',
     consumed: '已消耗', consumedHint: '实际扣除的赠送余额，已包含独立消耗倍率',
@@ -15,6 +23,6 @@ export default {
     search: '搜索用户邮箱或用户 ID', allSources: '全部来源', kind: '流水类型', allKinds: '全部类型', grant: '发放入账', consumption: '消费扣减', adjustment: '其他流出', query: '查询',
     account: '用户', movement: '变动金额', after: '变动后余额', recordType: '记录口径', date: '最近变动时间',
     historical: '历史导入', dailyAggregate: '当日消费汇总', live: '实时记录', total: '共 {total} 条记录', empty: '暂无匹配记录', retry: '重试', loadFailed: '赠送余额统计加载失败，请重试',
-    sources: { signup: '注册拉新', invite: '邀请奖励', checkin: '每日签到', recharge: '充值赠送', consumption_reward: '消费达标奖励', lottery: '充值抽奖', admin: '管理员调整', consumption: '消费扣减', historical_credit: '历史来源不明入账', historical_outflow: '历史未明流出', account_removed: '账户移除', other: '其他变动' },
+    sources: { signup: '注册拉新', invite: '邀请奖励', checkin: '每日签到', recharge: '充值赠送', consumption_reward: '消费达标奖励', lottery: '充值抽奖', admin: '管理员调整', consumption: '消费扣减', historical_credit: '历史来源不明入账', historical_outflow: '历史未明流出', account_removed: '账户移除', conversion: '余额单位转换', other: '其他变动' },
   },
 }

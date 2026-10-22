@@ -73,7 +73,7 @@ func normalizeBonusReportFilter(f BonusBalanceReportFilter) (BonusBalanceReportF
 		return f, infraerrors.BadRequest("INVALID_SEARCH", "search is too long")
 	}
 	switch f.Source {
-	case "", "signup", "invite", "checkin", "recharge", "consumption_reward", "lottery", "admin", "consumption", "historical_credit", "historical_outflow", "account_removed", "other":
+	case "", "signup", "invite", "checkin", "recharge", "consumption_reward", "lottery", "admin", "consumption", "historical_credit", "historical_outflow", "account_removed", "conversion", "other":
 	default:
 		return f, infraerrors.BadRequest("INVALID_BONUS_SOURCE", "unknown bonus source")
 	}

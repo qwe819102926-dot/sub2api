@@ -37,6 +37,8 @@ func RegisterAdminRoutes(
 		// 仪表盘
 		registerDashboardRoutes(admin, h)
 		admin.GET("/bonus-balance", h.Admin.Payment.GetBonusBalanceReport)
+		admin.GET("/bonus-balance/conversion", h.Admin.Payment.GetBonusBalanceConversion)
+		admin.POST("/bonus-balance/conversion", h.Admin.Payment.ConvertBonusBalances)
 
 		// 用户管理
 		registerUserManagementRoutes(admin, h)

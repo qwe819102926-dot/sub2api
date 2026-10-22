@@ -6,6 +6,12 @@
         <button class="btn btn-secondary" :disabled="loading" @click="load(page)">{{ t('common.refresh') }}</button>
       </div>
       <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ error }}</p>
+      <section class="card space-y-3 p-6">
+        <h2 class="font-semibold">{{ t('bonusBalanceAdmin.conversionTitle') }}</h2>
+        <p class="text-sm leading-6 text-gray-500 dark:text-dark-400">{{ t('bonusBalanceAdmin.conversionHint') }}</p>
+        <p v-if="conversion?.completed" class="text-sm text-emerald-600" data-testid="conversion-completed">{{ t('bonusBalanceAdmin.conversionReceipt', { users: conversion.users, before: conversion.before_total, after: conversion.after_total, date: conversion.completed_at ? formatDateTime(conversion.completed_at) : '—' }) }}</p>
+        <button class="btn btn-secondary" data-testid="conversion-open" :disabled="converting || conversionLoading || conversion?.completed" @click="openConversion">{{ t(conversion?.completed ? 'bonusBalanceAdmin.conversionDone' : 'bonusBalanceAdmin.conversionButton') }}</button>
+      </section>
       <div v-if="!report && loading" role="status" class="card p-12 text-center text-gray-500">{{ t('common.loading') }}</div>
       <template v-if="report">
         <section class="grid gap-4 md:grid-cols-3">
@@ -96,6 +102,19 @@
       </template>
       <button v-else-if="!loading" class="btn btn-primary" @click="load(1)">{{ t('bonusBalanceAdmin.retry') }}</button>
     </div>
+    <BaseDialog :show="conversionDialog" :title="t('bonusBalanceAdmin.conversionTitle')" width="normal" :close-on-escape="!converting" :show-close-button="!converting" @close="closeConversion">
+      <div class="space-y-4">
+        <p class="text-sm leading-6">{{ t('bonusBalanceAdmin.conversionWarning') }}</p>
+        <p v-if="conversion" class="rounded-lg bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-900/20 dark:text-amber-200" data-testid="conversion-preview">{{ t('bonusBalanceAdmin.conversionPreview', { users: conversion.users, before: conversion.before_total, after: conversion.after_total }) }}</p>
+        <label class="block text-sm" for="conversion-confirmation">{{ t('bonusBalanceAdmin.conversionConfirmLabel') }}</label>
+        <input id="conversion-confirmation" v-model="confirmation" class="input w-full" autocomplete="off" :disabled="converting" placeholder="DIVIDE_BY_10" />
+        <p v-if="conversionError" role="alert" class="text-sm text-red-600">{{ conversionError }}</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary" :disabled="converting" @click="closeConversion">{{ t('common.cancel') }}</button>
+        <button class="btn btn-primary" data-testid="conversion-submit" :disabled="converting || confirmation !== 'DIVIDE_BY_10' || !conversion || conversion.completed || conversion.users === 0" @click="executeConversion">{{ t(converting ? 'common.processing' : 'bonusBalanceAdmin.conversionExecute') }}</button>
+      </template>
+    </BaseDialog>
   </AppLayout>
 </template>
 
@@ -103,7 +122,8 @@
 import { computed, onMounted, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { getBonusBalanceReport, type BonusBalanceReport } from '@/api/admin/bonusBalance'
+import { getBonusBalanceReport, getBonusBalanceConversion, convertBonusBalances, type BonusBalanceReport, type BonusBalanceConversion } from '@/api/admin/bonusBalance'
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
@@ -113,7 +133,56 @@ const page = ref(1)
 const loading = ref(false)
 const error = ref('')
 const filters = reactive({ search: '', source: '', kind: '' })
-const sourceOptions = ['signup', 'invite', 'checkin', 'recharge', 'consumption_reward', 'lottery', 'admin', 'consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'other']
+const sourceOptions = ['signup', 'invite', 'checkin', 'recharge', 'consumption_reward', 'lottery', 'admin', 'consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion', 'other']
+const conversion = ref<BonusBalanceConversion | null>(null)
+const conversionDialog = ref(false)
+const conversionLoading = ref(true)
+const converting = ref(false)
+const confirmation = ref('')
+const conversionError = ref('')
+
+async function openConversion() {
+  if (conversionLoading.value || converting.value || conversion.value?.completed) return
+  conversionLoading.value = true
+  error.value = ''
+  try {
+    conversion.value = await getBonusBalanceConversion()
+    if (!conversion.value.completed) {
+      confirmation.value = ''
+      conversionError.value = ''
+      conversionDialog.value = true
+    }
+  } catch (cause) {
+    error.value = extractApiErrorMessage(cause, t('bonusBalanceAdmin.conversionFailed'))
+  } finally {
+    conversionLoading.value = false
+  }
+}
+function closeConversion() {
+  if (!converting.value) conversionDialog.value = false
+}
+async function executeConversion() {
+  if (converting.value || confirmation.value !== 'DIVIDE_BY_10' || !conversion.value || conversion.value.completed || conversion.value.users === 0) return
+  converting.value = true
+  conversionError.value = ''
+  try {
+    conversion.value = await convertBonusBalances(confirmation.value)
+    conversionDialog.value = false
+    await load(1)
+  } catch (cause) {
+    conversionError.value = extractApiErrorMessage(cause, t('bonusBalanceAdmin.conversionFailed'))
+    // A timeout may follow a successful commit. Reconcile before allowing retry.
+    try {
+      conversion.value = await getBonusBalanceConversion()
+      if (conversion.value.completed) {
+        conversionDialog.value = false
+        await load(1)
+      }
+    } catch { /* The server's permanent guard still prevents a duplicate conversion. */ }
+  } finally {
+    converting.value = false
+  }
+}
 let revision = 0
 const metrics = computed(() => report.value ? [
   { key: 'issued', value: report.value.summary.issued, color: 'text-gray-900 dark:text-white' },
@@ -138,6 +207,12 @@ async function load(target: number) {
   }
 }
 function selectSource(source: string) { filters.source = source; filters.kind = 'grant'; void load(1) }
-onMounted(() => { void load(1) })
+onMounted(() => {
+  void load(1)
+  void getBonusBalanceConversion()
+    .then(value => { conversion.value = value })
+    .catch(() => { /* Opening the dialog retries the status request. */ })
+    .finally(() => { conversionLoading.value = false })
+})
 onBeforeUnmount(() => { revision++ })
 </script>

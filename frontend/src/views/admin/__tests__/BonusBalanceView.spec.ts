@@ -2,8 +2,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BonusBalanceView from '../BonusBalanceView.vue'
 
-const { getReport } = vi.hoisted(() => ({ getReport: vi.fn() }))
-vi.mock('@/api/admin/bonusBalance', () => ({ getBonusBalanceReport: getReport }))
+const { getReport, getConversion, convertBalances } = vi.hoisted(() => ({ getReport: vi.fn(), getConversion: vi.fn(), convertBalances: vi.fn() }))
+vi.mock('@/api/admin/bonusBalance', () => ({ getBonusBalanceReport: getReport, getBonusBalanceConversion: getConversion, convertBonusBalances: convertBalances }))
 vi.mock('vue-i18n', async (original) => ({ ...await original<typeof import('vue-i18n')>(), useI18n: () => ({ t: (key: string) => key }) }))
 const data = () => ({
   summary: { issued: 1000, consumed: 600, remaining: 300, adjustments: 50, historical_outflow: 50, deleted_user_remaining: 0, reconciliation_difference: 0 },
@@ -11,11 +11,51 @@ const data = () => ({
   records: [{ id: 1, user_id: 42, email: 'friend@example.com', source: 'checkin', amount: 10, balance_after: 30, historical: false, created_at: '2026-10-21T00:00:00Z', updated_at: '2026-10-21T00:00:00Z' }],
   total: 21, page: 1, page_size: 20,
 })
-const render = () => mount(BonusBalanceView, { global: { stubs: { AppLayout: { template: '<main><slot /></main>' } } } })
+const preview = () => ({ completed: false, users: 12, before_total: '300.00000000', after_total: '30.00000000', completed_at: null })
+const render = () => mount(BonusBalanceView, { global: { stubs: { AppLayout: { template: '<main><slot /></main>' }, BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /><slot name="footer" /></div>' } } } })
 const button = (w: ReturnType<typeof render>, label: string) => w.findAll('button').find(b => b.text() === label)!
 
 describe('BonusBalanceView', () => {
-  beforeEach(() => { vi.clearAllMocks(); getReport.mockResolvedValue(data()) })
+  beforeEach(() => { vi.resetAllMocks(); getReport.mockResolvedValue(data()); getConversion.mockResolvedValue(preview()) })
+  it('requires explicit confirmation and runs only after submit, then permanently disables the button', async () => {
+    convertBalances.mockResolvedValue({ ...preview(), completed: true, completed_at: '2026-10-22T00:00:00Z' })
+    const w = render(); await flushPromises()
+    await w.get('[data-testid="conversion-open"]').trigger('click'); await flushPromises()
+    expect(convertBalances).not.toHaveBeenCalled()
+    expect(w.get('[data-testid="conversion-submit"]').attributes('disabled')).toBeDefined()
+    await w.get('#conversion-confirmation').setValue('DIVIDE_BY_10')
+    await w.get('[data-testid="conversion-submit"]').trigger('click'); await flushPromises()
+    expect(convertBalances).toHaveBeenCalledTimes(1)
+    expect(convertBalances).toHaveBeenCalledWith('DIVIDE_BY_10')
+    expect(w.get('[data-testid="conversion-open"]').attributes('disabled')).toBeDefined()
+    expect(w.find('[data-testid="conversion-completed"]').exists()).toBe(true)
+  })
+  it('cancels without writing and reloads the preview when reopened', async () => {
+    const w = render(); await flushPromises()
+    await w.get('[data-testid="conversion-open"]').trigger('click'); await flushPromises()
+    await button(w, 'common.cancel').trigger('click')
+    expect(convertBalances).not.toHaveBeenCalled()
+    await w.get('[data-testid="conversion-open"]').trigger('click'); await flushPromises()
+    expect(getConversion).toHaveBeenCalledTimes(3)
+  })
+  it('reconciles a committed conversion after a network failure instead of allowing a second conversion', async () => {
+    const w = render(); await flushPromises()
+    await w.get('[data-testid="conversion-open"]').trigger('click'); await flushPromises()
+    convertBalances.mockRejectedValueOnce(new Error('timeout'))
+    getConversion.mockResolvedValue({ ...preview(), completed: true, completed_at: '2026-10-22T00:00:00Z' })
+    await w.get('#conversion-confirmation').setValue('DIVIDE_BY_10')
+    await w.get('[data-testid="conversion-submit"]').trigger('click'); await flushPromises()
+    expect(w.get('[data-testid="conversion-open"]').attributes('disabled')).toBeDefined()
+    expect(convertBalances).toHaveBeenCalledTimes(1)
+  })
+  it('does not open confirmation if the preview request fails', async () => {
+    const w = render(); await flushPromises()
+    getConversion.mockRejectedValueOnce(new Error('offline'))
+    await w.get('[data-testid="conversion-open"]').trigger('click'); await flushPromises()
+    expect(w.find('#conversion-confirmation').exists()).toBe(false)
+    expect(convertBalances).not.toHaveBeenCalled()
+    expect(w.find('[role="alert"]').exists()).toBe(true)
+  })
   it('shows global issuance, measured consumption and unconsumed stock', async () => {
     const w = render(); await flushPromises()
     expect(w.get('[data-testid="issued"]').text()).toContain('1,000')

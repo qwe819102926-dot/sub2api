@@ -1,5 +1,13 @@
 export default {
   bonusBalanceAdmin: {
+    conversionTitle: 'Convert remaining bonus balances',
+    conversionButton: 'Divide remaining bonus balances by 10', conversionDone: 'Conversion completed',
+    conversionHint: 'One-time site-wide operation: divide every positive remaining bonus balance by 10, including balances retained in deleted accounts. Values are rounded to 8 decimal places and each account receives a before/after snapshot.',
+    conversionWarning: 'This cannot be undone here and can run only once per site, regardless of the current filters. Principal, consumption multiplier, future rewards and historical movement amounts stay unchanged. Review reward settings first and run during a maintenance window with consumption and grants paused; adjust the multiplier using its existing setting. Historical amounts retain their original units; the conversion difference is an adjustment, not consumption.',
+    conversionPreview: 'Live preview: {users} accounts, total {before} → {after}. Actual balances are determined at execution time.',
+    conversionConfirmLabel: 'Type DIVIDE_BY_10 to confirm the site-wide conversion', conversionExecute: 'Confirm division by 10',
+    conversionReceipt: 'Converted {users} accounts on {date}: {before} → {after}.',
+    conversionFailed: 'Conversion failed or its outcome is unconfirmed. Check the status before retrying.',
     title: 'Bonus Balance Report', description: 'Lifetime grants, actual consumption, remaining balance, and campaign sources. All amounts use bonus-wallet units.',
     issued: 'Total issued', issuedHint: 'Campaign gifts, admin increases, and historical credits of unknown origin',
     consumed: 'Consumed', consumedHint: 'Actual bonus-wallet deductions, including its independent consumption multiplier',
@@ -15,6 +23,6 @@ export default {
     search: 'Search email or user ID', allSources: 'All sources', kind: 'Movement type', allKinds: 'All types', grant: 'Credits', consumption: 'Consumption', adjustment: 'Other outflows', query: 'Search',
     account: 'User', movement: 'Amount', after: 'Balance after', recordType: 'Record type', date: 'Last updated',
     historical: 'Imported history', dailyAggregate: 'Daily consumption', live: 'Live record', total: '{total} records', empty: 'No matching records', retry: 'Retry', loadFailed: 'Unable to load the bonus balance report. Please retry.',
-    sources: { signup: 'New-user signup', invite: 'Invitation reward', checkin: 'Daily check-in', recharge: 'Recharge gift', consumption_reward: 'Spend milestone', lottery: 'Recharge lottery', admin: 'Admin adjustment', consumption: 'Consumption', historical_credit: 'Unknown historical credit', historical_outflow: 'Unknown historical outflow', account_removed: 'Account removal', other: 'Other movement' },
+    sources: { signup: 'New-user signup', invite: 'Invitation reward', checkin: 'Daily check-in', recharge: 'Recharge gift', consumption_reward: 'Spend milestone', lottery: 'Recharge lottery', admin: 'Admin adjustment', consumption: 'Consumption', historical_credit: 'Unknown historical credit', historical_outflow: 'Unknown historical outflow', account_removed: 'Account removal', conversion: 'Balance unit conversion', other: 'Other movement' },
   },
 }

@@ -13,3 +13,21 @@ export async function getBonusBalanceReport(params: { page: number; page_size: n
   const { data } = await apiClient.get<BonusBalanceReport>('/admin/bonus-balance', { params })
   return data
 }
+
+export interface BonusBalanceConversion {
+  completed: boolean
+  users: number
+  before_total: string
+  after_total: string
+  completed_at: string | null
+}
+
+export async function getBonusBalanceConversion(): Promise<BonusBalanceConversion> {
+  const { data } = await apiClient.get<BonusBalanceConversion>('/admin/bonus-balance/conversion')
+  return data
+}
+
+export async function convertBonusBalances(confirmation: string): Promise<BonusBalanceConversion> {
+  const { data } = await apiClient.post<BonusBalanceConversion>('/admin/bonus-balance/conversion', { confirmation }, { timeout: 60000 })
+  return data
+}
