@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,6 +36,7 @@ type userRepository struct {
 
 var _ service.RedeemUserAdjustmentRepository = (*userRepository)(nil)
 var _ service.BonusBalanceStore = (*userRepository)(nil)
+var _ service.BonusBalanceCreditStore = (*userRepository)(nil)
 var _ service.UserBalanceSummaryStore = (*userRepository)(nil)
 
 func NewUserRepository(client *dbent.Client, sqlDB *sql.DB) service.UserRepository {
@@ -1093,6 +1096,33 @@ func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs 
 		return nil, err
 	}
 	return result, nil
+}
+
+func (r *userRepository) GetBonusBalanceCredit(ctx context.Context, userID int64) (float64, error) {
+	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `SELECT COALESCE(bonus_balance, 0),
+COALESCE((SELECT value FROM settings WHERE key = $2), '1')
+FROM users WHERE id = $1 AND deleted_at IS NULL`, userID, service.SettingBonusBalanceConsumptionRate)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		return 0, errors.Join(service.ErrUserNotFound, rows.Err())
+	}
+	var bonus float64
+	var rawRate string
+	if err := rows.Scan(&bonus, &rawRate); err != nil {
+		return 0, err
+	}
+	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
+		return 0, err
+	}
+	rate, err := strconv.ParseFloat(strings.TrimSpace(rawRate), 64)
+	// Match the actual wallet deduction's fallback for invalid settings.
+	if err != nil || rate <= 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		rate = 1
+	}
+	return math.Max(0, bonus) / rate, nil
 }
 
 func (r *userRepository) AdjustBonusBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {

@@ -738,7 +738,7 @@ func (s *BillingCacheService) IncrementUserPlatformQuotaUsage(userID int64, plat
 // ============================================
 
 // CheckBillingEligibility 检查用户是否有资格发起请求
-// 余额模式：检查缓存余额 > 0
+// 余额模式：检查本金及赠送余额可抵扣金额是否达到准入下限
 // 订阅模式：检查缓存用量未超过限额（Group限额从参数传入）
 // platform 为请求的目标平台（如 "anthropic"），传空串 "" 时跳过 user × platform quota 检查。
 func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user *User, apiKey *APIKey, group *Group, subscription *UserSubscription, platform string) error {
@@ -801,7 +801,7 @@ func (s *BillingCacheService) ReserveFixedCharge(ctx context.Context, user *User
 	}
 	subscriptionBill := group != nil && group.IsSubscriptionType() && subscription != nil
 	if !subscriptionBill {
-		balance, err := s.GetUserBalance(ctx, user.ID)
+		balance, err := s.getSpendableBalance(ctx, user.ID)
 		if err != nil {
 			return nil, ErrBillingServiceUnavailable.WithCause(err)
 		}
@@ -1005,27 +1005,15 @@ func (s *BillingCacheService) checkBalanceEligibility(ctx context.Context, userI
 	if !s.balanceBelowEligibilityThreshold(balance) {
 		return nil
 	}
-	if bonus, ok := s.lookupBonusBalance(ctx, userID); ok && !s.balanceBelowEligibilityThreshold(balance+bonus) {
+	bonus, err := loadBonusBalanceCredit(ctx, s.userRepo, userID)
+	if err != nil {
+		return ErrBillingServiceUnavailable.WithCause(err)
+	}
+	if !s.balanceBelowEligibilityThreshold(balance + bonus) {
 		return nil
 	}
 
 	return ErrInsufficientBalance
-}
-
-func (s *BillingCacheService) lookupBonusBalance(ctx context.Context, userID int64) (float64, bool) {
-	if s == nil || s.userRepo == nil {
-		return 0, false
-	}
-	store, ok := s.userRepo.(BonusBalanceStore)
-	if !ok {
-		return 0, false
-	}
-	balances, err := store.GetBonusBalancesByUserIDs(ctx, []int64{userID})
-	if err != nil {
-		logger.LegacyPrintf("service.billing_cache", "failed to load bonus_balance for eligibility: user_id=%d err=%v", userID, err)
-		return 0, false
-	}
-	return balances[userID], true
 }
 
 // checkSubscriptionEligibility 检查订阅模式资格
