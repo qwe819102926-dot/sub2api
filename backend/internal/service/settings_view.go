@@ -174,6 +174,7 @@ type SystemSettings struct {
 	AffiliateEnabled             bool
 	SignupBonusEnabled           bool    `json:"signup_bonus_enabled"`
 	SignupBonusAmount            float64 `json:"signup_bonus_amount"`
+	InviteRewardsPageEnabled     bool    `json:"invite_rewards_page_enabled"`
 	InviteBonusEnabled           bool    `json:"invite_bonus_enabled"`
 	InviteBonusAmount            float64 `json:"invite_bonus_amount"`
 	AffiliateRebateRate          float64
@@ -405,11 +406,12 @@ type PublicSettings struct {
 	PluginManagementEnabled bool `json:"plugin_management_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
-	AffiliateEnabled   bool    `json:"affiliate_enabled"`
-	SignupBonusEnabled bool    `json:"signup_bonus_enabled"`
-	SignupBonusAmount  float64 `json:"signup_bonus_amount"`
-	InviteBonusEnabled bool    `json:"invite_bonus_enabled"`
-	InviteBonusAmount  float64 `json:"invite_bonus_amount"`
+	AffiliateEnabled         bool    `json:"affiliate_enabled"`
+	SignupBonusEnabled       bool    `json:"signup_bonus_enabled"`
+	SignupBonusAmount        float64 `json:"signup_bonus_amount"`
+	InviteRewardsPageEnabled bool    `json:"invite_rewards_page_enabled"`
+	InviteBonusEnabled       bool    `json:"invite_bonus_enabled"`
+	InviteBonusAmount        float64 `json:"invite_bonus_amount"`
 
 	// 风控中心功能开关
 	RiskControlEnabled bool `json:"risk_control_enabled"`

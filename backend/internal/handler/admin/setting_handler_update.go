@@ -355,11 +355,12 @@ type UpdateSettingsRequest struct {
 	PluginManagementEnabled *bool `json:"plugin_management_enabled"`
 
 	// Affiliate (邀请返利) feature switch
-	AffiliateEnabled   *bool    `json:"affiliate_enabled"`
-	SignupBonusEnabled *bool    `json:"signup_bonus_enabled"`
-	SignupBonusAmount  *float64 `json:"signup_bonus_amount"`
-	InviteBonusEnabled *bool    `json:"invite_bonus_enabled"`
-	InviteBonusAmount  *float64 `json:"invite_bonus_amount"`
+	AffiliateEnabled         *bool    `json:"affiliate_enabled"`
+	SignupBonusEnabled       *bool    `json:"signup_bonus_enabled"`
+	SignupBonusAmount        *float64 `json:"signup_bonus_amount"`
+	InviteRewardsPageEnabled *bool    `json:"invite_rewards_page_enabled"`
+	InviteBonusEnabled       *bool    `json:"invite_bonus_enabled"`
+	InviteBonusAmount        *float64 `json:"invite_bonus_amount"`
 
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
@@ -1986,6 +1987,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.SignupBonusAmount
 		}(),
+		InviteRewardsPageEnabled: func() bool {
+			if req.InviteRewardsPageEnabled != nil {
+				return *req.InviteRewardsPageEnabled
+			}
+			return previousSettings.InviteRewardsPageEnabled
+		}(),
 		InviteBonusEnabled: func() bool {
 			if req.InviteBonusEnabled != nil {
 				return *req.InviteBonusEnabled
@@ -2424,11 +2431,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		ModelPlazaDescription:   updatedSettings.ModelPlazaDescription,
 		PluginManagementEnabled: updatedSettings.PluginManagementEnabled,
 
-		AffiliateEnabled:   updatedSettings.AffiliateEnabled,
-		SignupBonusEnabled: updatedSettings.SignupBonusEnabled,
-		SignupBonusAmount:  updatedSettings.SignupBonusAmount,
-		InviteBonusEnabled: updatedSettings.InviteBonusEnabled,
-		InviteBonusAmount:  updatedSettings.InviteBonusAmount,
+		AffiliateEnabled:         updatedSettings.AffiliateEnabled,
+		SignupBonusEnabled:       updatedSettings.SignupBonusEnabled,
+		SignupBonusAmount:        updatedSettings.SignupBonusAmount,
+		InviteRewardsPageEnabled: updatedSettings.InviteRewardsPageEnabled,
+		InviteBonusEnabled:       updatedSettings.InviteBonusEnabled,
+		InviteBonusAmount:        updatedSettings.InviteBonusAmount,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,

@@ -241,6 +241,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyAffiliateEnabled,
 		SettingKeySignupBonusEnabled,
 		SettingKeySignupBonusAmount,
+		SettingKeyInviteRewardsPageEnabled,
 		SettingKeyInviteBonusEnabled,
 		SettingKeyInviteBonusAmount,
 
@@ -374,11 +375,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ModelPlazaRequireAuth:   settings[SettingKeyModelPlazaRequireAuth] == "true",
 		PluginManagementEnabled: settings[SettingKeyPluginManagementEnabled] == "true",
 
-		AffiliateEnabled:   settings[SettingKeyAffiliateEnabled] == "true",
-		SignupBonusEnabled: promotionConfigFromValues(settings).SignupBonusEnabled,
-		SignupBonusAmount:  promotionConfigFromValues(settings).SignupBonusAmount,
-		InviteBonusEnabled: promotionConfigFromValues(settings).InviteBonusEnabled,
-		InviteBonusAmount:  promotionConfigFromValues(settings).InviteBonusAmount,
+		AffiliateEnabled:         settings[SettingKeyAffiliateEnabled] == "true",
+		SignupBonusEnabled:       promotionConfigFromValues(settings).SignupBonusEnabled,
+		SignupBonusAmount:        promotionConfigFromValues(settings).SignupBonusAmount,
+		InviteRewardsPageEnabled: settings[SettingKeyInviteRewardsPageEnabled] == "true",
+		InviteBonusEnabled:       promotionConfigFromValues(settings).InviteBonusEnabled,
+		InviteBonusAmount:        promotionConfigFromValues(settings).InviteBonusAmount,
 
 		RiskControlEnabled: settings[SettingKeyRiskControlEnabled] == "true",
 
@@ -648,6 +650,7 @@ type PublicSettingsInjectionPayload struct {
 	AffiliateEnabled              bool    `json:"affiliate_enabled"`
 	SignupBonusEnabled            bool    `json:"signup_bonus_enabled"`
 	SignupBonusAmount             float64 `json:"signup_bonus_amount"`
+	InviteRewardsPageEnabled      bool    `json:"invite_rewards_page_enabled"`
 	InviteBonusEnabled            bool    `json:"invite_bonus_enabled"`
 	InviteBonusAmount             float64 `json:"invite_bonus_amount"`
 	RiskControlEnabled            bool    `json:"risk_control_enabled"`
@@ -735,6 +738,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		SignupBonusEnabled:                   settings.SignupBonusEnabled,
 		SignupBonusAmount:                    settings.SignupBonusAmount,
+		InviteRewardsPageEnabled:             settings.InviteRewardsPageEnabled,
 		InviteBonusEnabled:                   settings.InviteBonusEnabled,
 		InviteBonusAmount:                    settings.InviteBonusAmount,
 		RiskControlEnabled:                   settings.RiskControlEnabled,

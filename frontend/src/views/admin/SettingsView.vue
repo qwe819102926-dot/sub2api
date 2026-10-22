@@ -7497,6 +7497,13 @@
           </div>
           <div class="space-y-5 p-6">
             <div class="flex items-center justify-between gap-4">
+              <div>
+                <label class="text-sm font-medium">{{ t('inviteRewards.pageEnabled') }}</label>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('inviteRewards.pageEnabledHint') }}</p>
+              </div>
+              <Toggle v-model="form.invite_rewards_page_enabled" data-testid="invite-rewards-page-toggle" />
+            </div>
+            <div class="flex items-center justify-between gap-4">
               <label class="text-sm font-medium">{{ t('inviteRewards.signupEnabled') }}</label>
               <Toggle v-model="form.signup_bonus_enabled" />
             </div>
@@ -9723,6 +9730,7 @@ type SettingsForm = Omit<
   channel_monitor_hide_user_ranking: boolean;
   signup_bonus_enabled: boolean;
   signup_bonus_amount: number;
+  invite_rewards_page_enabled: boolean;
   invite_bonus_enabled: boolean;
   invite_bonus_amount: number;
   smtp_password: string;
@@ -10053,6 +10061,7 @@ const form = reactive<SettingsForm>({
   affiliate_enabled: false,
   signup_bonus_enabled: false,
   signup_bonus_amount: 20,
+  invite_rewards_page_enabled: false,
   invite_bonus_enabled: false,
   invite_bonus_amount: 20,
 
@@ -11722,6 +11731,7 @@ async function saveSettings() {
       affiliate_enabled: form.affiliate_enabled,
       signup_bonus_enabled: form.signup_bonus_enabled,
       signup_bonus_amount: form.signup_bonus_amount,
+      invite_rewards_page_enabled: form.invite_rewards_page_enabled,
       invite_bonus_enabled: form.invite_bonus_enabled,
       invite_bonus_amount: form.invite_bonus_amount,
 

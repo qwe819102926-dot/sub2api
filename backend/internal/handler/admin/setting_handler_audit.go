@@ -597,6 +597,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.SignupBonusAmount != after.SignupBonusAmount {
 		changed = append(changed, "signup_bonus_amount")
 	}
+	if before.InviteRewardsPageEnabled != after.InviteRewardsPageEnabled {
+		changed = append(changed, "invite_rewards_page_enabled")
+	}
 	if before.InviteBonusEnabled != after.InviteBonusEnabled {
 		changed = append(changed, "invite_bonus_enabled")
 	}

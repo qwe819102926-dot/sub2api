@@ -1,5 +1,6 @@
 export default {
   inviteRewards: {
+    pageEnabled: '显示邀请页面', pageEnabledHint: '独立控制用户端“邀请有礼”入口和页面访问，默认关闭。不影响注册赠送、邀请奖励发放及历史记录。',
     title: '邀请有礼', eyebrow: '分享好用的 AI，一起获得奖励',
     description: '每成功邀请一位新用户注册，即可获得 {amount} 赠送余额，自动到账。',
     loading: '正在加载邀请奖励', loadFailed: '邀请奖励加载失败，请重试', retry: '重试',

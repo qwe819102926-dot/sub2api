@@ -25,6 +25,7 @@ const appStore = vi.hoisted(() => ({
   cachedPublicSettings: null as null | {
     payment_enabled?: boolean
     risk_control_enabled?: boolean
+    invite_rewards_page_enabled?: boolean
     custom_menu_items?: []
   },
   fetchPublicSettings: vi.fn(),
@@ -117,6 +118,30 @@ describe('feature route guard', () => {
     appStore.publicSettingsLoaded = false
     appStore.cachedPublicSettings = null
     appStore.fetchPublicSettings.mockReset()
+  })
+
+  it.each([true, false, undefined])('gates the invitation page independently (enabled=%s)', async (enabled) => {
+    appStore.cachedPublicSettings = { invite_rewards_page_enabled: enabled }
+    appStore.publicSettingsLoaded = true
+    const { navigation, next } = runGuard({ requiresInviteRewardsPage: true }, '/invite-rewards')
+    await navigation
+    if (enabled) expect(next).toHaveBeenCalledWith()
+    else expect(next).toHaveBeenCalledWith('/dashboard')
+  })
+
+  it('waits for invitation-page settings before handling a direct link', async () => {
+    const deferred = createDeferred<{ invite_rewards_page_enabled: boolean }>()
+    appStore.fetchPublicSettings.mockImplementation(async () => {
+      const settings = await deferred.promise
+      appStore.cachedPublicSettings = settings
+      appStore.publicSettingsLoaded = true
+    })
+    const { navigation, next } = runGuard({ requiresInviteRewardsPage: true }, '/invite-rewards')
+    await vi.waitFor(() => expect(appStore.fetchPublicSettings).toHaveBeenCalledTimes(1))
+    expect(next).not.toHaveBeenCalled()
+    deferred.resolve({ invite_rewards_page_enabled: true })
+    await navigation
+    expect(next).toHaveBeenCalledWith()
   })
 
   it('waits for the first public-settings request before deciding payment access', async () => {

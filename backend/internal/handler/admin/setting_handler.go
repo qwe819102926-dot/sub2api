@@ -397,11 +397,12 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		PluginManagementEnabled: settings.PluginManagementEnabled,
 		ModelPlazaDescription:   settings.ModelPlazaDescription,
 
-		AffiliateEnabled:   settings.AffiliateEnabled,
-		SignupBonusEnabled: settings.SignupBonusEnabled,
-		SignupBonusAmount:  settings.SignupBonusAmount,
-		InviteBonusEnabled: settings.InviteBonusEnabled,
-		InviteBonusAmount:  settings.InviteBonusAmount,
+		AffiliateEnabled:         settings.AffiliateEnabled,
+		SignupBonusEnabled:       settings.SignupBonusEnabled,
+		SignupBonusAmount:        settings.SignupBonusAmount,
+		InviteRewardsPageEnabled: settings.InviteRewardsPageEnabled,
+		InviteBonusEnabled:       settings.InviteBonusEnabled,
+		InviteBonusAmount:        settings.InviteBonusAmount,
 
 		AccountSchedulingThresholds: settings.AccountSchedulingThresholds,
 		AllowUserViewErrorRequests:  settings.AllowUserViewErrorRequests,

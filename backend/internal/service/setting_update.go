@@ -447,6 +447,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeySignupBonusEnabled] = strconv.FormatBool(settings.SignupBonusEnabled)
 	updates[SettingKeySignupBonusAmount] = strconv.FormatFloat(settings.SignupBonusAmount, 'f', 8, 64)
+	updates[SettingKeyInviteRewardsPageEnabled] = strconv.FormatBool(settings.InviteRewardsPageEnabled)
 	updates[SettingKeyInviteBonusEnabled] = strconv.FormatBool(settings.InviteBonusEnabled)
 	updates[SettingKeyInviteBonusAmount] = strconv.FormatFloat(settings.InviteBonusAmount, 'f', 8, 64)
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)

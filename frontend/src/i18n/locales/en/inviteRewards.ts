@@ -1,5 +1,6 @@
 export default {
   inviteRewards: {
+    pageEnabled: 'Show invitation page', pageEnabledHint: 'Controls the Invite & Earn menu and page access independently. Off by default. Signup gifts, invitation rewards and existing records are unaffected.',
     title: 'Invite & Earn', eyebrow: 'Share AI access. Earn rewards together.',
     description: 'Earn {amount} in bonus balance for each new user who registers with your invitation. Rewards arrive automatically.',
     loading: 'Loading invitation rewards', loadFailed: 'Unable to load invitation rewards. Please retry.', retry: 'Retry',

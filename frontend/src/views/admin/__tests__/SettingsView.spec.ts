@@ -1135,6 +1135,23 @@ describe("admin SettingsView payment visible method controls", () => {
     }));
   });
 
+  it.each([true, false])("saves invitation page visibility (%s) without disabling invitation rewards", async (enabled) => {
+    getSettings.mockResolvedValueOnce({
+      ...baseSettingsResponse, invite_rewards_page_enabled: !enabled,
+      signup_bonus_enabled: true, signup_bonus_amount: 50,
+      invite_bonus_enabled: true, invite_bonus_amount: 50,
+    });
+    const wrapper = mountView();
+    await flushPromises();
+    await wrapper.get('[data-testid="invite-rewards-page-toggle"]').setValue(enabled);
+    await wrapper.find("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings).toHaveBeenCalledWith(expect.objectContaining({
+      invite_rewards_page_enabled: enabled, invite_bonus_enabled: true,
+      signup_bonus_enabled: true, signup_bonus_amount: 50, invite_bonus_amount: 50,
+    }));
+  });
+
   it("submits the admin recharge affiliate rebate setting", async () => {
     getSettings.mockResolvedValueOnce({
       ...baseSettingsResponse,

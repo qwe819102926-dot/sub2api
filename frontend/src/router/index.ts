@@ -277,7 +277,15 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/invite-rewards',
     name: 'InviteRewards',
-    redirect: '/dashboard'
+    component: () => import('@/views/user/InviteRewardsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Invite & Earn',
+      requiresInviteRewardsPage: true,
+      titleKey: 'inviteRewards.title',
+      descriptionKey: 'inviteRewards.eyebrow'
+    }
   },
   {
     path: '/affiliate',
@@ -940,12 +948,18 @@ router.beforeEach(async (to, _from, next) => {
   // 公共设置可能尚未加载（App.vue 的 onMounted 异步拉取晚于首次导航，且纯静态部署
   // 无 __APP_CONFIG__ 注入）。此时 cachedPublicSettings 为空会把 payment/risk_control
   // 误判为“未启用”而错误拦截，故这里先确保设置加载完成。
-  if ((to.meta.requiresPayment || to.meta.requiresRiskControl) && !appStore.publicSettingsLoaded) {
+  if ((to.meta.requiresPayment || to.meta.requiresRiskControl || to.meta.requiresInviteRewardsPage) && !appStore.publicSettingsLoaded) {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
       console.warn('Failed to load public settings in route guard', error)
     }
+  }
+
+  // The invitation page is opt-in; unknown settings must not expose it.
+  if (to.meta.requiresInviteRewardsPage && appStore.cachedPublicSettings?.invite_rewards_page_enabled !== true) {
+    next('/dashboard')
+    return
   }
 
   // Only an explicit value from successfully loaded settings can disable a route.

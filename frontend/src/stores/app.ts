@@ -379,6 +379,7 @@ export const useAppStore = defineStore('app', () => {
         affiliate_enabled: false,
         signup_bonus_enabled: false,
         signup_bonus_amount: 20,
+        invite_rewards_page_enabled: false,
         invite_bonus_enabled: false,
         invite_bonus_amount: 20,
 

@@ -300,6 +300,7 @@ export interface PublicSettings {
   affiliate_enabled: boolean
   signup_bonus_enabled?: boolean
   signup_bonus_amount?: number
+  invite_rewards_page_enabled?: boolean
   invite_bonus_enabled?: boolean
   invite_bonus_amount?: number
 

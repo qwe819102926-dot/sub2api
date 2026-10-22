@@ -12,10 +12,11 @@ import (
 )
 
 const (
-	SettingKeySignupBonusEnabled = "signup_bonus_enabled"
-	SettingKeySignupBonusAmount  = "signup_bonus_amount"
-	SettingKeyInviteBonusEnabled = "invite_bonus_enabled"
-	SettingKeyInviteBonusAmount  = "invite_bonus_amount"
+	SettingKeyInviteRewardsPageEnabled = "invite_rewards_page_enabled"
+	SettingKeySignupBonusEnabled       = "signup_bonus_enabled"
+	SettingKeySignupBonusAmount        = "signup_bonus_amount"
+	SettingKeyInviteBonusEnabled       = "invite_bonus_enabled"
+	SettingKeyInviteBonusAmount        = "invite_bonus_amount"
 )
 
 type SignupPromotionConfig struct {

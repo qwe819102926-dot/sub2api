@@ -208,11 +208,12 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyPluginManagementEnabled: "false",
 
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
-		SettingKeyAffiliateEnabled:   "false",
-		SettingKeySignupBonusEnabled: "false",
-		SettingKeySignupBonusAmount:  "20",
-		SettingKeyInviteBonusEnabled: "false",
-		SettingKeyInviteBonusAmount:  "20",
+		SettingKeyAffiliateEnabled:         "false",
+		SettingKeySignupBonusEnabled:       "false",
+		SettingKeySignupBonusAmount:        "20",
+		SettingKeyInviteRewardsPageEnabled: "false",
+		SettingKeyInviteBonusEnabled:       "false",
+		SettingKeyInviteBonusAmount:        "20",
 
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
@@ -835,6 +836,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	promotion := promotionConfigFromValues(settings)
 	result.SignupBonusEnabled = promotion.SignupBonusEnabled
 	result.SignupBonusAmount = promotion.SignupBonusAmount
+	result.InviteRewardsPageEnabled = settings[SettingKeyInviteRewardsPageEnabled] == "true"
 	result.InviteBonusEnabled = promotion.InviteBonusEnabled
 	result.InviteBonusAmount = promotion.InviteBonusAmount
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
