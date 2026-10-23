@@ -221,6 +221,7 @@ export default {
 
   // Auth
   auth: {
+    registrationIPBlocked: 'Too many accounts were registered from this IP. Registration is temporarily blocked. Try again later or contact support.',
     welcomeBack: 'Welcome Back',
     signInToAccount: 'Sign in to your account to continue',
     signIn: 'Sign In',

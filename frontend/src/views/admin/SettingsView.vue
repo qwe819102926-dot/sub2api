@@ -1613,6 +1613,8 @@
                 <Toggle v-model="form.registration_enabled" />
               </div>
 
+              <RegistrationIPMonitor />
+
               <!-- Email Verification -->
               <div
                 class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700"
@@ -9027,6 +9029,7 @@ import type {
   Proxy,
 } from "@/types";
 import type { ProviderInstance } from "@/types/payment";
+import RegistrationIPMonitor from "@/components/admin/RegistrationIPMonitor.vue";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import Icon from "@/components/icons/Icon.vue";
 import Select from "@/components/common/Select.vue";

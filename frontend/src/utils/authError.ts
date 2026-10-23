@@ -1,6 +1,7 @@
 import { extractApiErrorCode } from './apiError'
 
 export function registrationGuardMessageKey(error: unknown): string | undefined {
+  if (extractApiErrorCode(error) === "REGISTRATION_IP_BLOCKED") return "auth.registrationIPBlocked"
   const code = extractApiErrorCode(error)
   if (code && ['REGISTRATION_BROWSER_REQUIRED', 'REGISTRATION_SESSION_INVALID', 'REGISTRATION_LIMITED'].includes(code)) {
     return `auth.errors.${code}`

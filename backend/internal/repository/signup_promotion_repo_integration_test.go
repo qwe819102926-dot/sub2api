@@ -18,7 +18,7 @@ import (
 
 func TestSignupPromotion_RegistrationAndOAuthFinalization(t *testing.T) {
 	tx := testEntTx(t)
-	ctx := dbent.NewTxContext(context.Background(), tx)
+	ctx := service.WithRegistrationClientIP(dbent.NewTxContext(context.Background(), tx), "192.0.2.120")
 	client := tx.Client()
 	store := NewSettingRepository(client)
 	require.NoError(t, store.SetMultiple(ctx, map[string]string{
@@ -38,6 +38,7 @@ func TestSignupPromotion_RegistrationAndOAuthFinalization(t *testing.T) {
 	email := fmt.Sprintf("registration-gift-%d@example.com", time.Now().UnixNano())
 	_, user, err := auth.RegisterWithVerification(ctx, email, "testing-password", "", "", "", summary.AffCode)
 	require.NoError(t, err)
+	require.Equal(t, 1, querySingleInt(t, ctx, client, `SELECT COUNT(*) FROM registration_ip_events WHERE user_id=$1`, user.ID))
 	require.Zero(t, user.Balance)
 	require.Equal(t, float64(50), querySingleFloat(t, ctx, client, `SELECT bonus_balance::double precision FROM users WHERE id=$1`, user.ID))
 	_, _, err = auth.RegisterWithVerification(ctx, email, "testing-password", "", "", "", summary.AffCode)

@@ -221,6 +221,7 @@ export default {
 
   // Auth
   auth: {
+    registrationIPBlocked: '该 IP 短时间注册账号过多，已被临时禁止注册。请稍后重试或联系客服。',
     welcomeBack: '欢迎回来',
     signInToAccount: '登录您的账户以继续',
     signIn: '登录',

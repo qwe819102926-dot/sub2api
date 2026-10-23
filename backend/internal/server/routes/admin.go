@@ -40,6 +40,10 @@ func RegisterAdminRoutes(
 		admin.GET("/bonus-balance/conversion", h.Admin.Payment.GetBonusBalanceConversion)
 		admin.POST("/bonus-balance/conversion", h.Admin.Payment.ConvertBonusBalances)
 
+		admin.GET("/registration-ip-monitor", h.Auth.GetRegistrationIPMonitor)
+		admin.PUT("/registration-ip-monitor/config", h.Auth.SetRegistrationIPMonitorConfig)
+		admin.POST("/registration-ip-monitor/unblock", h.Auth.UnblockRegistrationIP)
+
 		// 用户管理
 		registerUserManagementRoutes(admin, h)
 

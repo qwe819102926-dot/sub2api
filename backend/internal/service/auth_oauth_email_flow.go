@@ -163,8 +163,10 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+	if err := s.withRegistrationIPMonitor(ctx, user, func(execCtx context.Context) error { return s.createUserWithRegistrationEmailGuard(execCtx, user) }); err != nil {
 		switch {
+		case errors.Is(err, ErrRegistrationIPBlocked):
+			return nil, nil, ErrRegistrationIPBlocked
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):
@@ -250,8 +252,10 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+	if err := s.withRegistrationIPMonitor(ctx, user, func(execCtx context.Context) error { return s.createUserWithRegistrationEmailGuard(execCtx, user) }); err != nil {
 		switch {
+		case errors.Is(err, ErrRegistrationIPBlocked):
+			return nil, nil, ErrRegistrationIPBlocked
 		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):

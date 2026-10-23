@@ -191,6 +191,9 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 		SignupSource: providerType,
 	}
 	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode, affiliateCode); err != nil {
+		if errors.Is(err, ErrRegistrationIPBlocked) {
+			return nil, err
+		}
 		if errors.Is(err, ErrEmailExists) {
 			existing, loadErr := s.userRepo.GetByEmail(ctx, email)
 			if loadErr != nil {

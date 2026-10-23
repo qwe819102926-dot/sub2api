@@ -1,3 +1,4 @@
+import registrationIPMonitor from './registrationIPMonitor'
 import inviteRewards from './inviteRewards'
 import bonusBalanceAdmin from './bonusBalanceAdmin'
 import landing from './landing'
@@ -10,6 +11,7 @@ import misc from './misc'
 import imageGeneration from './imageGeneration'
 
 export default {
+  ...registrationIPMonitor,
   ...inviteRewards,
   ...bonusBalanceAdmin,
   ...landing,

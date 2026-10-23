@@ -248,6 +248,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if err := s.createUserAndClaimInvitation(ctx, user, invitationRedeemCode, affiliateCode); err != nil {
 		// 优先检查邮箱冲突错误（竞态条件下可能发生）
 		switch {
+		case errors.Is(err, ErrRegistrationIPBlocked):
+			return "", nil, ErrRegistrationIPBlocked
 		case errors.Is(err, ErrEmailExists):
 			return "", nil, ErrEmailExists
 		case errors.Is(err, ErrEmailDomainRegistrationLimit):
@@ -617,6 +619,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			}
 
 			if err := s.createOAuthSignupUser(ctx, newUser, nil, ""); err != nil {
+				if errors.Is(err, ErrRegistrationIPBlocked) {
+					return "", nil, err
+				}
 				if errors.Is(err, ErrEmailExists) {
 					// 并发场景：GetByEmail 与 Create 之间用户被创建。
 					user, err = s.userRepo.GetByEmail(ctx, email)
@@ -775,6 +780,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				txCtx := dbent.NewTxContext(ctx, tx)
 
 				if err := s.createOAuthSignupUser(txCtx, newUser, nil, affiliateCode); err != nil {
+					if errors.Is(err, ErrRegistrationIPBlocked) {
+						return nil, nil, err
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -803,6 +811,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				}
 			} else {
 				if err := s.createOAuthSignupUser(ctx, newUser, nil, affiliateCode); err != nil {
+					if errors.Is(err, ErrRegistrationIPBlocked) {
+						return nil, nil, err
+					}
 					if errors.Is(err, ErrEmailExists) {
 						user, err = s.userRepo.GetByEmail(ctx, email)
 						if err != nil {
@@ -1300,6 +1311,12 @@ func (s *AuthService) createOAuthSignupUser(ctx context.Context, user *User, inv
 }
 
 func (s *AuthService) createSignupUser(ctx context.Context, user *User, invitation *RedeemCode, affiliateCode string, create func(context.Context, *User) error) error {
+	return s.withRegistrationIPMonitor(ctx, user, func(execCtx context.Context) error {
+		return s.createSignupUserUnmonitored(execCtx, user, invitation, affiliateCode, create)
+	})
+}
+
+func (s *AuthService) createSignupUserUnmonitored(ctx context.Context, user *User, invitation *RedeemCode, affiliateCode string, create func(context.Context, *User) error) error {
 	promotion, err := s.settingService.GetSignupPromotionConfig(ctx)
 	if err != nil {
 		return err
