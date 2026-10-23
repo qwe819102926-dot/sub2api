@@ -27,6 +27,7 @@ type AuthHandler struct {
 	redeemService        *service.RedeemService
 	totpService          *service.TotpService
 	userAttributeService *service.UserAttributeService
+	registrationGuard    *service.RegistrationGuard
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -183,7 +184,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// 验证当前启用的验证码（邮箱验证码注册场景避免重复校验一次性票据）
+	finish, err := h.beginBrowserRegistration(c, req.Email)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	succeeded := false
+	defer func() { finish(succeeded) }()
+
+	// Final account creation requires a fresh captcha, independent of email delivery.
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptchaForRegister(c.Request.Context(), proof, ip.GetClientIP(c), req.VerifyCode); err != nil {
 		response.ErrorFrom(c, err)
@@ -204,6 +213,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	succeeded = true
+	setRegistrationCookie(c, "", -1)
+	middleware2.SetAuditActor(c, user.ID, user.Email)
 	h.respondWithTokenPair(c, user)
 }
 
@@ -216,18 +228,32 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		return
 	}
 
+	if err := service.ValidateRegistrationBrowser(c.Request.UserAgent()); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
 	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
+	if err := h.registrationGuard.ReserveAttempt(c.Request.Context(), req.Email, middleware2.SecurityClientIP(c)); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	result, err := h.authService.SendVerifyCodeAsync(c.Request.Context(), req.Email, c.GetHeader("Accept-Language"))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
+	ticket, err := h.registrationGuard.IssueTicket(c.Request.Context(), req.Email, c.Request.UserAgent())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	setRegistrationCookie(c, ticket, int(service.RegistrationTicketTTL.Seconds()))
 	response.Success(c, SendVerifyCodeResponse{
 		Message:   "Verification code sent successfully",
 		Countdown: result.Countdown,

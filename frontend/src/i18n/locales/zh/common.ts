@@ -251,6 +251,9 @@ export default {
     loginFailed: '登录失败，请检查您的凭据后重试。',
     errors: {
       USER_NOT_ACTIVE: '账号已被禁用',
+      REGISTRATION_BROWSER_REQUIRED: '请使用浏览器打开网站完成注册。',
+      REGISTRATION_SESSION_INVALID: '注册会话已过期或发生变化，请在当前浏览器重新发送邮箱验证码。',
+      REGISTRATION_LIMITED: '注册或验证码请求过于频繁，请稍后重试或联系客服。',
     },
     registrationFailed: '注册失败，请重试。',
     emailDomainRegistrationLimit:

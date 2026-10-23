@@ -1,3 +1,13 @@
+import { extractApiErrorCode } from './apiError'
+
+export function registrationGuardMessageKey(error: unknown): string | undefined {
+  const code = extractApiErrorCode(error)
+  if (code && ['REGISTRATION_BROWSER_REQUIRED', 'REGISTRATION_SESSION_INVALID', 'REGISTRATION_LIMITED'].includes(code)) {
+    return `auth.errors.${code}`
+  }
+  return undefined
+}
+
 interface APIErrorLike {
   message?: string
   response?: {

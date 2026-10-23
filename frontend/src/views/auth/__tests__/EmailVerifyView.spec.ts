@@ -842,7 +842,7 @@ describe('EmailVerifyView', () => {
     expect(pushMock).toHaveBeenCalledWith('/dashboard')
   })
 
-  it('does not require another Tencent proof for final email registration', async () => {
+  it('requires a fresh Tencent proof for final email registration', async () => {
     getPublicSettingsMock.mockResolvedValue({
       turnstile_enabled: false,
       turnstile_site_key: '',
@@ -861,6 +861,7 @@ describe('EmailVerifyView', () => {
       })
     )
     registerMock.mockResolvedValue({})
+    verifyActionMock.mockResolvedValue({ token: 'create-ticket', randstr: '@create-rand' })
 
     const wrapper = mount(EmailVerifyView, {
       global: {
@@ -871,6 +872,7 @@ describe('EmailVerifyView', () => {
             template: '<span />',
             methods: {
               reset: createTurnstileResetMock,
+              verifyAction: verifyActionMock,
             },
           },
           transition: false,
@@ -895,8 +897,50 @@ describe('EmailVerifyView', () => {
     expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({
       email: 'normal@example.com',
       verify_code: '654321',
-      tencent_captcha_ticket: undefined,
-      tencent_captcha_randstr: undefined,
+      tencent_captcha_ticket: 'create-ticket',
+      tencent_captcha_randstr: '@create-rand',
     }))
+  })
+
+  it('requires a fresh Turnstile token for email registration and resets it after a failed attempt', async () => {
+    getPublicSettingsMock.mockResolvedValue({
+      turnstile_enabled: true,
+      turnstile_site_key: 'site-key',
+      registration_email_suffix_whitelist: [],
+    })
+    sessionStorage.setItem('register_data', JSON.stringify({
+      email: 'normal@example.com', password: 'secret-456', turnstile_token: 'mail-token',
+    }))
+    registerMock.mockRejectedValueOnce({ code: 'INVALID_VERIFY_CODE', message: 'Wrong email code' })
+    const wrapper = mount(EmailVerifyView, {
+      global: {
+        stubs: {
+          AuthLayout: { template: '<div><slot /><slot name="footer" /></div>' },
+          Icon: true,
+          TurnstileWidget: {
+            template: '<span />',
+            methods: { reset: createTurnstileResetMock },
+          },
+          transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    expect(sendVerifyCodeMock).toHaveBeenCalledWith(expect.objectContaining({ turnstile_token: 'mail-token' }))
+    await wrapper.get('#code').setValue('123456')
+    await wrapper.get('form').trigger('submit.prevent')
+    expect(registerMock).not.toHaveBeenCalled()
+    const captcha = wrapper.findComponent({ ref: 'createAccountTurnstileRef' })
+    // Only the final-account widget is rendered until resend is requested.
+    expect(captcha.exists()).toBe(true)
+    captcha.vm.$emit('verify', 'fresh-create-token')
+    await wrapper.vm.$nextTick()
+    await wrapper.get('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(registerMock).toHaveBeenCalledWith(expect.objectContaining({ turnstile_token: 'fresh-create-token' }))
+    expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('form').trigger('submit.prevent')
+    expect(registerMock).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
   })
 })

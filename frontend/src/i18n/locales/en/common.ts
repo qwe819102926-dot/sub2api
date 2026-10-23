@@ -251,6 +251,9 @@ export default {
     loginFailed: 'Login failed. Please check your credentials and try again.',
     errors: {
       USER_NOT_ACTIVE: 'Account has been disabled.',
+      REGISTRATION_BROWSER_REQUIRED: 'Please open the website in a browser to register.',
+      REGISTRATION_SESSION_INVALID: 'Registration session expired or changed. Resend the email code in this browser.',
+      REGISTRATION_LIMITED: 'Too many registration or verification code requests. Please try again later or contact support.',
     },
     registrationFailed: 'Registration failed. Please try again.',
     emailDomainRegistrationLimit:

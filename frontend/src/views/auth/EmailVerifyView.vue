@@ -86,7 +86,7 @@
           />
         </div>
 
-        <div v-if="pendingOAuthCreateCaptchaEnabled" class="space-y-2">
+        <div v-if="createAccountCaptchaEnabled" class="space-y-2">
           <TurnstileWidget
             ref="createAccountTurnstileRef"
             :site-key="turnstileSiteKey"
@@ -108,7 +108,7 @@
         <!-- Submit Button -->
         <button
           type="submit"
-          :disabled="isLoading || !verifyCode || (pendingOAuthCreateTurnstileRequired && !createAccountTurnstileToken)"
+          :disabled="isLoading || !verifyCode || (createAccountTurnstileRequired && !createAccountTurnstileToken)"
           class="btn btn-primary w-full"
         >
           <svg
@@ -194,7 +194,7 @@ import {
   sendVerifyCode,
 } from '@/api/auth'
 import { apiClient } from '@/api/client'
-import { buildAuthErrorMessage } from '@/utils/authError'
+import { buildAuthErrorMessage, registrationGuardMessageKey } from '@/utils/authError'
 import { extractApiErrorCode } from '@/utils/apiError'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
@@ -308,11 +308,11 @@ const errors = ref({
 const validationToastMessage = computed(
   () => errors.value.code || errors.value.turnstile || ''
 )
-const pendingOAuthCreateTurnstileRequired = computed(
-  () => isPendingOAuthFlow() && turnstileEnabled.value
+const createAccountTurnstileRequired = computed(
+  () => turnstileEnabled.value
 )
-const pendingOAuthCreateCaptchaEnabled = computed(
-  () => isPendingOAuthFlow() && captchaEnabled.value
+const createAccountCaptchaEnabled = computed(
+  () => captchaEnabled.value
 )
 
 watch(validationToastMessage, (value, previousValue) => {
@@ -471,7 +471,7 @@ async function acquireResendActionProof(): Promise<boolean> {
 }
 
 async function acquireCreateAccountActionProof(): Promise<boolean> {
-  if (!isPendingOAuthFlow() || !actionCaptchaEnabled.value) return true
+  if (!actionCaptchaEnabled.value) return true
 
   const proof = await createAccountTurnstileRef.value?.verifyAction()
   if (!proof) return false
@@ -650,6 +650,11 @@ function validateForm(): boolean {
     return false
   }
 
+  if (createAccountTurnstileRequired.value && !createAccountTurnstileToken.value) {
+    errors.value.turnstile = t('auth.completeVerification')
+    return false
+  }
+
   return true
 }
 
@@ -725,10 +730,10 @@ async function handleVerify(): Promise<void> {
         verify_code: verifyCode.value.trim(),
         turnstile_token:
           turnstileEnabled.value || aliyunCaptchaEnabled.value
-            ? initialTurnstileToken.value || undefined
+            ? createAccountTurnstileToken.value || undefined
             : undefined,
-        tencent_captcha_ticket: tencentCaptchaEnabled.value ? initialTurnstileToken.value || undefined : undefined,
-        tencent_captcha_randstr: tencentCaptchaEnabled.value ? initialTencentCaptchaRandstr.value || undefined : undefined,
+        tencent_captcha_ticket: tencentCaptchaEnabled.value ? createAccountTurnstileToken.value || undefined : undefined,
+        tencent_captcha_randstr: tencentCaptchaEnabled.value ? createAccountTencentCaptchaRandstr.value || undefined : undefined,
         promo_code: promoCode.value || undefined,
         invitation_code: invitationCode.value || undefined,
         ...(affCode.value ? { aff_code: affCode.value } : {})
@@ -751,7 +756,7 @@ async function handleVerify(): Promise<void> {
   } finally {
     initialTurnstileToken.value = ''
     initialTencentCaptchaRandstr.value = ''
-    if (pendingOAuthCreateCaptchaEnabled.value) {
+    if (createAccountCaptchaEnabled.value) {
       resetCreateAccountTurnstile()
     }
     isLoading.value = false
@@ -783,6 +788,8 @@ function buildEmailSuffixNotAllowedMessage(): string {
 }
 
 function buildRegistrationErrorMessage(error: unknown, fallback: string): string {
+  const guardMessageKey = registrationGuardMessageKey(error)
+  if (guardMessageKey) return t(guardMessageKey)
   if (extractApiErrorCode(error) === 'EMAIL_DOMAIN_REGISTRATION_LIMIT') {
     return t('auth.emailDomainRegistrationLimit')
   }
