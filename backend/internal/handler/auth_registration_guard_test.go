@@ -9,28 +9,68 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
-	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 )
 
 const guardBrowserUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/155.0.0.0 Safari/537.36"
 
+// HTTP tests use the service contract; Redis atomicity and expiration are
+// exercised separately by repository tests against miniredis.
+type registrationCacheStub struct {
+	tickets map[string]string
+	locks   map[string]string
+	counts  map[string]int
+}
+
+func (s *registrationCacheStub) ReserveAttempts(_ context.Context, quotas []service.RegistrationQuota) (bool, error) {
+	for _, quota := range quotas {
+		if s.counts[quota.Key] >= quota.Limit {
+			return false, nil
+		}
+	}
+	for _, quota := range quotas {
+		s.counts[quota.Key]++
+	}
+	return true, nil
+}
+
+func (s *registrationCacheStub) SetTicket(_ context.Context, key, binding string, _ time.Duration) error {
+	s.tickets[key] = binding
+	return nil
+}
+
+func (s *registrationCacheStub) AcquireTicket(_ context.Context, key, binding, lease string, _ time.Duration) (bool, error) {
+	if s.tickets[key] != binding || s.locks[key] != "" {
+		return false, nil
+	}
+	s.locks[key] = lease
+	return true, nil
+}
+
+func (s *registrationCacheStub) FinishTicket(_ context.Context, key, lease string, success bool) error {
+	if s.locks[key] == lease {
+		delete(s.locks, key)
+		if success {
+			delete(s.tickets, key)
+		}
+	}
+	return nil
+}
+
 func registrationGuardHandler(t *testing.T, emailEnabled bool) *AuthHandler {
 	t.Helper()
-	srv := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: srv.Addr()})
-	t.Cleanup(func() { _ = client.Close() })
+	cache := &registrationCacheStub{tickets: map[string]string{}, locks: map[string]string{}, counts: map[string]int{}}
 	cfg := &config.Config{}
 	settings := service.NewSettingService(&oauthCaptchaSettingRepo{values: map[string]string{
 		service.SettingKeyEmailVerifyEnabled: fmt.Sprint(emailEnabled),
 	}}, cfg)
 	auth := service.NewAuthService(nil, nil, nil, nil, cfg, settings, nil, nil, nil, nil, nil, nil, nil)
-	return &AuthHandler{authService: auth, registrationGuard: service.NewRegistrationGuard(client)}
+	return &AuthHandler{authService: auth, registrationGuard: service.NewRegistrationGuard(cache)}
 }
 
 func guardContext(ticket, ua string) *gin.Context {

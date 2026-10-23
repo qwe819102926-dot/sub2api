@@ -10,7 +10,6 @@ import (
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/redis/go-redis/v9"
 )
 
 const RegistrationTicketTTL = 10 * time.Minute
@@ -25,11 +24,25 @@ var (
 // cookie. UA checks are only an additional signal, never proof of a human.
 // Redis makes tickets, submission locks and quotas shared across instances.
 type RegistrationGuard struct {
-	redis *redis.Client
+	cache RegistrationGuardCache
 }
 
-func NewRegistrationGuard(client *redis.Client) *RegistrationGuard {
-	return &RegistrationGuard{redis: client}
+// RegistrationGuardCache keeps atomic storage operations outside the service layer.
+type RegistrationGuardCache interface {
+	ReserveAttempts(context.Context, []RegistrationQuota) (bool, error)
+	SetTicket(context.Context, string, string, time.Duration) error
+	AcquireTicket(context.Context, string, string, string, time.Duration) (bool, error)
+	FinishTicket(context.Context, string, string, bool) error
+}
+
+type RegistrationQuota struct {
+	Key    string
+	Limit  int
+	Window time.Duration
+}
+
+func NewRegistrationGuard(cache RegistrationGuardCache) *RegistrationGuard {
+	return &RegistrationGuard{cache: cache}
 }
 
 func ValidateRegistrationBrowser(userAgent string) error {
@@ -50,27 +63,11 @@ func registrationBinding(email, userAgent string) string {
 	return registrationHash(strings.ToLower(strings.TrimSpace(email)) + "\x00" + userAgent)
 }
 
-// Count all quota dimensions atomically, without extending the window on each
-// hit. Never put raw email addresses or browser cookies into Redis key names.
-var registrationQuotaScript = redis.NewScript(`
-for i, key in ipairs(KEYS) do
-  if tonumber(redis.call('GET', key) or '0') >= tonumber(ARGV[(i-1)*2+1]) then
-    return 0
-  end
-end
-for i, key in ipairs(KEYS) do
-  if redis.call('INCR', key) == 1 then
-    redis.call('EXPIRE', key, ARGV[(i-1)*2+2])
-  end
-end
-return 1
-`)
-
 // ReserveAttempt protects mail delivery as well as registration. IPv6 address
 // rotation within a /64 shares a quota. IPv4 subnet limits are deliberately
 // higher to reduce impact on users sharing an ISP or corporate network.
 func (g *RegistrationGuard) ReserveAttempt(ctx context.Context, email, clientIP string) error {
-	if g == nil || g.redis == nil {
+	if g == nil || g.cache == nil {
 		return ErrServiceUnavailable
 	}
 	addr, err := netip.ParseAddr(clientIP)
@@ -91,12 +88,16 @@ func (g *RegistrationGuard) ReserveAttempt(ctx context.Context, email, clientIP 
 		"registration:quota:email-day:" + registrationHash(strings.ToLower(strings.TrimSpace(email))),
 		"registration:quota:network-day:" + registrationHash(network),
 	}
-	allowed, err := registrationQuotaScript.Run(ctx, g.redis, keys,
-		3, 600, 10, 86400, 5, 86400, 50, 86400).Int()
+	allowed, err := g.cache.ReserveAttempts(ctx, []RegistrationQuota{
+		{Key: keys[0], Limit: 3, Window: 10 * time.Minute},
+		{Key: keys[1], Limit: 10, Window: 24 * time.Hour},
+		{Key: keys[2], Limit: 5, Window: 24 * time.Hour},
+		{Key: keys[3], Limit: 50, Window: 24 * time.Hour},
+	})
 	if err != nil {
 		return ErrServiceUnavailable
 	}
-	if allowed != 1 {
+	if !allowed {
 		return ErrRegistrationLimited
 	}
 	return nil
@@ -117,29 +118,23 @@ func registrationTicketKey(ticket string) string {
 // IssueTicket must only be called after successful captcha validation and mail
 // enqueue. Tickets contain no account data and expire with the verification flow.
 func (g *RegistrationGuard) IssueTicket(ctx context.Context, email, userAgent string) (string, error) {
-	if g == nil || g.redis == nil {
+	if g == nil || g.cache == nil {
 		return "", ErrServiceUnavailable
 	}
 	ticket, err := registrationRandom()
 	if err != nil {
 		return "", err
 	}
-	if err := g.redis.Set(ctx, registrationTicketKey(ticket), registrationBinding(email, userAgent), RegistrationTicketTTL).Err(); err != nil {
+	if err := g.cache.SetTicket(ctx, registrationTicketKey(ticket), registrationBinding(email, userAgent), RegistrationTicketTTL); err != nil {
 		return "", ErrServiceUnavailable
 	}
 	return ticket, nil
 }
 
-var registrationAcquireScript = redis.NewScript(`
-if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
-if not redis.call('SET', KEYS[2], ARGV[2], 'NX', 'EX', 120) then return 0 end
-return 1
-`)
-
 // Acquire prevents concurrent reuse, but permits a retry after a wrong email
 // code. The browser UA may not change; the IP may (e.g. mobile networks).
 func (g *RegistrationGuard) Acquire(ctx context.Context, ticket, email, userAgent string) (string, error) {
-	if g == nil || g.redis == nil {
+	if g == nil || g.cache == nil {
 		return "", ErrServiceUnavailable
 	}
 	if len(ticket) != 64 {
@@ -153,32 +148,23 @@ func (g *RegistrationGuard) Acquire(ctx context.Context, ticket, email, userAgen
 		return "", err
 	}
 	key := registrationTicketKey(ticket)
-	allowed, err := registrationAcquireScript.Run(ctx, g.redis, []string{key, key + ":lock"}, registrationBinding(email, userAgent), lease).Int()
+	allowed, err := g.cache.AcquireTicket(ctx, key, registrationBinding(email, userAgent), lease, 2*time.Minute)
 	if err != nil {
 		return "", ErrServiceUnavailable
 	}
-	if allowed != 1 {
+	if !allowed {
 		return "", ErrRegistrationSession
 	}
 	return lease, nil
 }
 
-var registrationFinishScript = redis.NewScript(`
-if redis.call('GET', KEYS[2]) ~= ARGV[1] then return 0 end
-redis.call('DEL', KEYS[2])
-if ARGV[2] == '1' then redis.call('DEL', KEYS[1]) end
-return 1
-`)
-
 // Finish only releases the matching lease, so a stale request cannot unlock a
 // newer one. Successful registrations consume the ticket permanently.
 func (g *RegistrationGuard) Finish(ctx context.Context, ticket, lease string, success bool) error {
-	key := registrationTicketKey(ticket)
-	consume := "0"
-	if success {
-		consume = "1"
+	if g == nil || g.cache == nil {
+		return ErrServiceUnavailable
 	}
-	if err := registrationFinishScript.Run(ctx, g.redis, []string{key, key + ":lock"}, lease, consume).Err(); err != nil {
+	if err := g.cache.FinishTicket(ctx, registrationTicketKey(ticket), lease, success); err != nil {
 		return ErrServiceUnavailable
 	}
 	return nil
