@@ -61,6 +61,7 @@ func (h *PaymentHandler) ConvertBonusBalances(c *gin.Context) {
 func (h *PaymentHandler) GetBonusBalanceReport(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
 	report, err := h.paymentService.GetBonusBalanceReport(c.Request.Context(), service.BonusBalanceReportFilter{
+		Scope: c.Query("scope"), StartDate: c.Query("start_date"), EndDate: c.Query("end_date"),
 		Page: page, PageSize: pageSize, Source: c.Query("source"), Kind: c.Query("kind"), Search: c.Query("search"),
 	})
 	if err != nil {

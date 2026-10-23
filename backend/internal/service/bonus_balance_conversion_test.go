@@ -54,6 +54,10 @@ INSERT INTO bonus_balance_events(user_id,email,source,amount,balance_after) SELE
 	require.NoError(t, err)
 	_, err = db.Exec(`CREATE TRIGGER conversion_audit AFTER UPDATE OF bonus_balance ON users FOR EACH ROW EXECUTE FUNCTION audit_bonus_balance_change()`)
 	require.NoError(t, err)
+	source, err = migrations.FS.ReadFile("252_bonus_reporting_epoch.sql")
+	require.NoError(t, err)
+	_, err = db.Exec(string(source))
+	require.NoError(t, err)
 	return newPaymentServiceForSQLMock(db), db
 }
 
@@ -81,7 +85,7 @@ func TestBonusBalanceConversionPostgres(t *testing.T) {
 		var count int
 		require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM bonus_balance_events WHERE source='conversion'`).Scan(&count))
 		require.Equal(t, 3, count)
-		report, err := s.GetBonusBalanceReport(ctx, BonusBalanceReportFilter{Source: "conversion"})
+		report, err := s.GetBonusBalanceReport(ctx, BonusBalanceReportFilter{Scope: "history", Source: "conversion"})
 		require.NoError(t, err)
 		require.Zero(t, report.Summary.Consumed)
 		require.Zero(t, report.Summary.ReconciliationDifference)

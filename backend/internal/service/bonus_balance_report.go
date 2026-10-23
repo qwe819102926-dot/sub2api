@@ -13,14 +13,21 @@ import (
 )
 
 type BonusBalanceReportFilter struct {
-	Source   string
-	Kind     string
-	Search   string
-	Page     int
-	PageSize int
+	Scope     string
+	StartDate string
+	EndDate   string
+	Source    string
+	Kind      string
+	Search    string
+	Page      int
+	PageSize  int
 }
 
 type BonusBalanceReportSummary struct {
+	Grants                   int64   `json:"grants"`
+	Users                    int64   `json:"users"`
+	TodayIssued              float64 `json:"today_issued"`
+	Pending                  float64 `json:"pending"`
 	Issued                   float64 `json:"issued"`
 	Consumed                 float64 `json:"consumed"`
 	Remaining                float64 `json:"remaining"`
@@ -50,15 +57,33 @@ type BonusBalanceReportRecord struct {
 }
 
 type BonusBalanceReport struct {
-	Summary  BonusBalanceReportSummary  `json:"summary"`
-	Sources  []BonusBalanceReportSource `json:"sources"`
-	Records  []BonusBalanceReportRecord `json:"records"`
-	Total    int64                      `json:"total"`
-	Page     int                        `json:"page"`
-	PageSize int                        `json:"page_size"`
+	Scope     string                     `json:"scope"`
+	StartedAt *time.Time                 `json:"started_at"`
+	Summary   BonusBalanceReportSummary  `json:"summary"`
+	Sources   []BonusBalanceReportSource `json:"sources"`
+	Records   []BonusBalanceReportRecord `json:"records"`
+	Total     int64                      `json:"total"`
+	Page      int                        `json:"page"`
+	PageSize  int                        `json:"page_size"`
 }
 
 func normalizeBonusReportFilter(f BonusBalanceReportFilter) (BonusBalanceReportFilter, error) {
+	if f.Scope == "" {
+		f.Scope = "current"
+	}
+	if f.Scope != "current" && f.Scope != "history" {
+		return f, infraerrors.BadRequest("INVALID_BONUS_SCOPE", "unknown reporting scope")
+	}
+	for _, date := range []string{f.StartDate, f.EndDate} {
+		if date != "" {
+			if _, err := time.Parse("2006-01-02", date); err != nil {
+				return f, infraerrors.BadRequest("INVALID_BONUS_DATE", "dates must use YYYY-MM-DD")
+			}
+		}
+	}
+	if f.StartDate != "" && f.EndDate != "" && f.StartDate > f.EndDate {
+		return f, infraerrors.BadRequest("INVALID_BONUS_DATE", "start date must not follow end date")
+	}
 	if f.Page < 1 {
 		f.Page = 1
 	}
@@ -127,9 +152,17 @@ AND ($3 = '' OR ($2 <> '' AND email ILIKE $2) OR user_id::text = $3)
 AND ($4 = '' OR ($4 = 'grant' AND amount > 0) OR ($4 = 'consumption' AND source = 'consumption' AND amount < 0)
 OR ($4 = 'adjustment' AND amount < 0 AND source <> 'consumption'))`
 
+// Known grant sources exclude imports, conversions and unexplained wallet changes.
+const bonusKnownGrantSQL = `source IN ('signup','invite','checkin','recharge','consumption_reward','lottery','admin')`
+const bonusCurrentWhereSQL = ` AND historical = FALSE AND amount > 0
+AND id > (SELECT start_event_id FROM bonus_balance_reporting_epoch WHERE id=1)
+AND (` + bonusKnownGrantSQL + ` OR source = 'other')`
+const bonusDateWhereSQL = ` AND ($5 = '' OR created_at >= (NULLIF($5, '')::date::timestamp AT TIME ZONE 'Asia/Shanghai'))
+AND ($6 = '' OR created_at < ((NULLIF($6, '')::date + 1)::timestamp AT TIME ZONE 'Asia/Shanghai'))`
+
 func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBalanceReportFilter) (*BonusBalanceReport, error) {
-	result := &BonusBalanceReport{Page: f.Page, PageSize: f.PageSize, Sources: []BonusBalanceReportSource{}, Records: []BonusBalanceReportRecord{}}
-	rows, err := client.QueryContext(ctx, bonusReportSummarySQL)
+	result := &BonusBalanceReport{Scope: f.Scope, Page: f.Page, PageSize: f.PageSize, Sources: []BonusBalanceReportSource{}, Records: []BonusBalanceReportRecord{}}
+	rows, err := client.QueryContext(ctx, `SELECT started_at FROM bonus_balance_reporting_epoch WHERE id=1`)
 	if err != nil {
 		return nil, err
 	}
@@ -140,13 +173,54 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		}
 		return nil, err
 	}
-	s := &result.Summary
-	err = rows.Scan(&s.Issued, &s.Consumed, &s.Remaining, &s.Adjustments, &s.HistoricalOutflow, &s.DeletedUserRemaining, &s.ReconciliationDifference)
+	var started time.Time
+	err = rows.Scan(&started)
 	err = errors.Join(err, rows.Close())
 	if err != nil {
 		return nil, err
 	}
-	rows, err = client.QueryContext(ctx, `SELECT source, SUM(amount)::double precision, COUNT(*), COUNT(DISTINCT user_id) FROM bonus_balance_events WHERE amount > 0 GROUP BY source ORDER BY SUM(amount) DESC, source`)
+	result.StartedAt = &started
+	search := ""
+	if id, err := strconv.ParseInt(f.Search, 10, 64); err == nil && id > 0 {
+		f.Search = strconv.FormatInt(id, 10)
+	} else if f.Search != "" {
+		search = "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(f.Search) + "%"
+	}
+	args := []any{f.Source, search, f.Search, f.Kind, f.StartDate, f.EndDate}
+	where := bonusReportWhereSQL + bonusDateWhereSQL
+	if f.Scope == "current" {
+		where += bonusCurrentWhereSQL
+		rows, err = client.QueryContext(ctx, `SELECT
+COALESCE(SUM(amount) FILTER (WHERE `+bonusKnownGrantSQL+`),0)::double precision,
+COUNT(*) FILTER (WHERE `+bonusKnownGrantSQL+`),
+COUNT(DISTINCT user_id) FILTER (WHERE `+bonusKnownGrantSQL+`),
+COALESCE(SUM(amount) FILTER (WHERE `+bonusKnownGrantSQL+` AND created_at >= (date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Shanghai') AT TIME ZONE 'Asia/Shanghai')),0)::double precision,
+COALESCE(SUM(amount) FILTER (WHERE source = 'other'),0)::double precision
+FROM bonus_balance_events`+where, args...)
+		if err != nil {
+			return nil, err
+		}
+		if !rows.Next() {
+			err = errors.Join(rows.Err(), rows.Close())
+			if err == nil {
+				err = sql.ErrNoRows
+			}
+			return nil, err
+		}
+		s := &result.Summary
+		err = rows.Scan(&s.Issued, &s.Grants, &s.Users, &s.TodayIssued, &s.Pending)
+		err = errors.Join(err, rows.Close())
+		if err != nil {
+			return nil, err
+		}
+	} else if err := readLegacyBonusSummary(ctx, client, &result.Summary); err != nil {
+		return nil, err
+	}
+	sourceWhere, sourceArgs := ` WHERE amount > 0`, []any{}
+	if f.Scope == "current" {
+		sourceWhere, sourceArgs = where+` AND `+bonusKnownGrantSQL, args
+	}
+	rows, err = client.QueryContext(ctx, `SELECT source, SUM(amount)::double precision, COUNT(*), COUNT(DISTINCT user_id) FROM bonus_balance_events`+sourceWhere+` GROUP BY source ORDER BY SUM(amount) DESC, source`, sourceArgs...)
 	if err != nil {
 		return nil, err
 	}
@@ -160,14 +234,7 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 	if err := errors.Join(rows.Err(), rows.Close()); err != nil {
 		return nil, err
 	}
-	search := ""
-	if id, err := strconv.ParseInt(f.Search, 10, 64); err == nil && id > 0 {
-		f.Search = strconv.FormatInt(id, 10)
-	} else if f.Search != "" {
-		search = "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(f.Search) + "%"
-	}
-	args := []any{f.Source, search, f.Search, f.Kind}
-	rows, err = client.QueryContext(ctx, `SELECT COUNT(*) FROM bonus_balance_events`+bonusReportWhereSQL, args...)
+	rows, err = client.QueryContext(ctx, `SELECT COUNT(*) FROM bonus_balance_events`+where, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +251,7 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		return nil, err
 	}
 	args = append(args, f.PageSize, (f.Page-1)*f.PageSize)
-	rows, err = client.QueryContext(ctx, `SELECT id, user_id, email, source, amount::double precision, balance_after::double precision, historical, created_at, updated_at FROM bonus_balance_events`+bonusReportWhereSQL+` ORDER BY created_at DESC, id DESC LIMIT $5 OFFSET $6`, args...)
+	rows, err = client.QueryContext(ctx, `SELECT id, user_id, email, source, amount::double precision, balance_after::double precision, historical, created_at, updated_at FROM bonus_balance_events`+where+` ORDER BY created_at DESC, id DESC LIMIT $7 OFFSET $8`, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -197,4 +264,25 @@ func readBonusBalanceReport(ctx context.Context, client *dbent.Client, f BonusBa
 		result.Records = append(result.Records, item)
 	}
 	return result, errors.Join(rows.Err(), rows.Close())
+}
+
+func readLegacyBonusSummary(ctx context.Context, client *dbent.Client, summary *BonusBalanceReportSummary) error {
+	rows, err := client.QueryContext(ctx, bonusReportSummarySQL)
+	if err != nil {
+		return err
+	}
+	if !rows.Next() {
+		err = errors.Join(rows.Err(), rows.Close())
+		if err == nil {
+			err = sql.ErrNoRows
+		}
+		return err
+	}
+	s := summary
+	err = rows.Scan(&s.Issued, &s.Consumed, &s.Remaining, &s.Adjustments, &s.HistoricalOutflow, &s.DeletedUserRemaining, &s.ReconciliationDifference)
+	err = errors.Join(err, rows.Close())
+	if err != nil {
+		return err
+	}
+	return nil
 }

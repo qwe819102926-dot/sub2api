@@ -6,7 +6,11 @@
         <button class="btn btn-secondary" :disabled="loading" @click="load(page)">{{ t('common.refresh') }}</button>
       </div>
       <p v-if="error" role="alert" class="rounded-xl bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-300">{{ error }}</p>
-      <section class="card space-y-3 p-6">
+      <div class="flex gap-2" role="tablist" :aria-label="t('bonusBalanceAdmin.title')">
+        <button v-for="scope in (['current', 'history'] as const)" :key="scope" role="tab" :aria-selected="filters.scope === scope" :class="filters.scope === scope ? 'btn btn-primary' : 'btn btn-secondary'" @click="switchScope(scope)">{{ t(`bonusBalanceAdmin.${scope}Tab`) }}</button>
+      </div>
+      <p v-if="report?.scope === 'current'" class="rounded-xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-200" data-testid="epoch-hint">{{ t('bonusBalanceAdmin.epochHint', { date: formatDateTime(report.started_at, { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) }) }}</p>
+      <section v-if="filters.scope === 'history'" class="card space-y-3 p-6">
         <h2 class="font-semibold">{{ t('bonusBalanceAdmin.conversionTitle') }}</h2>
         <p class="text-sm leading-6 text-gray-500 dark:text-dark-400">{{ t('bonusBalanceAdmin.conversionHint') }}</p>
         <p v-if="conversion?.completed" class="text-sm text-emerald-600" data-testid="conversion-completed">{{ t('bonusBalanceAdmin.conversionReceipt', { users: conversion.users, before: conversion.before_total, after: conversion.after_total, date: conversion.completed_at ? formatDateTime(conversion.completed_at) : '—' }) }}</p>
@@ -17,23 +21,23 @@
         <section class="grid gap-4 md:grid-cols-3">
           <div v-for="metric in metrics" :key="metric.key" class="card p-6">
             <p class="text-sm text-gray-500 dark:text-dark-400">{{ t(`bonusBalanceAdmin.${metric.key}`) }}</p>
-            <p class="mt-3 text-3xl font-semibold tabular-nums" :class="metric.color" :data-testid="metric.key">{{ formatCurrency(metric.value) }}</p>
+            <p class="mt-3 text-3xl font-semibold tabular-nums" :class="metric.color" :data-testid="metric.key">{{ metric.count ? metric.value.toLocaleString() : formatCurrency(metric.value) }}</p>
             <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-dark-400">{{ t(`bonusBalanceAdmin.${metric.key}Hint`) }}</p>
           </div>
         </section>
 
-        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-600 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-300">
+        <div v-if="report.scope === 'history'" class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-6 text-gray-600 dark:border-dark-700 dark:bg-dark-800 dark:text-dark-300">
           <p>{{ t('bonusBalanceAdmin.reconcile', { adjustments: formatCurrency(report.summary.adjustments), historical: formatCurrency(report.summary.historical_outflow) }) }}</p>
           <p>{{ t('bonusBalanceAdmin.equation') }}</p>
           <p>{{ t('bonusBalanceAdmin.historyHint') }}</p>
           <p v-if="report.summary.deleted_user_remaining > 0">{{ t('bonusBalanceAdmin.deletedHint', { amount: formatCurrency(report.summary.deleted_user_remaining) }) }}</p>
         </div>
-        <p v-if="Math.abs(report.summary.reconciliation_difference) > 0.00000001" role="alert" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{{ t('bonusBalanceAdmin.variance', { amount: formatCurrency(report.summary.reconciliation_difference) }) }}</p>
+        <p v-if="report.scope === 'history' && Math.abs(report.summary.reconciliation_difference) > 0.00000001" role="alert" class="rounded-xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-300">{{ t('bonusBalanceAdmin.variance', { amount: formatCurrency(report.summary.reconciliation_difference) }) }}</p>
 
         <section class="card overflow-hidden">
           <div class="border-b border-gray-100 p-6 dark:border-dark-700">
             <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('bonusBalanceAdmin.sourcesTitle') }}</h2>
-            <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-dark-400">{{ t('bonusBalanceAdmin.sourceHint') }}</p>
+            <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-dark-400">{{ t(report.scope === 'current' ? 'bonusBalanceAdmin.currentSourceHint' : 'bonusBalanceAdmin.sourceHint') }}</p>
           </div>
           <div v-if="report.sources.length" class="overflow-x-auto">
             <table class="w-full min-w-[540px] text-left text-sm">
@@ -58,19 +62,21 @@
 
         <section class="card overflow-hidden">
           <div class="space-y-4 border-b border-gray-100 p-6 dark:border-dark-700">
-            <div><h2 class="font-semibold text-gray-900 dark:text-white">{{ t('bonusBalanceAdmin.recordsTitle') }}</h2><p class="mt-2 text-sm text-gray-500 dark:text-dark-400">{{ t('bonusBalanceAdmin.filterHint') }}</p></div>
+            <div><h2 class="font-semibold text-gray-900 dark:text-white">{{ t('bonusBalanceAdmin.recordsTitle') }}</h2><p class="mt-2 text-sm text-gray-500 dark:text-dark-400">{{ t(report.scope === 'current' ? 'bonusBalanceAdmin.currentFilterHint' : 'bonusBalanceAdmin.filterHint') }}</p></div>
             <form class="flex flex-wrap gap-3" @submit.prevent="load(1)">
               <input v-model="filters.search" class="input min-w-0 flex-1 sm:min-w-52" :aria-label="t('bonusBalanceAdmin.search')" :placeholder="t('bonusBalanceAdmin.search')" />
               <select v-model="filters.source" class="input w-full sm:w-44" :aria-label="t('bonusBalanceAdmin.source')" @change="load(1)">
                 <option value="">{{ t('bonusBalanceAdmin.allSources') }}</option>
-                <option v-for="source in sourceOptions" :key="source" :value="source">{{ sourceLabel(source) }}</option>
+                <option v-for="source in visibleSources" :key="source" :value="source">{{ sourceLabel(source) }}</option>
               </select>
-              <select v-model="filters.kind" class="input w-full sm:w-44" :aria-label="t('bonusBalanceAdmin.kind')" @change="load(1)">
+              <select v-if="report.scope === 'history'" v-model="filters.kind" class="input w-full sm:w-44" :aria-label="t('bonusBalanceAdmin.kind')" @change="load(1)">
                 <option value="">{{ t('bonusBalanceAdmin.allKinds') }}</option>
                 <option value="grant">{{ t('bonusBalanceAdmin.grant') }}</option>
                 <option value="consumption">{{ t('bonusBalanceAdmin.consumption') }}</option>
                 <option value="adjustment">{{ t('bonusBalanceAdmin.adjustment') }}</option>
               </select>
+              <input v-model="filters.start_date" type="date" class="input w-full sm:w-44" :aria-label="t('bonusBalanceAdmin.startDate')" />
+              <input v-model="filters.end_date" type="date" class="input w-full sm:w-44" :aria-label="t('bonusBalanceAdmin.endDate')" />
               <button class="btn btn-primary" :disabled="loading" type="submit">{{ t('bonusBalanceAdmin.query') }}</button>
             </form>
           </div>
@@ -124,15 +130,16 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { getBonusBalanceReport, getBonusBalanceConversion, convertBonusBalances, type BonusBalanceReport, type BonusBalanceConversion } from '@/api/admin/bonusBalance'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import { formatCurrency, formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const formatCurrency = (amount: number) => new Intl.NumberFormat(locale.value, { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 8 }).format(amount)
 const report = ref<BonusBalanceReport | null>(null)
 const page = ref(1)
 const loading = ref(false)
 const error = ref('')
-const filters = reactive({ search: '', source: '', kind: '' })
+const filters = reactive({ scope: 'current' as 'current' | 'history', search: '', source: '', kind: '', start_date: '', end_date: '' })
 const sourceOptions = ['signup', 'invite', 'checkin', 'recharge', 'consumption_reward', 'lottery', 'admin', 'consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion', 'other']
 const conversion = ref<BonusBalanceConversion | null>(null)
 const conversionDialog = ref(false)
@@ -184,12 +191,31 @@ async function executeConversion() {
   }
 }
 let revision = 0
-const metrics = computed(() => report.value ? [
-  { key: 'issued', value: report.value.summary.issued, color: 'text-gray-900 dark:text-white' },
-  { key: 'consumed', value: report.value.summary.consumed, color: 'text-orange-600 dark:text-orange-400' },
-  { key: 'remaining', value: report.value.summary.remaining, color: 'text-emerald-600 dark:text-emerald-400' },
-] : [])
-const sourceLabel = (source: string) => t(`bonusBalanceAdmin.sources.${sourceOptions.includes(source) ? source : 'other'}`)
+const metrics = computed(() => {
+  if (!report.value) return []
+  const s = report.value.summary
+  const color = 'text-gray-900 dark:text-white'
+  return report.value.scope === 'current' ? [
+    { key: 'currentIssued', value: s.issued, color, count: false },
+    { key: 'todayIssued', value: s.today_issued, color, count: false },
+    { key: 'recipientCount', value: s.users, color, count: true },
+    { key: 'grantCount', value: s.grants, color, count: true },
+    { key: 'pending', value: s.pending, color: 'text-amber-600 dark:text-amber-400', count: false },
+  ] : [
+    { key: 'issued', value: s.issued, color, count: false },
+    { key: 'consumed', value: s.consumed, color: 'text-orange-600 dark:text-orange-400', count: false },
+    { key: 'remaining', value: s.remaining, color: 'text-emerald-600 dark:text-emerald-400', count: false },
+  ]
+})
+const visibleSources = computed(() => filters.scope === 'current' ? sourceOptions.filter(source => !['consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion'].includes(source)) : sourceOptions)
+function switchScope(scope: 'current' | 'history') {
+  if (filters.scope === scope) return
+  filters.scope = scope
+  filters.source = ''; filters.kind = ''; filters.search = ''; filters.start_date = ''; filters.end_date = ''
+  report.value = null
+  void load(1)
+}
+const sourceLabel = (source: string) => report.value?.scope === 'current' && ['admin', 'other'].includes(source) ? t(`bonusBalanceAdmin.${source === 'admin' ? 'adminGrant' : 'pending'}`) : t(`bonusBalanceAdmin.sources.${sourceOptions.includes(source) ? source : 'other'}`)
 const share = (amount: number) => report.value && report.value.summary.issued > 0 ? amount / report.value.summary.issued * 100 : 0
 async function load(target: number) {
   const request = ++revision
