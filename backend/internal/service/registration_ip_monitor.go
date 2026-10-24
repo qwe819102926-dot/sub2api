@@ -68,7 +68,7 @@ func registrationIPRow(ctx context.Context, client *dbent.Client, query string, 
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err = rows.Err(); err != nil {
 			return err
@@ -106,7 +106,7 @@ func (s *AuthService) withRegistrationIPMonitor(ctx context.Context, user *User,
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback()
+		defer func() { _ = tx.Rollback() }()
 		ctx = dbent.NewTxContext(ctx, tx)
 	}
 	client := tx.Client()
@@ -139,7 +139,7 @@ func (s *AuthService) withRegistrationIPMonitor(ctx context.Context, user *User,
 				if beginErr != nil {
 					return beginErr
 				}
-				defer banTx.Rollback()
+				defer func() { _ = banTx.Rollback() }()
 				client = banTx.Client()
 				if err = lockRegistrationIP(ctx, client, ip); err != nil {
 					return err
@@ -250,7 +250,7 @@ func (s *AuthService) GetRegistrationIPReport(ctx context.Context, search, selec
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	client := tx.Client()
 	err = registrationIPRow(ctx, client, `SELECT COUNT(DISTINCT ip) FROM registration_ip_events WHERE position($1 in host(ip))>0`, []any{search}, &r.Total)
 	if err != nil {
@@ -267,8 +267,7 @@ func (s *AuthService) GetRegistrationIPReport(ctx context.Context, search, selec
 	for rows.Next() {
 		var v RegistrationIPStat
 		if err = rows.Scan(&v.IP, &v.Total, &v.Recent, &v.LastRegisteredAt, &v.BlockedAt, &v.BlockedUntil, &v.Active, &v.BanCount); err != nil {
-			rows.Close()
-			return nil, err
+			return nil, errors.Join(err, rows.Close())
 		}
 		r.Rows = append(r.Rows, v)
 	}
@@ -289,8 +288,7 @@ func (s *AuthService) GetRegistrationIPReport(ctx context.Context, search, selec
 		for rows.Next() {
 			var v RegistrationIPAccount
 			if err = rows.Scan(&v.UserID, &v.Email, &v.Source, &v.CreatedAt, &v.Status, &v.Deleted); err != nil {
-				rows.Close()
-				return nil, err
+				return nil, errors.Join(err, rows.Close())
 			}
 			r.Accounts = append(r.Accounts, v)
 		}
@@ -313,7 +311,7 @@ func (s *AuthService) UnblockRegistrationIP(ctx context.Context, value string) e
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err = lockRegistrationIP(ctx, tx.Client(), ip.Unmap().String()); err != nil {
 		return err
 	}
