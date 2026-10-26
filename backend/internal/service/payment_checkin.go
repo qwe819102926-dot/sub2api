@@ -11,7 +11,7 @@ import (
 const (
 	dailyCheckinCycleLength = 30
 	dailyCheckinMinCents    = 20
-	dailyCheckinMaxCents    = 50
+	dailyCheckinMaxCents    = 30
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)

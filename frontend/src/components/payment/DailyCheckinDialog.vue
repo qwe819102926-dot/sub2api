@@ -24,7 +24,7 @@
             </section>
             <aside>
               <section class="ci-stage"><div class="ci-stage-heading"><h3><Icon name="trophy" size="sm" />{{ t('checkin.stages') }}</h3><span>{{ completedInCycle }} / {{ status.cycle_length }} {{ t('checkin.days') }}</span></div><p class="ci-muted">{{ t('checkin.stageHint') }}</p><div class="ci-milestones"><button v-for="milestone in milestones" :key="milestone.day" type="button" class="ci-milestone" :class="{ complete: milestone.day <= completedInCycle, next: milestone.day === nextMilestone?.day }" :disabled="loading || submitting" :aria-label="`${t('checkin.streakDay', { day: milestone.day })}, ${t('checkin.dayTotal')}, +${format(milestone.reward)}, ${milestone.date}`" @click="selectMilestone(milestone.date)"><span>{{ t('checkin.nodeDay', { day: milestone.day }) }}<Icon name="gift" size="xs" /></span><strong>+{{ format(milestone.reward) }}</strong><small>{{ t('checkin.dayTotal') }}</small><small>{{ milestone.day <= completedInCycle ? t('checkin.reached') : t('checkin.remaining', { days: milestone.day - completedInCycle }) }}</small></button></div></section>
-              <section class="ci-claim" aria-live="polite"><p>{{ t(status.checked_in_today ? 'checkin.checkedEntry' : 'checkin.todayLabel') }}</p><strong>{{ todayRewardLabel }}<small>{{ t('checkin.bonusUnit') }}</small></strong><p>{{ t('checkin.bonusOnly') }}</p><button type="button" class="ci-action" :disabled="loading || submitting || status.checked_in_today" @click="claim"><Icon :name="status.checked_in_today ? 'check' : 'gift'" size="sm" />{{ t(status.checked_in_today ? 'checkin.checkedEntry' : submitting ? 'common.processing' : 'checkin.checkinNow') }}</button></section>
+              <section class="ci-claim" aria-live="polite"><p>{{ t(status.checked_in_today ? 'checkin.checkedEntry' : 'checkin.todayLabel') }}</p><strong v-if="todayRewardLabel">{{ todayRewardLabel }}<small>{{ t('checkin.bonusUnit') }}</small></strong><p>{{ t('checkin.bonusOnly') }}</p><button type="button" class="ci-action" :disabled="loading || submitting || status.checked_in_today" @click="claim"><Icon :name="status.checked_in_today ? 'check' : 'gift'" size="sm" />{{ t(status.checked_in_today ? 'checkin.checkedEntry' : submitting ? 'common.processing' : 'checkin.checkinNow') }}</button></section>
               <section class="ci-records"><div><h3>{{ t('checkin.recentRecords') }}</h3><button v-if="status.records.length > 3" type="button" class="ci-link" :aria-expanded="allRecords" @click="allRecords = !allRecords">{{ t(allRecords ? 'checkin.lessRecords' : 'checkin.allRecords') }}</button></div><div v-for="record in recentRecords" :key="record.date" class="ci-record"><span>{{ record.date }}<small>{{ t('checkin.streakDay', { day: record.streak_day }) }}</small></span><strong>+{{ format(record.reward) }}</strong></div><p v-if="!recentRecords.length" class="ci-muted">{{ t('checkin.noRecords') }}</p></section>
             </aside>
           </div>
@@ -83,7 +83,7 @@ const todayRewardLabel = computed(() => {
   const current = status.value
   if (!current) return '—'
   if (!current.checked_in_today && !current.milestones.some(milestone => milestone.day === current.cycle_day)) {
-    return `+${current.ordinary_rewards.map(format).join('～')}`
+    return ''
   }
   return `+${format(current.today_reward)}`
 })

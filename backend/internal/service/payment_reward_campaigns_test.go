@@ -49,7 +49,7 @@ func TestDailyCheckinRewardCycle(t *testing.T) {
 			require.Equal(t, amount, dailyCheckinRewardPreview(day))
 		} else {
 			require.GreaterOrEqual(t, reward, 0.2)
-			require.LessOrEqual(t, reward, 0.5)
+			require.LessOrEqual(t, reward, 0.3)
 			require.InDelta(t, math.Round(reward*100), reward*100, 1e-9)
 			require.Equal(t, 0.2, dailyCheckinRewardPreview(day))
 		}
@@ -66,7 +66,7 @@ type checkinRewardArgument struct {
 
 func (r *checkinRewardArgument) Match(value driver.Value) bool {
 	amount, ok := value.(float64)
-	if !ok || amount < 0.2 || amount > 0.5 || math.Abs(amount*100-math.Round(amount*100)) > 1e-9 {
+	if !ok || amount < 0.2 || amount > 0.3 || math.Abs(amount*100-math.Round(amount*100)) > 1e-9 {
 		return false
 	}
 	if r.amount == 0 {
@@ -225,7 +225,7 @@ func TestGetDailyCheckinHistoricalMonthPreservesToday(t *testing.T) {
 	require.Equal(t, today.Format("2006-01-02"), status.Today)
 	require.Empty(t, status.Records)
 	require.Len(t, status.Milestones, 4)
-	require.Equal(t, []float64{0.2, 0.5}, status.OrdinaryRewards)
+	require.Equal(t, []float64{0.2, 0.3}, status.OrdinaryRewards)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

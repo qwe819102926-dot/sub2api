@@ -21,7 +21,7 @@ function initialStatus(): DailyCheckinStatus {
     checked_in_today: false, current_streak: 3, total_days: 3, total_reward: 40,
     cycle_day: 4, cycle_length: 30, today_reward: 0.2, reward_cycle: [],
     today: '2026-10-21', next_reset_at: '2026-10-22T00:00:00+08:00', month: '2026-10',
-    ordinary_rewards: [0.2, 0.5], milestones: [{ day: 3, reward: 1 }, { day: 7, reward: 3 }, { day: 15, reward: 5 }, { day: 30, reward: 10 }],
+    ordinary_rewards: [0.2, 0.3], milestones: [{ day: 3, reward: 1 }, { day: 7, reward: 3 }, { day: 15, reward: 5 }, { day: 30, reward: 10 }],
     records: [{ date: '2026-10-20', streak_day: 3, reward: 20, created_at: '2026-10-20T01:00:00Z' }]
   }
 }
@@ -58,7 +58,7 @@ describe('daily check-in header and calendar', () => {
     expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+1')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-20"]')?.textContent).toContain('+5')
     document.querySelector<HTMLButtonElement>('.ci-footer .ci-link')!.click(); await flushPromises()
-    expect(document.querySelector('.ci-rules')?.textContent).toContain('普通日随机领取 0.20～0.50')
+    expect(document.querySelector('.ci-rules')?.textContent).toContain('普通日随机领取 0.20～0.30')
     expect(document.querySelector('.ci-rules')?.textContent).toContain('1、3、5、10')
   })
   it('opens a centered dialog and marks milestones by streak dates, including across months', async () => {
@@ -68,7 +68,7 @@ describe('daily check-in header and calendar', () => {
     expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
     expect(document.querySelector('.ci-weekday')?.textContent).toBe('一')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-24"]')?.textContent).toContain('7 天')
-    expect(document.querySelector('.ci-claim')?.textContent).toContain('+0.20～0.50')
+    expect(document.querySelector('.ci-claim strong')).toBeNull()
     const node = document.querySelector<HTMLButtonElement>('.ci-milestone[aria-label*="2026-11-01"]')!
     node.click(); await flushPromises()
     expect(mocks.get).toHaveBeenLastCalledWith('2026-11')
