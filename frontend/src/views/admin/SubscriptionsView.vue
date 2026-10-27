@@ -8,7 +8,7 @@
           <div class="flex flex-1 flex-wrap items-center gap-3">
             <!-- User Search -->
             <div
-              class="relative w-full sm:w-64"
+              class="relative w-full sm:w-56"
               data-filter-user-search
             >
               <Icon
@@ -65,7 +65,7 @@
             </div>
 
             <!-- Filters -->
-            <div class="w-full sm:w-40">
+            <div class="w-full sm:w-32">
               <Select
                 v-model="filters.status"
                 :options="statusOptions"
@@ -73,7 +73,7 @@
                 @change="applyFilters"
               />
             </div>
-            <div class="w-full sm:w-48">
+            <div class="w-full sm:w-40">
               <Select
                 v-model="filters.group_id"
                 :options="groupOptions"
@@ -81,7 +81,7 @@
                 @change="applyFilters"
               />
             </div>
-            <div class="w-full sm:w-40">
+            <div class="w-full sm:w-32">
               <Select
                 v-model="filters.platform"
                 :options="platformFilterOptions"
@@ -246,7 +246,7 @@
           </template>
 
           <template #cell-usage="{ row }">
-            <div class="min-w-[280px] space-y-2">
+            <div class="subscription-usage space-y-2">
               <!-- Daily Usage -->
               <div v-if="row.group?.daily_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
@@ -1624,6 +1624,11 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.subscription-usage {
+  width: clamp(214px, 16.5vw, 264px);
+  max-width: 100%;
+}
+
 .usage-row {
   @apply space-y-1;
 }

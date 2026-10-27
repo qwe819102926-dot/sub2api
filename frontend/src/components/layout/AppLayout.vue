@@ -8,13 +8,13 @@
     <!-- Main Content Area -->
     <div
       class="app-main relative min-h-screen transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-56']"
+      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-52']"
     >
       <!-- Header -->
       <AppHeader />
 
       <!-- Main Content -->
-      <main class="app-content p-4 md:p-6 lg:p-8">
+      <main class="app-content p-4 md:p-6">
         <slot />
       </main>
     </div>

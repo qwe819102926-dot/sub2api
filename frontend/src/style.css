@@ -1020,7 +1020,43 @@
 
 /* codexpert dashboard visual system: applied only to authenticated app surfaces. */
 .codexpert-console {
+  --app-header-height: 64px;
+  --app-content-padding: 16px;
   background: #fbfaf8;
+}
+
+.codexpert-console .app-header-inner {
+  height: calc(var(--app-header-height) - 1px);
+}
+
+@media (min-width: 768px) {
+  .codexpert-console {
+    --app-content-padding: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .codexpert-console {
+    --app-header-height: 56px;
+  }
+
+  .codexpert-console .sidebar-header {
+    height: var(--app-header-height);
+    min-height: var(--app-header-height);
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .codexpert-console .sidebar-nav {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .codexpert-console .sidebar-link {
+    padding-top: 8px;
+    padding-bottom: 8px;
+    border-radius: 10px;
+  }
 }
 
 .codexpert-console .bg-mesh-gradient {
