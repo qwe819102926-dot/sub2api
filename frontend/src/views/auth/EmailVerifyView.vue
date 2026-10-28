@@ -30,6 +30,25 @@
 
       <!-- Verification Form -->
       <form v-else @submit.prevent="handleVerify" class="space-y-5">
+        <aside
+          aria-labelledby="email-delivery-hint-title"
+          class="rounded-xl border border-amber-300 border-l-4 border-l-amber-500 bg-amber-50 p-4 dark:border-amber-700 dark:border-l-amber-400 dark:bg-amber-900/20"
+        >
+          <div class="flex items-start gap-3">
+            <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-800/50 dark:text-amber-300">
+              <Icon name="mail" size="md" aria-hidden="true" />
+            </div>
+            <div class="min-w-0 text-sm leading-6">
+              <p id="email-delivery-hint-title" class="font-bold text-amber-950 dark:text-amber-200">
+                {{ t('auth.emailDeliveryHintTitle') }}
+              </p>
+              <p class="mt-1 font-semibold text-amber-800 dark:text-amber-300">
+                {{ t('auth.emailDeliveryHintDescription') }}
+              </p>
+            </div>
+          </div>
+        </aside>
+
         <!-- Verification Code Input -->
         <div>
           <label for="code" class="input-label text-center">

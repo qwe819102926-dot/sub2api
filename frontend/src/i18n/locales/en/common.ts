@@ -278,6 +278,8 @@ export default {
     sessionExpiredDesc: 'Please go back to the registration page and start again.',
     verificationCode: 'Verification Code',
     verificationCodeHint: 'Enter the 6-digit code sent to your email',
+    emailDeliveryHintTitle: 'Haven’t received your code?',
+    emailDeliveryHintDescription: 'Check your Spam or Junk folder. Your verification email may have been placed there by mistake.',
     sendingCode: 'Sending...',
     sendCode: 'Send code',
     clickToResend: 'Click to resend code',
