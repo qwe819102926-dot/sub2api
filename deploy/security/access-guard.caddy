@@ -1,0 +1,28 @@
+# Import inside the production site block. Keep its existing reverse_proxy.
+log sub2api_access {
+	output file /var/log/caddy/sub2api-access.jsonl {
+		mode 0640
+		roll_size 50MiB
+		roll_keep 10
+		roll_keep_for 336h
+	}
+	format filter {
+		wrap json
+		fields {
+			request>headers delete
+			resp_headers delete
+			request>uri delete
+			path regexp "(/api/v1/plugin-ui/)[^/]+" "${1}[REDACTED]"
+		}
+	}
+}
+
+# IDs come only from the backend response, never from a caller identity header.
+log_append request_id {http.response.header.X-Request-Id}
+log_append path {http.request.uri.path}
+@sub2api_scan {
+	path_regexp sub2api_scan "(?i)(?:^|/)(?:[.]env[^/]*(?:/|$)|[.](?:git|aws)(?:/|$)|wp-(?:admin|content|includes)(?:/|$))|[.]php(?:/|$)"
+	not path /.well-known/acme-challenge/*
+}
+log_append @sub2api_scan security_rule sensitive_path
+respond @sub2api_scan "Not Found" 404

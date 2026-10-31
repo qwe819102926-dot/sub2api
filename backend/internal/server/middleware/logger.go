@@ -62,6 +62,14 @@ func Logger() gin.HandlerFunc {
 			zap.String("method", method),
 			zap.String("path", path),
 		}
+		// Record only identities established by authentication middleware. Never
+		// copy caller-supplied identity headers or the API key value into logs.
+		if subject, ok := GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
+			fields = append(fields, zap.Int64("user_id", subject.UserID))
+			if apiKey, ok := GetAPIKeyFromContext(c); ok && apiKey != nil && apiKey.ID > 0 && apiKey.UserID == subject.UserID {
+				fields = append(fields, zap.Int64("api_key_id", apiKey.ID))
+			}
+		}
 		if rejected {
 			fields = append(fields,
 				zap.String("ingress_reject_reason", string(reason)),

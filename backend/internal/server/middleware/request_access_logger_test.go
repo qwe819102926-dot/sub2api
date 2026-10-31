@@ -10,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -197,6 +198,66 @@ func TestLogger_AccessLogIncludesCoreFields(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("access log event not found")
+	}
+}
+
+func TestLoggerAuthenticatedIdentityAndRedaction(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		subject bool
+		keyUser int64
+		wantKey bool
+	}{
+		{name: "authenticated API key", subject: true, keyUser: 119, wantKey: true},
+		{name: "authenticated JWT", subject: true},
+		{name: "untrusted identity headers"},
+		{name: "key without authenticated subject", keyUser: 119},
+		{name: "key owned by a different user", subject: true, keyUser: 120},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gin.SetMode(gin.TestMode)
+			sink := initMiddlewareTestLogger(t)
+			r := gin.New()
+			r.Use(RequestLogger(), Logger())
+			r.GET("/v1/usage", func(c *gin.Context) {
+				if tc.subject {
+					c.Set(string(ContextKeyUser), AuthSubject{UserID: 119})
+				}
+				if tc.keyUser > 0 {
+					c.Set(string(ContextKeyAPIKey), &service.APIKey{ID: 203, UserID: tc.keyUser, Key: "secret-key-canary"})
+				}
+				c.Status(http.StatusOK)
+			})
+			req := httptest.NewRequest(http.MethodGet, "/v1/usage?token=secret-query-canary", nil)
+			req.Header.Set("Authorization", "Bearer secret-auth-canary")
+			req.Header.Set("Cookie", "session=secret-cookie-canary")
+			req.Header.Set("X-User-ID", "999")
+			req.Header.Set("X-API-Key-ID", "888")
+			r.ServeHTTP(httptest.NewRecorder(), req)
+			var access *logger.LogEvent
+			for _, event := range sink.list() {
+				if event.Message == "http request completed" {
+					access = event
+				}
+			}
+			if access == nil {
+				t.Fatal("missing access log")
+			}
+			if value, exists := access.Fields["user_id"]; exists != tc.subject || (exists && value != int64(119)) {
+				t.Fatalf("unexpected user identity: %v", value)
+			}
+			if value, exists := access.Fields["api_key_id"]; exists != tc.wantKey || (exists && value != int64(203)) {
+				t.Fatalf("unexpected key identity: %v", value)
+			}
+			if access.Fields["path"] != "/v1/usage" {
+				t.Fatal("query leaked into access path")
+			}
+			for _, value := range access.Fields {
+				if text, ok := value.(string); ok && strings.Contains(text, "secret-") {
+					t.Fatal("credential canary leaked into access log")
+				}
+			}
+		})
 	}
 }
 

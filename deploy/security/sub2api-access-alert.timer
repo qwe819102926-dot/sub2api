@@ -1,0 +1,11 @@
+[Unit]
+Description=Inspect Sub2API access logs every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=5s
+Unit=sub2api-access-alert.service
+
+[Install]
+WantedBy=timers.target
