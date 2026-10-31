@@ -10,9 +10,11 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -331,7 +333,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		assert.Contains(t, w2.Body.String(), `nonce="nonce2"`)
 	})
 
-	t.Run("sets_etag_header", func(t *testing.T) {
+	t.Run("omits_browser_etag_for_nonce_html", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -346,13 +348,11 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		server.serveIndexHTML(c)
 
-		etag := w.Header().Get("ETag")
-		assert.NotEmpty(t, etag)
-		assert.True(t, strings.HasPrefix(etag, `"`))
-		assert.True(t, strings.HasSuffix(etag, `"`))
+		assert.Empty(t, w.Header().Get("ETag"))
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	})
 
-	t.Run("returns_304_for_matching_etag", func(t *testing.T) {
+	t.Run("conditional_request_keeps_body_nonce_in_sync_with_csp", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
 		}
@@ -360,19 +360,16 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		server, err := NewFrontendServer(provider)
 		require.NoError(t, err)
 
-		// Use a real router for proper 304 handling
 		router := gin.New()
-		router.Use(func(c *gin.Context) {
-			c.Set(middleware.CSPNonceKey, "test-nonce")
-			c.Next()
-		})
+		router.Use(middleware.SecurityHeaders(config.CSPConfig{Enabled: true}, nil))
 		router.Use(server.Middleware())
 
 		// First request to populate cache and get ETag
 		w1 := httptest.NewRecorder()
 		req1 := httptest.NewRequest(http.MethodGet, "/", nil)
 		router.ServeHTTP(w1, req1)
-		etag := w1.Header().Get("ETag")
+		// Simulate an ETag cached by a browser before this fix was deployed.
+		etag := server.cache.Get().ETag
 		require.NotEmpty(t, etag)
 
 		// Second request with If-None-Match
@@ -381,8 +378,18 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		req2.Header.Set("If-None-Match", etag)
 		router.ServeHTTP(w2, req2)
 
-		assert.Equal(t, http.StatusNotModified, w2.Code)
-		assert.Empty(t, w2.Body.String())
+		assert.Equal(t, http.StatusOK, w2.Code)
+		assert.Equal(t, "no-store", w2.Header().Get("Cache-Control"))
+		assert.Empty(t, w2.Header().Get("ETag"))
+		noncePattern := regexp.MustCompile(`'nonce-([^']+)'`)
+		first := noncePattern.FindStringSubmatch(w1.Header().Get("Content-Security-Policy"))
+		second := noncePattern.FindStringSubmatch(w2.Header().Get("Content-Security-Policy"))
+		require.Len(t, first, 2)
+		require.Len(t, second, 2)
+		assert.NotEqual(t, first[1], second[1])
+		assert.Contains(t, w2.Body.String(), `nonce="`+second[1]+`"`)
+		assert.NotContains(t, w2.Body.String(), `nonce="`+first[1]+`"`)
+		assert.Equal(t, 1, provider.called, "server-side settings cache should still be used")
 	})
 
 	t.Run("sets_cache_control_header", func(t *testing.T) {
@@ -400,7 +407,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		server.serveIndexHTML(c)
 
-		assert.Equal(t, "no-cache", w.Header().Get("Cache-Control"))
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 	})
 
 	t.Run("fallback_on_settings_error", func(t *testing.T) {
@@ -423,6 +430,7 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		// Should still return 200 with base HTML
 		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
 		assert.Contains(t, w.Header().Get("Content-Type"), "text/html")
 	})
 }
@@ -650,11 +658,11 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 		// Request for existing static file
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/logo.svg", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/svg")
 		assert.Empty(t, w.Header().Get("Cache-Control"))
 
 		entries, err := fs.ReadDir(server.distFS, "assets")
@@ -735,11 +743,11 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 		router.Use(middleware)
 
 		w := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "/logo.png", nil)
+		req := httptest.NewRequest(http.MethodGet, "/logo.svg", nil)
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Contains(t, w.Header().Get("Content-Type"), "image/png")
+		assert.Contains(t, w.Header().Get("Content-Type"), "image/svg")
 	})
 
 	t.Run("serves_index_html_for_root", func(t *testing.T) {
