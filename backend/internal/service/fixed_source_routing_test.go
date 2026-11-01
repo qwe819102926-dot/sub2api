@@ -47,7 +47,7 @@ func TestFixedSourceRoutingSettingsNormalizeAndRoundTrip(t *testing.T) {
 		Enabled: true,
 		Domains: []string{" WWW.Example.COM. ", "example.com"},
 		IPs:     []string{" 192.0.2.10 ", "2001:db8::/32"},
-		Routes:  []FixedSourceRoute{{SourceGroupID: 1, TargetGroupID: 2, AccountID: 3}},
+		Routes:  []FixedSourceRoute{{SourceGroupID: 1, TargetGroupID: 1, AccountID: 3}},
 	}
 
 	require.NoError(t, svc.SetFixedSourceRoutingSettings(context.Background(), input))
@@ -66,8 +66,8 @@ func TestFixedSourceRoutingSettingsRejectInvalidSourcesAndDuplicateRoutes(t *tes
 	err = svc.SetFixedSourceRoutingSettings(context.Background(), &FixedSourceRoutingSettings{IPs: []string{"not-an-ip"}})
 	require.ErrorContains(t, err, "invalid fixed source IP or CIDR")
 	err = svc.SetFixedSourceRoutingSettings(context.Background(), &FixedSourceRoutingSettings{Routes: []FixedSourceRoute{
-		{SourceGroupID: 1, TargetGroupID: 2, AccountID: 3},
-		{SourceGroupID: 1, TargetGroupID: 4, AccountID: 5},
+		{SourceGroupID: 1, TargetGroupID: 1, AccountID: 3},
+		{SourceGroupID: 1, TargetGroupID: 1, AccountID: 5},
 	}})
 	require.ErrorContains(t, err, "more than one fixed route")
 }
@@ -145,4 +145,19 @@ func TestOpenAIFixedRouteSelectsPinnedAccountForTokenCount(t *testing.T) {
 	account, err := svc.SelectAccountForTokenCount(ctx, &groupID, "", "gpt-5", "", PlatformOpenAI)
 	require.NoError(t, err)
 	require.Equal(t, int64(30), account.ID)
+}
+
+func TestFixedSourceRoutingSettingsRejectCrossGroupWithoutSaving(t *testing.T) {
+	repo := &fixedRoutingSettingRepo{values: map[string]string{SettingKeyFixedSourceRoutingSettings: `{"enabled":false}`}}
+	svc := NewSettingService(repo, &config.Config{})
+	before, err := svc.GetFixedSourceRoutingSettings(context.Background())
+	require.NoError(t, err)
+	err = svc.SetFixedSourceRoutingSettings(context.Background(), &FixedSourceRoutingSettings{
+		Enabled: true, Routes: []FixedSourceRoute{{SourceGroupID: 10, TargetGroupID: 46, AccountID: 30}},
+	})
+	require.ErrorContains(t, err, "cannot change the API key group")
+	require.Equal(t, `{"enabled":false}`, repo.values[SettingKeyFixedSourceRoutingSettings])
+	after, err := svc.GetFixedSourceRoutingSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, before, after)
 }

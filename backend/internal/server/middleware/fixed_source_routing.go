@@ -42,19 +42,19 @@ func NewFixedSourceRoutingMiddleware(settingService *service.SettingService, cfg
 			c.Next()
 			return
 		}
+		// Legacy rules may point to another group. Ignore them even when the
+		// source matches: authentication only authorized the key's bound group.
+		if route.TargetGroupID != *apiKey.GroupID {
+			c.Next()
+			return
+		}
 		targetGroup, err := settingService.GetFixedSourceRoutingTargetGroup(c.Request.Context(), route.TargetGroupID)
 		if err != nil || targetGroup == nil || !targetGroup.IsActive() {
 			AbortWithError(c, 503, "FIXED_ROUTE_UNAVAILABLE", "The configured fixed route group is unavailable")
 			return
 		}
 
-		// API keys returned by authentication are cache-backed. Never mutate them.
-		keyCopy := *apiKey
-		targetGroupID := targetGroup.ID
-		keyCopy.GroupID = &targetGroupID
-		keyCopy.Group = targetGroup
-		c.Set(string(ContextKeyAPIKey), &keyCopy)
-		setGroupContext(c, targetGroup)
+		// Pin only the account. Keep the authenticated key and group intact.
 		ctx := context.WithValue(c.Request.Context(), ctxkey.FixedRouteAccountID, route.AccountID)
 		ctx = context.WithValue(ctx, ctxkey.FixedRouteSourceGroupID, route.SourceGroupID)
 		c.Request = c.Request.WithContext(ctx)

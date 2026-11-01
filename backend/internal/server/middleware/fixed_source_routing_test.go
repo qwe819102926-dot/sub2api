@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -31,13 +32,16 @@ func (r *fixedRoutingGroupReader) GetByID(context.Context, int64) (*service.Grou
 	return r.group, nil
 }
 
-func newFixedRoutingMiddlewareService(t *testing.T, target *service.Group) *service.SettingService {
+func newFixedRoutingMiddlewareService(t *testing.T, target *service.Group, routes ...service.FixedSourceRoute) *service.SettingService {
 	t.Helper()
 	settings := service.FixedSourceRoutingSettings{
 		Enabled: true,
 		Domains: []string{"example.com"},
 		IPs:     []string{"192.0.2.0/24", "2001:db8::/32"},
-		Routes:  []service.FixedSourceRoute{{SourceGroupID: 10, TargetGroupID: 20, AccountID: 30}},
+		Routes:  []service.FixedSourceRoute{{SourceGroupID: 10, TargetGroupID: 10, AccountID: 30}},
+	}
+	if len(routes) > 0 {
+		settings.Routes = routes
 	}
 	raw, err := json.Marshal(settings)
 	require.NoError(t, err)
@@ -69,9 +73,9 @@ func TestFixedSourceRequestDomainOriginAndReferer(t *testing.T) {
 	}
 }
 
-func TestFixedSourceRoutingMiddlewareCopiesAPIKeyAndPinsAccount(t *testing.T) {
+func TestFixedSourceRoutingMiddlewarePreservesAPIKeyAndPinsAccount(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	target := &service.Group{ID: 20, Name: "target", Status: service.StatusActive, Hydrated: true}
+	target := &service.Group{ID: 10, Name: "target", Status: service.StatusActive, Hydrated: true}
 	svc := newFixedRoutingMiddlewareService(t, target)
 	originalGroupID := int64(10)
 	original := &service.APIKey{ID: 1, GroupID: &originalGroupID, Group: &service.Group{ID: 10, Hydrated: true}}
@@ -85,6 +89,8 @@ func TestFixedSourceRoutingMiddlewareCopiesAPIKeyAndPinsAccount(t *testing.T) {
 	router.GET("/", func(c *gin.Context) {
 		key, ok := GetAPIKeyFromContext(c)
 		require.True(t, ok)
+		require.Same(t, original, key)
+		require.Same(t, original.Group, key.Group)
 		accountID, _ := c.Request.Context().Value(ctxkey.FixedRouteAccountID).(int64)
 		c.JSON(http.StatusOK, gin.H{"group_id": *key.GroupID, "account_id": accountID})
 	})
@@ -95,14 +101,14 @@ func TestFixedSourceRoutingMiddlewareCopiesAPIKeyAndPinsAccount(t *testing.T) {
 	router.ServeHTTP(resp, req)
 
 	require.Equal(t, http.StatusOK, resp.Code)
-	require.JSONEq(t, `{"group_id":20,"account_id":30}`, resp.Body.String())
+	require.JSONEq(t, `{"group_id":10,"account_id":30}`, resp.Body.String())
 	require.Equal(t, int64(10), *original.GroupID)
 	require.Equal(t, int64(10), original.Group.ID)
 }
 
 func TestFixedSourceRoutingMiddlewareMatchesCIDRAndFailsClosedForInactiveTarget(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	target := &service.Group{ID: 20, Status: service.StatusDisabled, Hydrated: true}
+	target := &service.Group{ID: 10, Status: service.StatusDisabled, Hydrated: true}
 	svc := newFixedRoutingMiddlewareService(t, target)
 	groupID := int64(10)
 
@@ -123,7 +129,7 @@ func TestFixedSourceRoutingMiddlewareMatchesCIDRAndFailsClosedForInactiveTarget(
 
 func TestFixedSourceRoutingMiddlewareLeavesUnmatchedAPIKeyUnchanged(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	target := &service.Group{ID: 20, Status: service.StatusActive, Hydrated: true}
+	target := &service.Group{ID: 10, Status: service.StatusActive, Hydrated: true}
 	svc := newFixedRoutingMiddlewareService(t, target)
 	groupID := int64(10)
 	original := &service.APIKey{GroupID: &groupID}
@@ -147,4 +153,53 @@ func TestFixedSourceRoutingMiddlewareLeavesUnmatchedAPIKeyUnchanged(t *testing.T
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 	require.Equal(t, http.StatusNoContent, resp.Code)
+}
+
+// Existing database rules must become harmless without a configuration rewrite.
+func TestFixedSourceRoutingMiddlewareIgnoresLegacyCrossGroupRules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, source := range []string{"origin", "referer", "ip"} {
+		for _, allowed := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/target_allowed=%t", source, allowed), func(t *testing.T) {
+				target := &service.Group{ID: 46, IsExclusive: true, Status: service.StatusActive, Hydrated: true}
+				svc := newFixedRoutingMiddlewareService(t, target, service.FixedSourceRoute{SourceGroupID: 10, TargetGroupID: 46, AccountID: 30})
+				groupID := int64(10)
+				user := &service.User{ID: 103}
+				if allowed {
+					user.AllowedGroups = []int64{46}
+				}
+				original := &service.APIKey{ID: 198, User: user, GroupID: &groupID, Group: &service.Group{ID: 10, Hydrated: true}}
+				router := gin.New()
+				router.Use(func(c *gin.Context) {
+					c.Set(string(ContextKeyAPIKey), original)
+					setGroupContext(c, original.Group)
+					c.Next()
+				})
+				router.Use(NewFixedSourceRoutingMiddleware(svc, &config.Config{}))
+				router.POST("/v1/chat/completions", func(c *gin.Context) {
+					key, ok := GetAPIKeyFromContext(c)
+					require.True(t, ok)
+					require.Same(t, original, key)
+					require.Equal(t, int64(10), *key.GroupID)
+					require.Equal(t, int64(10), key.Group.ID)
+					require.Nil(t, c.Request.Context().Value(ctxkey.FixedRouteAccountID))
+					require.Nil(t, c.Request.Context().Value(ctxkey.FixedRouteSourceGroupID))
+					c.Status(http.StatusNoContent)
+				})
+				req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+				req.RemoteAddr = "203.0.113.10:1234"
+				switch source {
+				case "origin":
+					req.Header.Set("Origin", "https://example.com")
+				case "referer":
+					req.Header.Set("Referer", "https://example.com/chat")
+				case "ip":
+					req.RemoteAddr = "192.0.2.42:1234"
+				}
+				resp := httptest.NewRecorder()
+				router.ServeHTTP(resp, req)
+				require.Equal(t, http.StatusNoContent, resp.Code)
+			})
+		}
+	}
 }

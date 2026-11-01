@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-// FixedSourceRoute maps one API key source group to an account in a target group.
+// FixedSourceRoute pins an account within the API key's existing group.
+// TargetGroupID is retained for compatibility and must equal SourceGroupID.
 type FixedSourceRoute struct {
 	SourceGroupID int64 `json:"source_group_id"`
 	TargetGroupID int64 `json:"target_group_id"`
@@ -87,6 +88,9 @@ func (s *SettingService) SetFixedSourceRoutingSettings(ctx context.Context, sett
 	for _, route := range settings.Routes {
 		if route.SourceGroupID <= 0 || route.TargetGroupID <= 0 || route.AccountID <= 0 {
 			return fmt.Errorf("every fixed source route requires positive source_group_id, target_group_id, and account_id")
+		}
+		if route.TargetGroupID != route.SourceGroupID {
+			return fmt.Errorf("fixed source routes cannot change the API key group; target_group_id must equal source_group_id")
 		}
 		if _, ok := seen[route.SourceGroupID]; ok {
 			return fmt.Errorf("source group %d has more than one fixed route", route.SourceGroupID)

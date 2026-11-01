@@ -1529,7 +1529,7 @@
                 >
                   <label class="block text-sm text-gray-600 dark:text-gray-300">
                     <span class="mb-1 block">{{ t("admin.settings.fixedSourceRouting.sourceGroup") }}</span>
-                    <select v-model.number="route.source_group_id" class="input w-full">
+                    <select v-model.number="route.source_group_id" class="input w-full" @change="route.target_group_id = route.source_group_id; route.account_id = 0">
                       <option :value="0">{{ t("common.selectOption") }}</option>
                       <option v-for="group in fixedSourceRoutingGroups" :key="group.id" :value="group.id">
                         {{ group.name }}
@@ -1538,9 +1538,9 @@
                   </label>
                   <label class="block text-sm text-gray-600 dark:text-gray-300">
                     <span class="mb-1 block">{{ t("admin.settings.fixedSourceRouting.targetGroup") }}</span>
-                    <select v-model.number="route.target_group_id" class="input w-full" @change="route.account_id = 0">
+                    <select v-model.number="route.target_group_id" class="input w-full" disabled>
                       <option :value="0">{{ t("common.selectOption") }}</option>
-                      <option v-for="group in fixedSourceRoutingActiveGroups" :key="group.id" :value="group.id">
+                      <option v-for="group in fixedSourceRoutingGroups.filter((group) => group.id === route.source_group_id)" :key="group.id" :value="group.id">
                         {{ group.name }}
                       </option>
                     </select>
@@ -9200,9 +9200,6 @@ const fixedSourceRoutingForm = reactive<FixedSourceRoutingSettings>({
   ips: [],
   routes: [],
 });
-const fixedSourceRoutingActiveGroups = computed(() =>
-  fixedSourceRoutingGroups.value.filter((group) => group.status === "active"),
-);
 
 // Upstream billing probe state
 const upstreamBillingProbeLoading = ref(true);
