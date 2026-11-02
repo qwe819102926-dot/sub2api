@@ -10,6 +10,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	_ "github.com/lib/pq"
 	"github.com/stretchr/testify/require"
 )
@@ -100,7 +101,27 @@ func TestUsageLogPrincipalCostPostgres(t *testing.T) {
 		require.NotContains(t, userStats, int64(6))
 	}
 	expected := []float64{0, 0.4, 1, 1, 1}
+	usageService := service.NewUsageService(repo, nil, nil, nil)
 	for i, want := range expected {
+		keyID := int64(i + 1)
+		start, end := now.Add(-time.Hour), now.Add(time.Hour)
+		daily, err := usageService.GetAPIKeyDailyUsage(ctx, 42, keyID, start, end)
+		require.NoError(t, err)
+		require.Len(t, daily, 1)
+		require.InDelta(t, want, daily[0].ActualCost, 1e-9)
+		require.Equal(t, 1.0, daily[0].Cost)
+		require.Equal(t, int64(1), daily[0].Requests)
+		require.Equal(t, int64(10), daily[0].TotalTokens)
+		models, err := usageService.GetAPIKeyModelStats(ctx, keyID, start, end)
+		require.NoError(t, err)
+		require.Len(t, models, 1)
+		require.InDelta(t, want, models[0].ActualCost, 1e-9)
+		require.Equal(t, 1.0, models[0].Cost)
+		require.Equal(t, int64(1), models[0].Requests)
+		require.Equal(t, int64(10), models[0].TotalTokens)
+		foreignDaily, err := usageService.GetAPIKeyDailyUsage(ctx, 99, keyID, start, end)
+		require.NoError(t, err)
+		require.Empty(t, foreignDaily)
 		userLog, err := repo.GetByIDWithPrincipalCost(ctx, int64(i+1))
 		require.NoError(t, err)
 		require.InDelta(t, want, userLog.ActualCost, 1e-9)
