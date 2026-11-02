@@ -551,6 +551,15 @@ type BatchAPIKeyUsageStats = usagestats.BatchAPIKeyUsageStats
 // GetBatchAPIKeyUsageStats gets today and total actual_cost for multiple API keys within a time range.
 // If startTime is zero, defaults to 30 days ago.
 func (r *usageLogRepository) GetBatchAPIKeyUsageStats(ctx context.Context, apiKeyIDs []int64, startTime, endTime time.Time) (map[int64]*BatchAPIKeyUsageStats, error) {
+	return r.getBatchAPIKeyUsageStats(ctx, apiKeyIDs, startTime, endTime, false)
+}
+
+// GetBatchAPIKeyUsageStatsWithPrincipalCost excludes gift deductions on user pages.
+func (r *usageLogRepository) GetBatchAPIKeyUsageStatsWithPrincipalCost(ctx context.Context, apiKeyIDs []int64, startTime, endTime time.Time) (map[int64]*BatchAPIKeyUsageStats, error) {
+	return r.getBatchAPIKeyUsageStats(ctx, apiKeyIDs, startTime, endTime, true)
+}
+
+func (r *usageLogRepository) getBatchAPIKeyUsageStats(ctx context.Context, apiKeyIDs []int64, startTime, endTime time.Time, principalOnly bool) (map[int64]*BatchAPIKeyUsageStats, error) {
 	result := make(map[int64]*BatchAPIKeyUsageStats)
 	normalizedAPIKeyIDs := normalizePositiveInt64IDs(apiKeyIDs)
 	if len(normalizedAPIKeyIDs) == 0 {
@@ -572,8 +581,8 @@ func (r *usageLogRepository) GetBatchAPIKeyUsageStats(ctx context.Context, apiKe
 	query := `
 		SELECT
 			api_key_id,
-			COALESCE(SUM(actual_cost) FILTER (WHERE created_at >= $2 AND created_at < $3), 0) as total_cost,
-			COALESCE(SUM(actual_cost) FILTER (WHERE created_at >= $4), 0) as today_cost
+			COALESCE(SUM(` + usageCostExpression(principalOnly, "") + `) FILTER (WHERE created_at >= $2 AND created_at < $3), 0) as total_cost,
+			COALESCE(SUM(` + usageCostExpression(principalOnly, "") + `) FILTER (WHERE created_at >= $4), 0) as today_cost
 		FROM usage_logs
 		WHERE api_key_id = ANY($1)
 		  AND created_at >= LEAST($2, $4)

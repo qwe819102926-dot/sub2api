@@ -74,6 +74,31 @@ func TestUsageLogPrincipalCostPostgres(t *testing.T) {
 		(6,99,'model',1,'/v1/responses','/v1/responses',10,9,9,9,0,0,$1)`, now)
 	require.NoError(t, err)
 	repo := &usageLogRepository{sql: tx}
+	// Put each billing case on a separate key to verify gift-only and mixed
+	// deductions independently, and retain the original admin cost projection.
+	_, err = tx.ExecContext(ctx, "UPDATE usage_logs SET api_key_id = id")
+	require.NoError(t, err)
+	keyIDs := []int64{1, 2, 3, 4, 5, 7}
+	for _, defaultRange := range []bool{false, true} {
+		start, end := now.Add(-time.Hour), now.Add(time.Hour)
+		if defaultRange {
+			start, end = time.Time{}, time.Time{}
+		}
+		userStats, err := repo.GetBatchAPIKeyUsageStatsWithPrincipalCost(ctx, keyIDs, start, end)
+		require.NoError(t, err)
+		adminStats, err := repo.GetBatchAPIKeyUsageStats(ctx, keyIDs, start, end)
+		require.NoError(t, err)
+		for i, want := range []float64{0, 0.4, 1, 1, 1} {
+			id := int64(i + 1)
+			require.InDelta(t, want, userStats[id].TotalActualCost, 1e-9)
+			require.InDelta(t, want, userStats[id].TodayActualCost, 1e-9)
+			require.Equal(t, 1.0, adminStats[id].TotalActualCost)
+			require.Equal(t, 1.0, adminStats[id].TodayActualCost)
+		}
+		require.Zero(t, userStats[7].TotalActualCost)
+		require.Zero(t, userStats[7].TodayActualCost)
+		require.NotContains(t, userStats, int64(6))
+	}
 	expected := []float64{0, 0.4, 1, 1, 1}
 	for i, want := range expected {
 		userLog, err := repo.GetByIDWithPrincipalCost(ctx, int64(i+1))
