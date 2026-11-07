@@ -139,6 +139,21 @@ function mountDialog({
 }
 
 describe('PlanEditDialog', () => {
+  it('filters new plan groups by category without changing prices', async () => {
+    const wrapper = mountDialog({ groups: [
+      groupFixture({ id: 1, platform: 'openai', name: 'GPT group' }),
+      groupFixture({ id: 2, platform: 'anthropic', name: 'Claude group' }),
+      groupFixture({ id: 3, platform: 'deepseek', name: 'DeepSeek group' }),
+    ] })
+    await wrapper.find('input[type="number"]').setValue('9.99')
+    await wrapper.get('#plan-model-category').setValue('claude')
+    const groupSelect = wrapper.findAll('select')[1]
+    expect(groupSelect.text()).toContain('Claude group')
+    expect(groupSelect.text()).not.toContain('GPT group')
+    expect(groupSelect.text()).not.toContain('DeepSeek group')
+    expect((wrapper.find('input[type="number"]').element as HTMLInputElement).value).toBe('9.99')
+  })
+
   it('shows CNY channel charge using the configured subscription rate and fee', async () => {
     const wrapper = mountDialog({
       paymentConfig: {

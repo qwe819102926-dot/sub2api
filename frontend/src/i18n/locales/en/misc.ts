@@ -450,6 +450,12 @@ export default {
     tabSubscribe: 'Subscribe',
     noPlans: 'No subscription plans available',
     planCount: 'plans',
+    categories: {
+      label: 'Model categories', gpt: 'GPT subscriptions', claude: 'Claude subscriptions', deepseek: 'DeepSeek subscriptions', other: 'Other models',
+      moreModels: 'More models', retry: 'Reload', all: 'All categories',
+      groupHint: 'The selected group platform determines the category. This filter only helps find a group and does not change plan benefits.',
+      category: 'Model category',
+    },
     notAvailable: 'Top-up is currently unavailable',
     confirmSubscription: 'Confirm Subscription',
     confirmCancel: 'Are you sure you want to cancel this order?',

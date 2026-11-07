@@ -4,6 +4,10 @@
       <div v-if="loading" class="flex items-center justify-center py-20">
         <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
       </div>
+      <div v-else-if="checkoutLoadError" class="card space-y-4 p-6 text-center" role="alert">
+        <p class="text-sm text-red-600 dark:text-red-400">{{ checkoutLoadError }}</p>
+        <button class="btn btn-secondary" @click="initializePaymentPage">{{ t('payment.categories.retry') }}</button>
+      </div>
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
         <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan && !resetRequested" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
@@ -215,22 +219,38 @@
                 <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
                 <p class="text-gray-500 dark:text-gray-400">{{ t('payment.noPlans') }}</p>
               </div>
-              <div v-else class="space-y-6">
-                <section v-for="group in subscriptionGroups" :key="group.key" class="rounded-2xl border border-gray-200/80 bg-white/90 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/80 md:p-6">
+              <div v-else class="min-w-0 space-y-5">
+                <div role="tablist" :aria-label="t('payment.categories.label')" class="flex gap-3 overflow-x-auto pb-1 md:gap-4">
+                  <button v-for="category in subscriptionGroups" :id="`subscription-tab-${category.key}`" :key="category.key"
+                    type="button" role="tab" :aria-selected="activeCategory === category.key" :aria-controls="activeCategory === category.key ? `subscription-panel-${category.key}` : undefined"
+                    :tabindex="activeCategory === category.key ? 0 : -1"
+                    class="relative flex min-w-[170px] shrink-0 items-center gap-3 rounded-t-xl border-b-2 px-4 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-500 md:min-w-0 md:flex-1"
+                    :class="activeCategory === category.key ? 'border-green-500 bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400' : 'border-transparent bg-gray-100/80 text-gray-600 hover:bg-gray-100 dark:bg-dark-800 dark:text-gray-400 dark:hover:bg-dark-700'"
+                    @click="selectedCategory = category.key" @keydown="handleCategoryKeydown($event, category.key)">
+                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/70 dark:bg-dark-900/60">
+                      <PlatformIcon :platform="category.platform || undefined" size="lg" aria-hidden="true" />
+                    </span>
+                    <span class="min-w-0">
+                      <span class="block whitespace-nowrap text-sm font-semibold">{{ t(`payment.categories.${category.key}`) }}</span>
+                      <span class="mt-0.5 block whitespace-nowrap text-xs opacity-75">{{ category.plans.length }} {{ t('payment.planCount') }}</span>
+                    </span>
+                  </button>
+                </div>
+                <section v-if="activeCategoryGroup" :id="`subscription-panel-${activeCategory}`" role="tabpanel" :aria-labelledby="`subscription-tab-${activeCategory}`" class="rounded-2xl border border-gray-200/80 bg-white/90 p-4 shadow-sm dark:border-dark-700 dark:bg-dark-900/80 md:p-5">
                   <header class="mb-5 flex items-center justify-between gap-4">
                     <div class="flex min-w-0 items-center gap-3">
-                      <div :class="['flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', platformBadgeLightClass(group.platform)]">
-                        <PlatformIcon :platform="group.platform as GroupPlatform" size="lg" />
+                      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400">
+                        <PlatformIcon :platform="activeCategoryGroup.platform || undefined" size="lg" />
                       </div>
                       <div class="min-w-0">
-                        <h2 class="truncate text-xl font-bold text-gray-900 dark:text-white">{{ group.name }}</h2>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ platformLabel(group.platform) }}</p>
+                        <h2 class="truncate text-xl font-bold text-gray-900 dark:text-white">{{ t(`payment.categories.${activeCategory}`) }}</h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ activeCategoryGroup.platform ? platformLabel(activeCategoryGroup.platform) : t('payment.categories.moreModels') }}</p>
                       </div>
                     </div>
-                    <span class="shrink-0 text-sm text-gray-400 dark:text-gray-500">{{ group.plans.length }} {{ t('payment.planCount') }}</span>
+                    <span class="shrink-0 text-sm text-gray-400 dark:text-gray-500">{{ activeCategoryGroup.plans.length }} {{ t('payment.planCount') }}</span>
                   </header>
-                  <div :class="planGridClass(group.plans.length)">
-                    <SubscriptionPlanCard v-for="plan in group.plans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
+                  <div :class="planGridClass(activeCategoryGroup.plans.length)">
+                    <SubscriptionPlanCard v-for="plan in activeCategoryGroup.plans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @select="selectPlan" />
                   </div>
                 </section>
               </div>
@@ -313,7 +333,6 @@ import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiErro
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
-import type { GroupPlatform } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -332,6 +351,7 @@ import {
 import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, platformTextClass, platformLabel } from '@/utils/platformColors'
 import PlatformIcon from '@/components/common/PlatformIcon.vue'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import { groupSubscriptionPlans, type SubscriptionCategoryKey } from '@/components/payment/subscriptionCategories'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
@@ -588,36 +608,26 @@ const rechargeBonus = computed(() => {
   return checkout.value.recharge_bonus.tiers.reduce((bonus, tier) => validAmount.value >= tier.threshold ? tier.bonus : bonus, 0)
 })
 
-interface SubscriptionPlanGroup {
-  key: string
-  name: string
-  platform: string
-  plans: SubscriptionPlan[]
-}
+const subscriptionGroups = computed(() => groupSubscriptionPlans(checkout.value.plans))
+const selectedCategory = ref<SubscriptionCategoryKey | null>(null)
+const activeCategoryGroup = computed(() => subscriptionGroups.value.find(group => group.key === selectedCategory.value) ?? subscriptionGroups.value[0])
+const activeCategory = computed(() => activeCategoryGroup.value?.key)
 
-// Group plans by model platform so plans split across several access groups stay together.
-const subscriptionGroups = computed<SubscriptionPlanGroup[]>(() => {
-  const groups = new Map<string, SubscriptionPlanGroup>()
-  for (const plan of checkout.value.plans) {
-    const platform = plan.group_platform || ''
-    const key = platform || `group-${plan.group_id}`
-    const existing = groups.get(key)
-    if (existing) {
-      existing.plans.push(plan)
-    } else {
-      groups.set(key, {
-        key,
-        name: platform === 'openai' ? 'GPT套餐' : `${platformLabel(platform)} 套餐`,
-        platform,
-        plans: [plan],
-      })
-    }
-  }
-  return [...groups.values()].map(group => ({
-    ...group,
-    plans: [...group.plans].sort((a, b) => a.sort_order - b.sort_order),
-  }))
-})
+function handleCategoryKeydown(event: KeyboardEvent, key: SubscriptionCategoryKey) {
+  const categories = subscriptionGroups.value
+  const index = categories.findIndex(category => category.key === key)
+  let next = index
+  if (event.key === 'ArrowRight') next = (index + 1) % categories.length
+  else if (event.key === 'ArrowLeft') next = (index - 1 + categories.length) % categories.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = categories.length - 1
+  else return
+  event.preventDefault()
+  selectedCategory.value = categories[next].key
+  const button = document.getElementById(`subscription-tab-${categories[next].key}`)
+  button?.focus({ preventScroll: true })
+  button?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+}
 
 // Use up to four columns on wide screens to keep the common plan set on one row.
 function planGridClass(n: number): string {
@@ -1225,10 +1235,17 @@ async function resumeWechatPaymentFromQuery() {
   }
 }
 
-onMounted(async () => {
+const checkoutLoadError = ref('')
+
+async function initializePaymentPage() {
+  loading.value = true
+  checkoutLoadError.value = ''
+  errorMessage.value = ''
+  let checkoutLoaded = false
   try {
     const res = await paymentAPI.getCheckoutInfo()
     checkout.value = res.data
+    checkoutLoaded = true
     if (enabledMethods.value.length) {
       const order: readonly string[] = METHOD_ORDER
       const sorted = [...enabledMethods.value].sort((a, b) => {
@@ -1290,10 +1307,13 @@ onMounted(async () => {
     }
   } catch (err: unknown) {
     errorMessage.value = extractI18nErrorMessage(err, t, 'payment.errors', resetRequested.value ? t('userSubscriptions.resetUnavailable') : t('common.error'))
+    if (!checkoutLoaded) checkoutLoadError.value = errorMessage.value
     appStore.showError(errorMessage.value)
   }
   finally { loading.value = false }
   // Fetch active subscriptions (uses cache, non-blocking)
   subscriptionStore.fetchActiveSubscriptions().catch(() => {})
-})
+}
+
+onMounted(initializePaymentPage)
 </script>

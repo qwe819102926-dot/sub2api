@@ -474,6 +474,12 @@ export default {
     tabSubscribe: '订阅',
     noPlans: '暂无可用订阅套餐',
     planCount: '个套餐',
+    categories: {
+      label: '模型分类', gpt: 'GPT订阅', claude: 'Claude订阅', deepseek: 'DeepSeek订阅', other: '其他模型',
+      moreModels: '更多模型', retry: '重新加载', all: '全部分类',
+      groupHint: '分类由所选分组的平台决定；分类筛选仅用于查找分组，不会修改套餐权益。',
+      category: '模型分类',
+    },
     notAvailable: '充值功能暂未开放',
     confirmSubscription: '确认订阅',
     confirmCancel: '确定要取消此订单吗？',

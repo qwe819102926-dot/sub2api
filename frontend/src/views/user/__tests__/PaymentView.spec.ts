@@ -286,7 +286,7 @@ async function mountRecharge() {
   return wrapper
 }
 
-async function mountSubscriptionPlanList(planCount: number) {
+async function mountSubscriptionPlanList(planCount: number, extraPlans: SubscriptionPlan[] = [], failLoad = false) {
   vi.useRealTimers()
   routeState.path = '/purchase'
   routeState.query = { tab: 'subscription' }
@@ -307,7 +307,8 @@ async function mountSubscriptionPlanList(planCount: number) {
     name: `Plan ${index + 1}`,
     group_name: `OpenAI Group ${index + 1}`,
   }))
-  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans }))
+  getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans: [...plans, ...extraPlans] }))
+  if (failLoad) getCheckoutInfo.mockRejectedValueOnce(new Error('Checkout unavailable'))
   bridgeInvoke.mockReset()
   window.localStorage.clear()
   ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
@@ -341,10 +342,77 @@ describe('PaymentView subscription plan grid', () => {
       'grid-cols-1',
       'sm:grid-cols-2',
     ]))
-    expect(wrapper.text()).toContain('GPT套餐')
+    expect(wrapper.text()).toContain('payment.categories.gpt')
     expect(wrapper.text()).not.toContain('OpenAI Group')
     if (planCount === 3) expect(grids[0].element.classList).toContain('lg:grid-cols-3')
     if (planCount >= 4) expect(grids[0].element.classList).toContain('xl:grid-cols-4')
+  })
+})
+
+describe('PaymentView model category tabs', () => {
+  const plan = checkoutInfoWithPlansFixture().data.plans[0]
+
+  it('switches and counts real plans without fetching or changing purchase data', async () => {
+    const extraPlans = [
+      { ...plan, id: 20, group_platform: 'anthropic', price: 25, monthly_limit_usd: 200 },
+      { ...plan, id: 21, group_platform: 'deepseek', price: 7, rate_multiplier: 0.2 },
+      { ...plan, id: 22, group_platform: 'gemini' },
+      { ...plan, id: 23, group_platform: 'unknown', name: 'GPT name must not determine category' },
+      { ...plan, id: 24, group_platform: undefined },
+    ]
+    const original = structuredClone(extraPlans)
+    const wrapper = await mountSubscriptionPlanList(2, extraPlans)
+    const tabs = wrapper.findAll('[role="tab"]')
+    expect(tabs).toHaveLength(4)
+    expect(tabs[0].attributes('aria-selected')).toBe('true')
+    expect(tabs.map(tab => tab.text())).toEqual([
+      'payment.categories.gpt2 payment.planCount', 'payment.categories.claude1 payment.planCount',
+      'payment.categories.deepseek1 payment.planCount', 'payment.categories.other3 payment.planCount',
+    ])
+    const seen = new Set(wrapper.findAllComponents(SubscriptionPlanCard).map(card => card.props('plan').id))
+    for (let index = 1; index < tabs.length; index++) {
+      await tabs[index].trigger('click')
+      const cards = wrapper.findAllComponents(SubscriptionPlanCard)
+      cards.forEach(card => seen.add(card.props('plan').id))
+      expect(tabs[index].attributes('aria-selected')).toBe('true')
+    }
+    expect(seen.size).toBe(7)
+    expect(extraPlans).toEqual(original)
+    await Promise.all([tabs[3].trigger('click'), tabs[0].trigger('click'), tabs[2].trigger('click')])
+    expect(wrapper.findComponent(SubscriptionPlanCard).props('plan').id).toBe(21)
+    await tabs[1].trigger('click')
+    const card = wrapper.findComponent(SubscriptionPlanCard)
+    expect(card.props('plan')).toEqual(extraPlans[0])
+    card.vm.$emit('select', card.props('plan'))
+    await flushPromises()
+    createOrder.mockRejectedValueOnce(new Error('stop before provider'))
+    await wrapper.findAll('button').find(button => button.text().includes('payment.createOrder'))!.trigger('click')
+    await flushPromises()
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ plan_id: 20, amount: 25, order_type: 'subscription' }))
+    expect(getCheckoutInfo).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('defaults to the first nonempty category and hides empty categories', async () => {
+    const wrapper = await mountSubscriptionPlanList(0, [{ ...plan, group_platform: 'deepseek' }])
+    expect(wrapper.findAll('[role="tab"]')).toHaveLength(1)
+    expect(wrapper.get('[role="tab"]').text()).toContain('payment.categories.deepseek')
+    expect(wrapper.get('[role="tab"]').attributes('aria-selected')).toBe('true')
+    wrapper.unmount()
+  })
+
+  it('handles empty plans and a failed checkout retry', async () => {
+    const empty = await mountSubscriptionPlanList(0)
+    expect(empty.text()).toContain('payment.noPlans')
+    expect(empty.find('[role="tablist"]').exists()).toBe(false)
+    empty.unmount()
+    const wrapper = await mountSubscriptionPlanList(1, [], true)
+    expect(wrapper.get('[role="alert"]').text()).toContain('Checkout unavailable')
+    await wrapper.get('[role="alert"] button').trigger('click')
+    await flushPromises()
+    expect(wrapper.findComponent(SubscriptionPlanCard).exists()).toBe(true)
+    expect(getCheckoutInfo).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
   })
 })
 

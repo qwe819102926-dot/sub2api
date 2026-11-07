@@ -1,6 +1,15 @@
 <template>
   <BaseDialog :show="show" :title="plan ? t('payment.admin.editPlan') : t('payment.admin.createPlan')" width="wide" @close="emit('close')">
     <form id="plan-form" @submit.prevent="handleSavePlan" class="space-y-4">
+      <div>
+        <label for="plan-model-category" class="input-label">{{ t('payment.categories.category') }}</label>
+        <select v-if="!plan" id="plan-model-category" v-model="categoryFilter" class="input" @change="onCategoryChange">
+          <option value="all">{{ t('payment.categories.all') }}</option>
+          <option v-for="category in categoryOptions" :key="category.key" :value="category.key">{{ t(`payment.categories.${category.key}`) }}</option>
+        </select>
+        <p v-else class="text-sm text-gray-700 dark:text-gray-300">{{ t(`payment.categories.${subscriptionCategory(selectedGroupInfo?.platform || plan.group_platform)}`) }}</p>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.categories.groupHint') }}</p>
+      </div>
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label class="input-label">{{ t('payment.admin.planName') }} <span class="text-red-500">*</span></label>
@@ -105,6 +114,7 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import { platformTextClass } from '@/utils/platformColors'
+import { SUBSCRIPTION_CATEGORIES, subscriptionCategory, type SubscriptionCategoryKey } from '@/components/payment/subscriptionCategories'
 
 const props = defineProps<{
   show: boolean
@@ -124,6 +134,14 @@ const appStore = useAppStore()
 const saving = ref(false)
 const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
 const planFeaturesText = ref('')
+const categoryFilter = ref<SubscriptionCategoryKey | 'all'>('all')
+const categoryOptions = [...SUBSCRIPTION_CATEGORIES].sort((a, b) => a.sortOrder - b.sortOrder)
+
+function onCategoryChange() {
+  if (selectedGroupInfo.value && categoryFilter.value !== 'all' && subscriptionCategory(selectedGroupInfo.value.platform) !== categoryFilter.value) {
+    planForm.group_id = null
+  }
+}
 
 const validityUnitOptions = computed(() => [
   { value: 'days', label: t('payment.admin.days') },
@@ -134,6 +152,7 @@ const validityUnitOptions = computed(() => [
 const groupOptions = computed(() =>
   props.groups
     .filter(g => g.subscription_type === 'subscription')
+    .filter(g => props.plan || categoryFilter.value === 'all' || subscriptionCategory(g.platform) === categoryFilter.value)
     .map(g => ({
       value: g.id,
       label: `${g.name} — ${g.platform} (${g.rate_multiplier}x)`,
@@ -174,6 +193,7 @@ const subscriptionCnyPreview = computed(() => {
 // Reset form when dialog opens
 watch(() => props.show, (visible) => {
   if (!visible) return
+  categoryFilter.value = 'all'
   if (props.plan) {
     Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
     planFeaturesText.value = (props.plan.features || []).join('\n')
