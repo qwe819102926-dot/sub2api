@@ -16,7 +16,7 @@ import (
 const (
 	conditionalBalanceDeductSQL = `(?s)UPDATE users\s+SET balance = balance - \$1,\s+updated_at = NOW\(\)\s+WHERE id = \$2 AND deleted_at IS NULL AND balance >= \$1\s+RETURNING balance`
 	overdraftBalanceDeductSQL   = `(?s)UPDATE users\s+SET balance = balance - \$1,\s+updated_at = NOW\(\)\s+WHERE id = \$2 AND deleted_at IS NULL\s+RETURNING balance`
-	bonusBalanceSelectSQL       = `SELECT COALESCE\(bonus_balance, 0\) FROM users WHERE id = \$1 AND deleted_at IS NULL FOR UPDATE`
+	bonusBalanceSelectSQL       = `SELECT expire_user_bonus_balance\(\$1\)`
 	bonusBalanceDeductSQL       = `UPDATE users SET bonus_balance = bonus_balance - \$1, updated_at = NOW\(\) WHERE id = \$2`
 	currentBalanceSelectSQL     = `SELECT balance FROM users WHERE id = \$1 AND deleted_at IS NULL`
 	reserveBatchImageHoldSQL    = `(?s)UPDATE users\s+SET balance = balance - \$1,\s+frozen_balance = COALESCE\(frozen_balance, 0\) \+ \$1,\s+updated_at = NOW\(\)\s+WHERE id = \$2 AND deleted_at IS NULL AND balance >= \$1\s+RETURNING balance, frozen_balance`

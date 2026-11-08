@@ -26,16 +26,16 @@
         <div>
           <p class="flex items-center text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ t('dashboard.bonusBalance') }}
-            <HelpTooltip :content="t('dashboard.bonusBalanceHint')" trigger="click" width-class="w-64">
+            <HelpTooltip :content="t('dashboard.bonusBalanceHint')" width-class="w-72">
               <template #trigger>
-                <button type="button" class="ml-1 inline-flex rounded text-gray-400 transition hover:text-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" :aria-label="t('dashboard.bonusBalanceHint')">
-                  <Icon name="infoCircle" size="xs" />
+                <button type="button" class="inline-flex shrink-0 rounded text-amber-600 transition hover:text-amber-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 dark:text-amber-400" :aria-label="t('dashboard.bonusBalanceHint')">
+                  <Icon name="infoCircle" size="sm" />
                 </button>
               </template>
             </HelpTooltip>
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
-          <p class="text-xs text-gray-500 dark:text-gray-400" data-testid="bonus-balance-equivalent">{{ t('dashboard.bonusBalanceEquivalent', { amount: '$' + formatBalance(bonusBalance) }) }}</p>
+          <p class="text-xs text-amber-600 dark:text-amber-400" data-testid="bonus-balance-priority">{{ t('dashboard.bonusBalancePriority') }}</p>
         </div>
       </div>
     </div>

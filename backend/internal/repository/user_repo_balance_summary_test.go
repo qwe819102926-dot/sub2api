@@ -11,7 +11,7 @@ import (
 
 func TestSumUserBalances_OnlyIncludesNonDeletedUsersWithUserRole(t *testing.T) {
 	repo, mock := newRedeemAdjustmentRepoMock(t)
-	mock.ExpectQuery(`(?s)SELECT COALESCE\(SUM\(balance\), 0\), COALESCE\(SUM\(COALESCE\(bonus_balance, 0\)\), 0\).*FROM users.*WHERE deleted_at IS NULL`).
+	mock.ExpectQuery(`(?s)SELECT COALESCE\(SUM\(balance\), 0\), COALESCE\(SUM\(spendable_bonus_balance\(id\)\), 0\).*FROM users.*WHERE deleted_at IS NULL`).
 		WithArgs(service.RoleUser).
 		WillReturnRows(sqlmock.NewRows([]string{"balance", "bonus_balance"}).AddRow(12.5, 3.25))
 

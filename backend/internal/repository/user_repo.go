@@ -1039,7 +1039,7 @@ func (r *userRepository) currentBalance(ctx context.Context, id int64) (balance 
 
 func (r *userRepository) SumUserBalances(ctx context.Context) (summary service.UserBalanceSummary, err error) {
 	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `
-		SELECT COALESCE(SUM(balance), 0), COALESCE(SUM(COALESCE(bonus_balance, 0)), 0)
+		SELECT COALESCE(SUM(balance), 0), COALESCE(SUM(spendable_bonus_balance(id)), 0)
 		FROM users
 		WHERE deleted_at IS NULL
 		  AND role = $1`, service.RoleUser)
@@ -1073,7 +1073,7 @@ func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs 
 	}
 	var rows *sql.Rows
 	rows, err = clientFromContext(ctx, r.client).QueryContext(ctx,
-		`SELECT id, COALESCE(bonus_balance, 0) FROM users WHERE id = ANY($1)`, pq.Array(userIDs))
+		`SELECT id, spendable_bonus_balance(id) FROM users WHERE id = ANY($1)`, pq.Array(userIDs))
 	if err != nil {
 		return nil, err
 	}
@@ -1099,7 +1099,7 @@ func (r *userRepository) GetBonusBalancesByUserIDs(ctx context.Context, userIDs 
 }
 
 func (r *userRepository) GetBonusBalanceCredit(ctx context.Context, userID int64) (float64, error) {
-	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `SELECT COALESCE(bonus_balance, 0),
+	rows, err := clientFromContext(ctx, r.client).QueryContext(ctx, `SELECT COALESCE(spendable_bonus_balance(id), 0),
 COALESCE((SELECT value FROM settings WHERE key = $2), '1')
 FROM users WHERE id = $1 AND deleted_at IS NULL`, userID, service.SettingBonusBalanceConsumptionRate)
 	if err != nil {
@@ -1126,6 +1126,12 @@ FROM users WHERE id = $1 AND deleted_at IS NULL`, userID, service.SettingBonusBa
 }
 
 func (r *userRepository) AdjustBonusBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
+	return r.withUnexpiredBonusBalance(ctx, id, func(ctx context.Context) (service.BalanceChange, error) {
+		return r.adjustUnexpiredBonusBalance(ctx, id, delta)
+	})
+}
+
+func (r *userRepository) adjustUnexpiredBonusBalance(ctx context.Context, id int64, delta float64) (service.BalanceChange, error) {
 	const updateSQL = `
 		/* bonus_source:admin */ UPDATE users
 		SET bonus_balance = COALESCE(bonus_balance, 0) + $1, updated_at = NOW()
@@ -1147,6 +1153,12 @@ func (r *userRepository) AdjustBonusBalance(ctx context.Context, id int64, delta
 }
 
 func (r *userRepository) SetBonusBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
+	return r.withUnexpiredBonusBalance(ctx, id, func(ctx context.Context) (service.BalanceChange, error) {
+		return r.setUnexpiredBonusBalance(ctx, id, value)
+	})
+}
+
+func (r *userRepository) setUnexpiredBonusBalance(ctx context.Context, id int64, value float64) (service.BalanceChange, error) {
 	if value < 0 {
 		current, err := r.currentBonusBalance(ctx, id)
 		if err != nil {
@@ -1167,6 +1179,30 @@ func (r *userRepository) SetBonusBalance(ctx context.Context, id int64, value fl
 	}
 	if !ok {
 		return service.BalanceChange{}, service.ErrUserNotFound
+	}
+	return change, nil
+}
+
+// Expire and adjust under the same user row lock so an absolute admin balance
+// edit cannot accidentally retain expired lots or renew their lifetime.
+func (r *userRepository) withUnexpiredBonusBalance(ctx context.Context, id int64, apply func(context.Context) (service.BalanceChange, error)) (service.BalanceChange, error) {
+	if dbent.TxFromContext(ctx) != nil {
+		if _, err := clientFromContext(ctx, r.client).ExecContext(ctx, `/* bonus_source:expiration */ SELECT expire_user_bonus_balance($1)`, id); err != nil {
+			return service.BalanceChange{}, err
+		}
+		return apply(ctx)
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return service.BalanceChange{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	change, err := r.withUnexpiredBonusBalance(dbent.NewTxContext(ctx, tx), id, apply)
+	if err != nil {
+		return change, err
+	}
+	if err := tx.Commit(); err != nil {
+		return service.BalanceChange{}, err
 	}
 	return change, nil
 }

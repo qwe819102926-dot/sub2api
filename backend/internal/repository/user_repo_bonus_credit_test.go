@@ -20,7 +20,7 @@ func TestGetBonusBalanceCredit(t *testing.T) {
 	} {
 		t.Run(tc.rate, func(t *testing.T) {
 			repo, mock := newRedeemAdjustmentRepoMock(t)
-			mock.ExpectQuery(`(?s)SELECT COALESCE\(bonus_balance, 0\).*FROM users WHERE id = \$1 AND deleted_at IS NULL`).
+			mock.ExpectQuery(`(?s)SELECT COALESCE\(spendable_bonus_balance\(id\), 0\).*FROM users WHERE id = \$1 AND deleted_at IS NULL`).
 				WithArgs(int64(1), service.SettingBonusBalanceConsumptionRate).
 				WillReturnRows(sqlmock.NewRows([]string{"bonus", "rate"}).AddRow(5, tc.rate))
 			credit, err := repo.GetBonusBalanceCredit(context.Background(), 1)

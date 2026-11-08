@@ -84,7 +84,7 @@ func (s *PaymentService) GetRewardCampaignStatus(ctx context.Context, userID int
 		return nil, err
 	}
 	status := &RewardCampaignStatus{RechargeBonus: cfg.RechargeBonus}
-	if err := querySingleFloat(ctx, s.entClient, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1`, &status.BonusBalance, userID); err != nil {
+	if err := querySingleFloat(ctx, s.entClient, `SELECT spendable_bonus_balance(id) FROM users WHERE id = $1`, &status.BonusBalance, userID); err != nil {
 		return nil, fmt.Errorf("query bonus balance: %w", err)
 	}
 	if !cfg.ConsumptionReward.Enabled {

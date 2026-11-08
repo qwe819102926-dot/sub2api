@@ -140,7 +140,7 @@ const page = ref(1)
 const loading = ref(false)
 const error = ref('')
 const filters = reactive({ scope: 'current' as 'current' | 'history', search: '', source: '', kind: '', start_date: '', end_date: '' })
-const sourceOptions = ['signup', 'invite', 'checkin', 'recharge', 'consumption_reward', 'lottery', 'admin', 'consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion', 'other']
+const sourceOptions = ['signup', 'invite', 'checkin', 'recharge', 'consumption_reward', 'lottery', 'admin', 'consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion', 'expiration', 'other']
 const conversion = ref<BonusBalanceConversion | null>(null)
 const conversionDialog = ref(false)
 const conversionLoading = ref(true)
@@ -207,7 +207,7 @@ const metrics = computed(() => {
     { key: 'remaining', value: s.remaining, color: 'text-emerald-600 dark:text-emerald-400', count: false },
   ]
 })
-const visibleSources = computed(() => filters.scope === 'current' ? sourceOptions.filter(source => !['consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion'].includes(source)) : sourceOptions)
+const visibleSources = computed(() => filters.scope === 'current' ? sourceOptions.filter(source => !['consumption', 'historical_credit', 'historical_outflow', 'account_removed', 'conversion', 'expiration'].includes(source)) : sourceOptions)
 function switchScope(scope: 'current' | 'history') {
   if (filters.scope === scope) return
   filters.scope = scope

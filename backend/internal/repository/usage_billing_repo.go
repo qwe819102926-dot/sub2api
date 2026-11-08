@@ -288,7 +288,7 @@ func deductUsageBillingBalanceDetailed(ctx context.Context, tx *sql.Tx, userID i
 	principalDeducted := 0.0
 	// Promotional balance is consumed first. The principal balance keeps its
 	// existing overdraft behavior after the bonus bucket is exhausted.
-	if err := tx.QueryRowContext(ctx, `SELECT COALESCE(bonus_balance, 0) FROM users WHERE id = $1 AND deleted_at IS NULL FOR UPDATE`, userID).Scan(&bonusBalance); err == nil {
+	if err := tx.QueryRowContext(ctx, `/* bonus_source:expiration */ SELECT expire_user_bonus_balance($1)`, userID).Scan(&bonusBalance); err == nil {
 		rate := 1.0
 		if len(rates) > 0 && rates[0] > 0 && !math.IsNaN(rates[0]) && !math.IsInf(rates[0], 0) {
 			rate = rates[0]

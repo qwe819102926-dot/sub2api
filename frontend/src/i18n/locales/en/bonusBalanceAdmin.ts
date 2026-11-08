@@ -42,6 +42,6 @@ export default {
     search: 'Search email or user ID', allSources: 'All sources', kind: 'Movement type', allKinds: 'All types', grant: 'Credits', consumption: 'Consumption', adjustment: 'Other outflows', query: 'Search',
     account: 'User', movement: 'Amount', after: 'Balance after', recordType: 'Record type', date: 'Last updated',
     historical: 'Imported history', dailyAggregate: 'Daily consumption', live: 'Live record', total: '{total} records', empty: 'No matching records', retry: 'Retry', loadFailed: 'Unable to load the bonus balance report. Please retry.',
-    sources: { signup: 'New-user signup', invite: 'Invitation reward', checkin: 'Daily check-in', recharge: 'Recharge gift', consumption_reward: 'Spend milestone', lottery: 'Recharge lottery', admin: 'Admin adjustment', consumption: 'Consumption', historical_credit: 'Unknown historical credit', historical_outflow: 'Unknown historical outflow', account_removed: 'Account removal', conversion: 'Balance unit conversion', other: 'Other movement' },
+    sources: { signup: 'New-user signup', invite: 'Invitation reward', checkin: 'Daily check-in', recharge: 'Recharge gift', consumption_reward: 'Spend milestone', lottery: 'Recharge lottery', admin: 'Admin adjustment', consumption: 'Consumption', historical_credit: 'Unknown historical credit', historical_outflow: 'Unknown historical outflow', account_removed: 'Account removal', conversion: 'Balance unit conversion', expiration: 'Expired credits', other: 'Other movement' },
   },
 }

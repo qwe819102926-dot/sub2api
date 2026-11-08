@@ -17,7 +17,7 @@ const (
 	// that only one instance issues the upstream payment-provider calls per cycle.
 	paymentOrderExpiryLeaderLockKey = "payment:order:expiry:leader"
 	// paymentOrderExpiryLeaderLockTTL must exceed the combined reconcile + expiry
-	// timeouts (2 * expiryCheckTimeout) so the lock never expires mid-run.
+	// timeouts (3 * expiryCheckTimeout) so the lock never expires mid-run.
 	paymentOrderExpiryLeaderLockTTL = 3 * time.Minute
 )
 
@@ -96,6 +96,13 @@ func (s *PaymentOrderExpiryService) runOnce() {
 		return
 	}
 	defer release()
+
+	bonusCtx, bonusCancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
+	_, bonusErr := s.paymentSvc.ExpireBonusBalances(bonusCtx)
+	bonusCancel()
+	if bonusErr != nil {
+		slog.Error("[BonusBalanceExpiry] failed to expire bonus balances", "error", bonusErr)
+	}
 
 	reconcileCtx, cancel := context.WithTimeout(context.Background(), expiryCheckTimeout)
 	recovered, err := s.paymentSvc.ReconcilePendingPaymentOrders(reconcileCtx)
