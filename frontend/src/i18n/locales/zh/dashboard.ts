@@ -4,7 +4,6 @@ export default {
     welcomeMessage: '欢迎回来！这是您账户的概览。',
     balance: '余额',
     bonusBalance: '赠送余额',
-    bonusBalancePriority: '有效期为一个月',
     bonusBalanceHint: '赠送额度独立核算，每笔到账后一个自然月内有效，优先扣减最早到期的额度，到期自动失效。',
     apiKeys: 'API 密钥',
     todayRequests: '今日请求',

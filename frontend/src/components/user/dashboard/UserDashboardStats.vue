@@ -35,7 +35,6 @@
             </HelpTooltip>
           </p>
           <p class="text-xl font-bold text-amber-600 dark:text-amber-400">${{ formatBalance(bonusBalance) }}</p>
-          <p class="text-xs text-amber-600 dark:text-amber-400" data-testid="bonus-balance-priority">{{ t('dashboard.bonusBalancePriority') }}</p>
         </div>
       </div>
     </div>

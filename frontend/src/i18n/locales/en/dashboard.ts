@@ -4,7 +4,6 @@ export default {
     welcomeMessage: "Welcome back! Here's an overview of your account.",
     balance: 'Balance',
     bonusBalance: 'Bonus Balance',
-    bonusBalancePriority: 'Valid for one month',
     bonusBalanceHint: 'Bonus credits are tracked separately and expire one calendar month after each grant. Credits expiring soonest are used first.',
     apiKeys: 'API Keys',
     todayRequests: 'Today Requests',
