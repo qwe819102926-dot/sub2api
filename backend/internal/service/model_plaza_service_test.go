@@ -336,7 +336,7 @@ func TestListPlazaGroups_UsesGroupModelListAndPricing(t *testing.T) {
 	}}
 	groups := []Group{{
 		ID: 10, Name: "g", Platform: PlatformOpenAI, RateMultiplier: 0.06,
-		ModelsListConfig: GroupModelsListConfig{Enabled: true, Models: []string{"gpt-5", "dynamic-model"}},
+		ModelAllowlist: GroupModelAllowlist{Enabled: true, Models: []string{"gpt-5", "dynamic-model"}},
 		ModelPricing: []ChannelModelPricing{{
 			Platform: PlatformOpenAI, Models: []string{"gpt-5"}, InputPrice: &groupPrice,
 		}},

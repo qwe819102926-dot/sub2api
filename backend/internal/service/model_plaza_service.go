@@ -199,17 +199,17 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 	for _, gid := range order {
 		g := groupEnt[gid]
 		pg := byGroup[gid]
-		if g == nil || pg == nil || !g.CustomModelsListEnabled() {
+		if g == nil || pg == nil || !g.ModelAllowlistEnabled() {
 			continue
 		}
 		idx := modelIdx[gid]
 		if idx == nil {
-			idx = make(map[modelKey]int, len(g.ModelsListConfig.Models))
+			idx = make(map[modelKey]int, len(g.ModelAllowlist.Models))
 			modelIdx[gid] = idx
 		}
-		for _, name := range g.ModelsListConfig.Models {
+		for _, name := range g.ModelAllowlist.Models {
 			name = strings.TrimSpace(name)
-			if name == "" {
+			if name == "" || strings.Contains(name, "*") {
 				continue
 			}
 			platform := pg.Platform
@@ -265,15 +265,7 @@ func (s *ModelPlazaService) ListGroups(ctx context.Context) ([]PlazaGroup, error
 }
 
 func plazaGroupAllowsModel(g *Group, model string) bool {
-	if g == nil || !g.CustomModelsListEnabled() {
-		return true
-	}
-	for _, configured := range g.ModelsListConfig.Models {
-		if strings.EqualFold(strings.TrimSpace(configured), strings.TrimSpace(model)) {
-			return true
-		}
-	}
-	return false
+	return g == nil || g.ModelAllowlist.Allows(model)
 }
 
 // fillDisplayPricing 把模型的展示定价换成实收口径：
