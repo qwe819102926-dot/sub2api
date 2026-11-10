@@ -1475,3 +1475,50 @@ html.dark .codexpert-console .model-plaza-page input,
 html.dark .codexpert-console .model-plaza-page input::placeholder {
   color: #cbd5e1 !important;
 }
+
+
+/* Restore the upstream create-key dialog within the customized site theme. */
+.modal-content:has(.key-create-form) {
+  border-color: #e5e7eb;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+}
+
+.modal-content:has(.key-create-form) :is(.input, .btn-secondary) {
+  border-color: #e5e7eb;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #111827;
+  box-shadow: none;
+  transition-duration: 200ms;
+}
+
+.modal-content:has(.key-create-form) :is(.input:focus, .select-trigger-open) {
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 2px rgb(20 184 166 / 0.3);
+}
+
+.modal-content:has(.key-create-form) .btn-primary,
+.key-create-form .bg-primary-500 {
+  background: #14b8a6;
+}
+
+.modal-content:has(.key-create-form) .btn-primary {
+  border-radius: 0.75rem;
+  box-shadow: none;
+  transition-duration: 200ms;
+}
+
+.modal-content:has(.key-create-form) .btn-primary:hover {
+  background: #0d9488;
+  transform: none;
+}
+
+.modal-content:has(.key-create-form) .btn-secondary:hover {
+  background: #f9fafb;
+}
+
+.dark .modal-content:has(.key-create-form) :is(.input, .btn-secondary) {
+  border-color: #505b4b;
+  background: #333b30;
+  color: #f3f4f6;
+}
