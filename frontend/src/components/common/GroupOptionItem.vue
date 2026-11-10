@@ -11,7 +11,8 @@
         :platform="platform"
         :subscription-type="subscriptionType"
         :show-rate="false"
-        class="groupOptionItemBadge"
+        :truncate="subscriptionType !== 'subscription'"
+        class="groupOptionItemBadge max-w-full"
       />
       <!-- Row 2: description with top spacing -->
       <span
@@ -22,9 +23,16 @@
       </span>
     </div>
 
-    <!-- Right: rate pill + checkmark (vertically centered to first row) -->
+    <!-- Right: subscription label above the rates, then selection state. -->
     <div class="flex shrink-0 items-center gap-2 pt-0.5">
       <div class="flex shrink-0 flex-col items-end gap-1">
+        <span
+          v-if="subscriptionType === 'subscription'"
+          class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:border-amber-600 dark:bg-amber-900/30 dark:text-amber-300"
+        >
+          <Icon name="calendar" size="xs" aria-hidden="true" />
+          {{ t('groups.subscription') }}
+        </span>
         <!-- Rate pill (platform color) -->
         <span v-if="rateMultiplier !== undefined" :class="['inline-flex items-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold', ratePillClass]">
           <template v-if="hasCustomRate">
@@ -62,6 +70,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import GroupBadge from './GroupBadge.vue'
+import Icon from '@/components/icons/Icon.vue'
 import type { SubscriptionType, GroupPlatform } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
