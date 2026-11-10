@@ -27,6 +27,10 @@ func TestGetByKeyForAuthCarriesGroupModelAllowlist(t *testing.T) {
 		Email: fmt.Sprintf("model-allowlist-proj-%d@example.com", suffix), Concurrency: 5,
 	})
 	groupID := group.ID
+	storedGroup, err := integrationEntClient.Group.Get(ctx, groupID)
+	require.NoError(t, err)
+	require.True(t, storedGroup.ModelAllowlist.Enabled, "fixture must persist the enabled allowlist before checking the auth projection")
+	require.Equal(t, group.ModelAllowlist.Models, storedGroup.ModelAllowlist.Models)
 	keyValue := fmt.Sprintf("sk-model-allowlist-proj-%d", suffix)
 	apiKeyRepo := NewAPIKeyRepository(integrationEntClient, integrationDB)
 	key := &service.APIKey{UserID: user.ID, GroupID: &groupID, Key: keyValue, Name: "model-allowlist-proj", Status: service.StatusActive}
