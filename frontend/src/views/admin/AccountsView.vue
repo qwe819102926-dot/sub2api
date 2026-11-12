@@ -17,6 +17,7 @@
             @create="showCreate = true"
           >
             <template #after>
+              <button class="btn btn-secondary" @click="showSchedulingDiagnostics = true">{{ t('schedulingDiagnostics.title') }}</button>
               <!-- Auto Refresh Dropdown -->
               <div class="relative" ref="autoRefreshDropdownRef">
                 <button
@@ -486,10 +487,12 @@
     <ErrorPassthroughRulesModal :show="showErrorPassthrough" @close="showErrorPassthrough = false" />
     <TLSFingerprintProfilesModal :show="showTLSFingerprintProfiles" @close="showTLSFingerprintProfiles = false" />
     <TotpStepUpDialog :controller="accountExportStepUp" />
+    <SchedulingDiagnosticsModal :show="showSchedulingDiagnostics" :group="params.group" :groups="groups" @close="showSchedulingDiagnostics = false" />
   </AppLayout>
 </template>
 
 <script setup lang="ts">
+import SchedulingDiagnosticsModal from '@/components/admin/account/SchedulingDiagnosticsModal.vue'
 import { ref, reactive, computed, onMounted, onUnmounted, toRaw, watch } from 'vue'
 import { useIntervalFn } from '@vueuse/core'
 import { useI18n } from 'vue-i18n'
@@ -647,6 +650,8 @@ const accountToolsDropdownStyle = computed(() => ({
   width: `${accountToolsDropdownPosition.width}px`
 }))
 const hiddenColumns = reactive<Set<string>>(new Set())
+const showSchedulingDiagnostics = ref(false)
+
 const DEFAULT_HIDDEN_COLUMNS = ['today_stats', 'proxy', 'notes', 'scheduler_score', 'rate_multiplier']
 const HIDDEN_COLUMNS_KEY = 'account-hidden-columns'
 // One-time migration: hide scheduler score for existing admins too, because showing it opt-ins to heavy backend scoring.

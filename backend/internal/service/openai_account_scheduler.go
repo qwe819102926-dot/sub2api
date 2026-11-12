@@ -383,11 +383,24 @@ func (s *defaultOpenAIAccountScheduler) Select(
 	if s != nil && s.service != nil && s.service.openAIGroupRequiresPrivacySet(ctx, req.GroupID) {
 		req.RequirePrivacySet = true
 	}
+	diagnostic := &SchedulerDiagnostic{
+		ID: schedulerDiagnosticSequence.Add(1), At: time.Now(), Model: req.RequestedModel,
+		CostEnabled: req.UseUpstreamTokenCost, StickyWeighted: req.StickyWeighted,
+		RequireCompact: req.RequireCompact, Accounts: make([]SchedulerDiagnosticAccount, 0),
+	}
+	if req.GroupID != nil {
+		diagnostic.GroupID = *req.GroupID
+	}
+	ctx = context.WithValue(ctx, schedulerDiagnosticKey{}, diagnostic)
 	decision := OpenAIAccountScheduleDecision{}
 	start := time.Now()
 	defer func() {
 		decision.LatencyMs = time.Since(start).Milliseconds()
 		s.metrics.recordSelect(decision)
+		diagnostic.Layer = decision.Layer
+		diagnostic.SelectedID = decision.SelectedAccountID
+		diagnostic.TopK = decision.TopK
+		recentSchedulerDiagnostics.add(*diagnostic)
 	}()
 
 	previousResponseID := strings.TrimSpace(req.PreviousResponseID)
@@ -1015,6 +1028,16 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 				item.score += weights.SessionSticky
 			}
 		}
+		if d := schedulerDiagnosticFromContext(ctx); d != nil && d.canRecord(item.account.ID) {
+			s.recordDiagnosticScore(ctx, req, *item, map[string]float64{
+				"priority": weights.Priority * priorityFactor, "load": weights.Load * loadFactor,
+				"queue": weights.Queue * queueFactor, "error": weights.ErrorRate * errorFactor,
+				"latency": weights.TTFT * ttftFactor, "reset": weights.Reset * resetFactor,
+				"quota":  weights.QuotaHeadroom * quotaHeadroomFactor,
+				"cost":   weights.UpstreamCost * (upstreamCostFactor - openAIUpstreamCostNeutralFactor),
+				"sticky": item.score - (weights.Priority*priorityFactor + weights.Load*loadFactor + weights.Queue*queueFactor + weights.ErrorRate*errorFactor + weights.TTFT*ttftFactor + weights.Reset*resetFactor + weights.QuotaHeadroom*quotaHeadroomFactor + weights.UpstreamCost*(upstreamCostFactor-openAIUpstreamCostNeutralFactor)),
+			}, now)
+		}
 	}
 	plan.candidates = candidates
 
@@ -1027,6 +1050,14 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 	}
 
 	plan.selectionOrder = s.buildOpenAISelectionOrder(req, plan)
+	if d := schedulerDiagnosticFromContext(ctx); d != nil {
+		for i, c := range plan.selectionOrder {
+			if j, ok := d.indexes[c.account.ID]; ok {
+				d.Accounts[j].Order = i + 1
+			}
+		}
+	}
+
 	return plan
 }
 
@@ -1147,6 +1178,7 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		}
 		if candidate.loadKnown && candidate.account.Concurrency > 0 &&
 			candidate.loadInfo.CurrentConcurrency >= candidate.account.Concurrency {
+			recordSchedulerDiagnosticExclusion(ctx, candidate.account, "concurrency_full")
 			continue
 		}
 
@@ -1158,11 +1190,13 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 			return nil, compactBlocked, acquireErr
 		}
 		if result == nil || !result.Acquired {
+			recordSchedulerDiagnosticExclusion(ctx, candidate.account, "slot_unavailable")
 			continue
 		}
 
 		fresh := s.service.resolveFreshSchedulableOpenAIAccount(ctx, candidate.account, req.Platform, req.RequestedModel, false, req.RequiredCapability)
 		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+			recordSchedulerDiagnosticExclusion(ctx, candidate.account, "recheck_rejected")
 			release(result)
 			continue
 		}
@@ -1172,11 +1206,13 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 		}
 		fresh = s.service.recheckSelectedOpenAIAccountFromDB(ctx, fresh, req.GroupID, req.Platform, req.RequestedModel, false, req.RequiredCapability)
 		if fresh == nil || !s.isAccountTransportCompatible(fresh, req.RequiredTransport) || !s.isAccountRequestCompatible(ctx, fresh, req) {
+			recordSchedulerDiagnosticExclusion(ctx, candidate.account, "recheck_rejected")
 			release(result)
 			continue
 		}
 		if req.RequireCompact && openAICompactSupportTier(fresh) == 0 {
 			compactBlocked = true
+			recordSchedulerDiagnosticExclusion(ctx, candidate.account, "recheck_rejected")
 			release(result)
 			continue
 		}
@@ -1191,6 +1227,7 @@ func (s *defaultOpenAIAccountScheduler) tryAcquireOpenAISelectionOrderWithBudget
 				return nil, compactBlocked, acquireErr
 			}
 			if result == nil || !result.Acquired {
+				recordSchedulerDiagnosticExclusion(ctx, candidate.account, "slot_unavailable")
 				continue
 			}
 		}
@@ -1406,19 +1443,23 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		if req.ExcludedIDs != nil {
 			if _, excluded := req.ExcludedIDs[account.ID]; excluded {
 				filterStats.exclude("excluded")
+				recordSchedulerDiagnosticExclusion(ctx, account, "excluded")
 				continue
 			}
 		}
 		if !account.IsSchedulable() {
 			filterStats.exclude("not_schedulable")
+			recordSchedulerDiagnosticExclusion(ctx, account, "not_schedulable")
 			continue
 		}
 		if account.Platform != NormalizeOpenAICompatiblePlatform(req.Platform) || !account.IsOpenAICompatible() {
 			filterStats.exclude("platform_mismatch")
+			recordSchedulerDiagnosticExclusion(ctx, account, "platform_mismatch")
 			continue
 		}
 		if s.service.isOpenAIAccountRequestRuntimeBlocked(account, req.RequestedModel) {
 			filterStats.exclude("runtime_blocked")
+			recordSchedulerDiagnosticExclusion(ctx, account, "runtime_blocked")
 			continue
 		}
 		// require_privacy_set is a group-scoped eligibility gate. Do not mutate the
@@ -1426,14 +1467,17 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 		// upstream privacy setting has not been confirmed.
 		if schedGroup != nil && schedGroup.RequirePrivacySet && !account.IsPrivacySet() {
 			filterStats.exclude("privacy_not_set")
+			recordSchedulerDiagnosticExclusion(ctx, account, "privacy_not_set")
 			continue
 		}
 		if compatible, reason := s.isAccountRequestCompatibleReason(ctx, account, req); !compatible {
 			filterStats.exclude(reason)
+			recordSchedulerDiagnosticExclusion(ctx, account, reason)
 			continue
 		}
 		if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 			filterStats.exclude("transport_incompatible")
+			recordSchedulerDiagnosticExclusion(ctx, account, "transport_incompatible")
 			continue
 		}
 		filtered = append(filtered, account)

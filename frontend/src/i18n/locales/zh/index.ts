@@ -1,3 +1,4 @@
+import schedulingDiagnostics from './schedulingDiagnostics'
 import registrationIPMonitor from './registrationIPMonitor'
 import inviteRewards from './inviteRewards'
 import bonusBalanceAdmin from './bonusBalanceAdmin'
@@ -11,6 +12,7 @@ import misc from './misc'
 import imageGeneration from './imageGeneration'
 
 export default {
+  ...schedulingDiagnostics,
   ...registrationIPMonitor,
   ...inviteRewards,
   ...bonusBalanceAdmin,
