@@ -189,6 +189,10 @@ type openAIAccountRuntimeStats struct {
 type openAIAccountRuntimeStat struct {
 	errorRateEWMABits atomic.Uint64
 	ttftEWMABits      atomic.Uint64
+	lastResultAt      atomic.Int64
+	lastTTFTAt        atomic.Int64
+	cacheRatioBits    atomic.Uint64
+	lastCacheAt       atomic.Int64
 }
 
 func newOpenAIAccountRuntimeStats() *openAIAccountRuntimeStats {
@@ -234,6 +238,7 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 	}
 	const alpha = 0.2
 	stat := s.loadOrCreate(accountID)
+	stat.lastResultAt.Store(time.Now().UnixNano())
 
 	errorSample := 1.0
 	if success {
@@ -242,6 +247,7 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 	updateEWMAAtomic(&stat.errorRateEWMABits, errorSample, alpha)
 
 	if firstTokenMs != nil && *firstTokenMs > 0 {
+		stat.lastTTFTAt.Store(time.Now().UnixNano())
 		ttft := float64(*firstTokenMs)
 		ttftBits := math.Float64bits(ttft)
 		for {
@@ -273,7 +279,7 @@ func (s *openAIAccountRuntimeStats) snapshot(accountID int64) (errorRate float64
 	if stat == nil {
 		return 0, 0, false
 	}
-	errorRate = clamp01(math.Float64frombits(stat.errorRateEWMABits.Load()))
+	errorRate = clamp01(math.Float64frombits(stat.errorRateEWMABits.Load())) * openAISchedulerFreshness(stat.lastResultAt.Load(), time.Now())
 	ttftValue := math.Float64frombits(stat.ttftEWMABits.Load())
 	if math.IsNaN(ttftValue) {
 		return errorRate, 0, false
@@ -901,8 +907,6 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 	maxWaiting := 1
 	loadRateSum := 0.0
 	loadRateSumSquares := 0.0
-	minTTFT, maxTTFT := 0.0, 0.0
-	hasTTFTSample := false
 	for i := range candidates {
 		candidate := &candidates[i]
 		candidate.priority = openAIAccountSchedulingPriority(candidate.account)
@@ -914,19 +918,6 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		}
 		if candidate.loadInfo.WaitingCount > maxWaiting {
 			maxWaiting = candidate.loadInfo.WaitingCount
-		}
-		if candidate.hasTTFT && candidate.ttft > 0 {
-			if !hasTTFTSample {
-				minTTFT, maxTTFT = candidate.ttft, candidate.ttft
-				hasTTFTSample = true
-			} else {
-				if candidate.ttft < minTTFT {
-					minTTFT = candidate.ttft
-				}
-				if candidate.ttft > maxTTFT {
-					maxTTFT = candidate.ttft
-				}
-			}
 		}
 		loadRate := float64(candidate.loadInfo.LoadRate)
 		loadRateSum += loadRate
@@ -987,8 +978,8 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		queueFactor := 1 - clamp01(float64(item.loadInfo.WaitingCount)/float64(maxWaiting))
 		errorFactor := 1 - clamp01(item.errorRate)
 		ttftFactor := 0.5
-		if item.hasTTFT && hasTTFTSample && maxTTFT > minTTFT {
-			ttftFactor = 1 - clamp01((item.ttft-minTTFT)/(maxTTFT-minTTFT))
+		if item.hasTTFT {
+			ttftFactor = s.stats.latencyFactor(item.account.ID, item.ttft, now)
 		}
 		resetFactor := 0.0
 		if weights.Reset > 0 && hasResetSample {
@@ -1018,6 +1009,9 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 			weights.Reset*resetFactor +
 			weights.QuotaHeadroom*quotaHeadroomFactor +
 			weights.UpstreamCost*(upstreamCostFactor-openAIUpstreamCostNeutralFactor)
+		if req.UseUpstreamTokenCost {
+			item.score += 2 * (s.stats.cacheFactor(item.account.ID, now) - 0.5)
+		}
 		if req.StickyWeighted {
 			if req.PreviousResponseCanMove && req.StickyPreviousAccountID > 0 && item.account.ID == req.StickyPreviousAccountID {
 				item.score += weights.Previous
@@ -1054,27 +1048,8 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 			groupTopK = len(pool)
 		}
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
-		var primary []openAIAccountCandidateScore
-		if req.StickyWeighted {
-			for _, stickyID := range []int64{req.StickyPreviousAccountID, req.StickyAccountID} {
-				if stickyID <= 0 {
-					continue
-				}
-				for i, candidate := range ranked {
-					if candidate.account != nil && candidate.account.ID == stickyID {
-						primary = append([]openAIAccountCandidateScore{candidate}, ranked[:i]...)
-						primary = append(primary, ranked[i+1:]...)
-						break
-					}
-				}
-				if len(primary) > 0 {
-					break
-				}
-			}
-		}
-		if len(primary) == 0 {
-			primary = buildOpenAIWeightedSelectionOrder(ranked, req)
-		}
+		// Sticky preferences are already included in the score.
+		primary := buildOpenAIWeightedSelectionOrder(ranked, req)
 		if !plan.includeOverflowFallback || groupTopK >= len(pool) {
 			return primary
 		}

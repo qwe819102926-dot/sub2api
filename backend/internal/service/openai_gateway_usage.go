@@ -166,6 +166,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	apiKey := input.APIKey
 	user := input.User
 	account := input.Account
+	// Observe actual upstream cache reads before billing transformations.
+	if account != nil && account.IsOpenAI() {
+		if scheduler, ok := s.getOpenAIAccountScheduler(ctx).(*defaultOpenAIAccountScheduler); ok && scheduler.stats != nil {
+			scheduler.stats.reportCache(account.ID, result.Usage.InputTokens, result.Usage.CacheReadInputTokens)
+		}
+	}
 	subscription := input.Subscription
 	billingAccount, err := resolveCredentialAccount(ctx, s.accountRepo, account)
 	if err != nil {
