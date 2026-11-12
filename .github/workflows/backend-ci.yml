@@ -10,7 +10,8 @@ permissions:
 
 jobs:
   shell:
-    runs-on: macos-15
+    # Keep BSD/macOS shell coverage without the ARM64 hosted runner capacity bottleneck.
+    runs-on: macos-15-intel
     steps:
       - uses: actions/checkout@v6
       - name: Check deployment scripts
