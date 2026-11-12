@@ -903,3 +903,24 @@ func TestSettingService_StalePasskeyTrueWithoutConfigReportsDisabled(t *testing.
 	require.NoError(t, err)
 	require.False(t, settings.PasskeyEnabled)
 }
+
+func TestSettingService_PaymentSuccessEmailSwitches(t *testing.T) {
+	ctx := context.Background()
+	svc := NewSettingService(&settingGetAllRepoStub{values: map[string]string{}}, &config.Config{})
+	settings, err := svc.GetAllSettings(ctx)
+	require.NoError(t, err)
+	require.False(t, settings.BalanceRechargeSuccessNotifyEnabled)
+	require.False(t, settings.SubscriptionPurchaseSuccessNotifyEnabled)
+	repo := &settingUpdateRepoStub{}
+	svc = NewSettingService(repo, &config.Config{})
+	require.NoError(t, svc.UpdateSettings(ctx, &SystemSettings{BalanceRechargeSuccessNotifyEnabled: true, SubscriptionPurchaseSuccessNotifyEnabled: false}))
+	require.Equal(t, "true", repo.updates[SettingKeyBalanceRechargeSuccessNotifyEnabled])
+	require.Equal(t, "false", repo.updates[SettingKeySubscriptionPurchaseSuccessNotifyEnabled])
+	settings, err = NewSettingService(&settingGetAllRepoStub{values: repo.updates}, &config.Config{}).GetAllSettings(ctx)
+	require.NoError(t, err)
+	require.True(t, settings.BalanceRechargeSuccessNotifyEnabled)
+	require.False(t, settings.SubscriptionPurchaseSuccessNotifyEnabled)
+	require.NoError(t, svc.UpdateSettings(ctx, &SystemSettings{BalanceRechargeSuccessNotifyEnabled: false, SubscriptionPurchaseSuccessNotifyEnabled: true}))
+	require.Equal(t, "false", repo.updates[SettingKeyBalanceRechargeSuccessNotifyEnabled])
+	require.Equal(t, "true", repo.updates[SettingKeySubscriptionPurchaseSuccessNotifyEnabled])
+}

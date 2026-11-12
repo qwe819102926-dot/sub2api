@@ -956,6 +956,8 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	}
 	result.BalanceLowNotifyRechargeURL = settings[SettingKeyBalanceLowNotifyRechargeURL]
 	result.SubscriptionExpiryNotifyEnabled = !isFalseSettingValue(settings[SettingKeySubscriptionExpiryNotifyEnabled])
+	result.BalanceRechargeSuccessNotifyEnabled = settings[SettingKeyBalanceRechargeSuccessNotifyEnabled] == "true"
+	result.SubscriptionPurchaseSuccessNotifyEnabled = settings[SettingKeySubscriptionPurchaseSuccessNotifyEnabled] == "true"
 
 	// 账号限额通知
 	result.AccountQuotaNotifyEnabled = settings[SettingKeyAccountQuotaNotifyEnabled] == "true"

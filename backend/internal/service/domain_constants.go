@@ -683,7 +683,9 @@ const (
 	SettingKeyBalanceLowNotifyRechargeURL = "balance_low_notify_recharge_url" // 充值页面 URL
 
 	// 订阅到期提醒
-	SettingKeySubscriptionExpiryNotifyEnabled = "subscription_expiry_notify_enabled" // 订阅到期提醒全局开关，默认开启
+	SettingKeySubscriptionExpiryNotifyEnabled          = "subscription_expiry_notify_enabled"           // 订阅到期提醒全局开关，默认开启
+	SettingKeyBalanceRechargeSuccessNotifyEnabled      = "balance_recharge_success_notify_enabled"      // Payment success email opt-in, default false.
+	SettingKeySubscriptionPurchaseSuccessNotifyEnabled = "subscription_purchase_success_notify_enabled" // Payment success email opt-in, default false.
 
 	// 账号限额通知
 	SettingKeyAccountQuotaNotifyEnabled = "account_quota_notify_enabled" // 全局开关

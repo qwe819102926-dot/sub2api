@@ -377,11 +377,25 @@ func (s *NotificationEmailService) Send(ctx context.Context, input NotificationE
 	if err != nil {
 		return notificationEmailTemplateErr(err)
 	}
-	// Payment success receipts are disabled for this site. Suppress them before
-	// reading preferences, rendering templates, or contacting SMTP; fulfillment
-	// still completes normally and other notification events keep their behavior.
-	if normalizedEvent == NotificationEmailEventBalanceRechargeSuccess || normalizedEvent == NotificationEmailEventSubscriptionPurchaseSuccess {
-		return nil
+	// Payment receipts are opt-in. Missing settings keep both event types off.
+	key := ""
+	switch normalizedEvent {
+	case NotificationEmailEventBalanceRechargeSuccess:
+		key = SettingKeyBalanceRechargeSuccessNotifyEnabled
+	case NotificationEmailEventSubscriptionPurchaseSuccess:
+		key = SettingKeySubscriptionPurchaseSuccessNotifyEnabled
+	}
+	if key != "" {
+		if s == nil || s.settingRepo == nil {
+			return nil
+		}
+		enabled, err := s.settingRepo.GetValue(ctx, key)
+		if err != nil && !errors.Is(err, ErrSettingNotFound) {
+			return fmt.Errorf("read payment success email setting: %w", err)
+		}
+		if enabled != "true" {
+			return nil
+		}
 	}
 
 	recipient := strings.TrimSpace(input.RecipientEmail)
@@ -1071,7 +1085,7 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 	NotificationEmailEventSubscriptionPurchaseSuccess: {
 		Event:        NotificationEmailEventSubscriptionPurchaseSuccess,
 		Label:        "Subscription purchase success",
-		Description:  "Disabled on this site. Subscription purchase and renewal success emails are not sent.",
+		Description:  "Sent after subscription activation or renewal when enabled in email settings; disabled by default.",
 		Category:     "subscription",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "subscription_group", "subscription_days", "expiry_time", "order_id"),
@@ -1095,7 +1109,7 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 	NotificationEmailEventBalanceRechargeSuccess: {
 		Event:        NotificationEmailEventBalanceRechargeSuccess,
 		Label:        "Balance recharge success",
-		Description:  "Disabled on this site. Balance recharge success emails are not sent.",
+		Description:  "Sent after balance recharge when enabled in email settings; disabled by default.",
 		Category:     "billing",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "recharge_amount", "current_balance", "order_id"),

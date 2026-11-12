@@ -293,12 +293,14 @@ type UpdateSettingsRequest struct {
 	OpenAIAdvancedSchedulerWeightSessionSticky         *string  `json:"openai_advanced_scheduler_weight_session_sticky"`
 
 	// 余额不足提醒
-	BalanceLowNotifyEnabled         *bool                   `json:"balance_low_notify_enabled"`
-	BalanceLowNotifyThreshold       *float64                `json:"balance_low_notify_threshold"`
-	BalanceLowNotifyRechargeURL     *string                 `json:"balance_low_notify_recharge_url"`
-	SubscriptionExpiryNotifyEnabled *bool                   `json:"subscription_expiry_notify_enabled"`
-	AccountQuotaNotifyEnabled       *bool                   `json:"account_quota_notify_enabled"`
-	AccountQuotaNotifyEmails        *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
+	BalanceLowNotifyEnabled                  *bool                   `json:"balance_low_notify_enabled"`
+	BalanceLowNotifyThreshold                *float64                `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL              *string                 `json:"balance_low_notify_recharge_url"`
+	SubscriptionExpiryNotifyEnabled          *bool                   `json:"subscription_expiry_notify_enabled"`
+	BalanceRechargeSuccessNotifyEnabled      *bool                   `json:"balance_recharge_success_notify_enabled"`
+	SubscriptionPurchaseSuccessNotifyEnabled *bool                   `json:"subscription_purchase_success_notify_enabled"`
+	AccountQuotaNotifyEnabled                *bool                   `json:"account_quota_notify_enabled"`
+	AccountQuotaNotifyEmails                 *[]dto.NotifyEmailEntry `json:"account_quota_notify_emails"`
 
 	// Payment configuration (integrated into settings, full replace)
 	PaymentEnabled                   *bool    `json:"payment_enabled"`
@@ -1879,6 +1881,18 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.SubscriptionExpiryNotifyEnabled
 		}(),
+		BalanceRechargeSuccessNotifyEnabled: func() bool {
+			if req.BalanceRechargeSuccessNotifyEnabled != nil {
+				return *req.BalanceRechargeSuccessNotifyEnabled
+			}
+			return previousSettings.BalanceRechargeSuccessNotifyEnabled
+		}(),
+		SubscriptionPurchaseSuccessNotifyEnabled: func() bool {
+			if req.SubscriptionPurchaseSuccessNotifyEnabled != nil {
+				return *req.SubscriptionPurchaseSuccessNotifyEnabled
+			}
+			return previousSettings.SubscriptionPurchaseSuccessNotifyEnabled
+		}(),
 		AccountQuotaNotifyEnabled: func() bool {
 			if req.AccountQuotaNotifyEnabled != nil {
 				return *req.AccountQuotaNotifyEnabled
@@ -2387,6 +2401,8 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		BalanceLowNotifyThreshold:                              updatedSettings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:                            updatedSettings.BalanceLowNotifyRechargeURL,
 		SubscriptionExpiryNotifyEnabled:                        updatedSettings.SubscriptionExpiryNotifyEnabled,
+		BalanceRechargeSuccessNotifyEnabled:                    updatedSettings.BalanceRechargeSuccessNotifyEnabled,
+		SubscriptionPurchaseSuccessNotifyEnabled:               updatedSettings.SubscriptionPurchaseSuccessNotifyEnabled,
 		AccountQuotaNotifyEnabled:                              updatedSettings.AccountQuotaNotifyEnabled,
 		AccountQuotaNotifyEmails:                               dto.NotifyEmailEntriesFromService(updatedSettings.AccountQuotaNotifyEmails),
 		PaymentEnabled:                                         updatedPaymentCfg.Enabled,

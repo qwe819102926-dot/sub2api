@@ -725,3 +725,47 @@ func TestNotificationEmailOtherEventsStillReachDelivery(t *testing.T) {
 		})
 	}
 }
+
+func TestNotificationEmailPaymentSuccessSwitchesIndependent(t *testing.T) {
+	ctx := context.Background()
+	repo := newNotificationEmailMemorySettingRepo()
+	smtp := startNotificationEmailTestSMTPServer(t)
+	require.NoError(t, repo.SetMultiple(ctx, smtp.settings()))
+	svc := NewNotificationEmailService(repo, NewEmailService(repo, nil))
+	send := func(event, id string) {
+		require.NoError(t, svc.Send(ctx, NotificationEmailSendInput{Event: event, Locale: "en", RecipientEmail: "buyer@example.com", SourceType: "payment_order", SourceID: id}))
+	}
+	send(NotificationEmailEventBalanceRechargeSuccess, "1")
+	send(NotificationEmailEventSubscriptionPurchaseSuccess, "2")
+	require.Equal(t, int64(0), smtp.messageCount())
+	require.NoError(t, repo.Set(ctx, SettingKeyBalanceRechargeSuccessNotifyEnabled, "true"))
+	send(NotificationEmailEventBalanceRechargeSuccess, "3")
+	send(NotificationEmailEventSubscriptionPurchaseSuccess, "4")
+	require.Equal(t, int64(1), smtp.messageCount())
+	require.NoError(t, repo.Set(ctx, SettingKeyBalanceRechargeSuccessNotifyEnabled, "false"))
+	require.NoError(t, repo.Set(ctx, SettingKeySubscriptionPurchaseSuccessNotifyEnabled, "true"))
+	send(NotificationEmailEventBalanceRechargeSuccess, "5")
+	send(NotificationEmailEventSubscriptionPurchaseSuccess, "6")
+	require.Equal(t, int64(2), smtp.messageCount())
+	require.NoError(t, repo.Set(ctx, SettingKeySubscriptionPurchaseSuccessNotifyEnabled, "false"))
+	send(NotificationEmailEventSubscriptionPurchaseSuccess, "7")
+	require.Equal(t, int64(2), smtp.messageCount())
+}
+
+type paymentEmailReadFailureRepo struct {
+	*notificationEmailMemorySettingRepo
+}
+
+func (r *paymentEmailReadFailureRepo) GetValue(ctx context.Context, key string) (string, error) {
+	if key == SettingKeyBalanceRechargeSuccessNotifyEnabled || key == SettingKeySubscriptionPurchaseSuccessNotifyEnabled {
+		return "", errors.New("settings unavailable")
+	}
+	return r.notificationEmailMemorySettingRepo.GetValue(ctx, key)
+}
+func TestNotificationEmailPaymentSuccessSettingFailureDoesNotSend(t *testing.T) {
+	svc := NewNotificationEmailService(&paymentEmailReadFailureRepo{newNotificationEmailMemorySettingRepo()}, nil)
+	for _, event := range []string{NotificationEmailEventBalanceRechargeSuccess, NotificationEmailEventSubscriptionPurchaseSuccess} {
+		err := svc.Send(context.Background(), NotificationEmailSendInput{Event: event, RecipientEmail: "user@example.com"})
+		require.ErrorContains(t, err, "settings unavailable")
+	}
+}

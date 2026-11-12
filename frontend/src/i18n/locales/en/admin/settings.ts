@@ -931,6 +931,14 @@ export default {
         sending: 'Sending...',
         enterRecipientHint: 'Please enter a recipient email address'
       },
+      paymentSuccessNotify: {
+        title: 'Payment success emails',
+        description: 'Both switches default to off and take effect after saving. Disabling them does not affect recharge credits or subscription fulfillment.',
+        recharge: 'Recharge success emails',
+        rechargeHint: 'Email the user after a balance recharge is paid and credited.',
+        subscription: 'Subscription activation / renewal emails',
+        subscriptionHint: 'Email the user after a paid subscription order is activated or renewed.',
+      },
       emailTemplates: {
         title: 'Email Templates',
         description: 'Customize notification email subjects and HTML content for each event and locale.',

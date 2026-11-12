@@ -295,12 +295,14 @@ type SystemSettings struct {
 	PaymentAlipayMobilePrecreateDeepLink bool `json:"payment_alipay_mobile_precreate_deep_link"`
 
 	// 余额、订阅到期与账号限额通知
-	BalanceLowNotifyEnabled         bool               `json:"balance_low_notify_enabled"`
-	BalanceLowNotifyThreshold       float64            `json:"balance_low_notify_threshold"`
-	BalanceLowNotifyRechargeURL     string             `json:"balance_low_notify_recharge_url"`
-	SubscriptionExpiryNotifyEnabled bool               `json:"subscription_expiry_notify_enabled"`
-	AccountQuotaNotifyEnabled       bool               `json:"account_quota_notify_enabled"`
-	AccountQuotaNotifyEmails        []NotifyEmailEntry `json:"account_quota_notify_emails"`
+	BalanceLowNotifyEnabled                  bool               `json:"balance_low_notify_enabled"`
+	BalanceLowNotifyThreshold                float64            `json:"balance_low_notify_threshold"`
+	BalanceLowNotifyRechargeURL              string             `json:"balance_low_notify_recharge_url"`
+	SubscriptionExpiryNotifyEnabled          bool               `json:"subscription_expiry_notify_enabled"`
+	BalanceRechargeSuccessNotifyEnabled      bool               `json:"balance_recharge_success_notify_enabled"`
+	SubscriptionPurchaseSuccessNotifyEnabled bool               `json:"subscription_purchase_success_notify_enabled"`
+	AccountQuotaNotifyEnabled                bool               `json:"account_quota_notify_enabled"`
+	AccountQuotaNotifyEmails                 []NotifyEmailEntry `json:"account_quota_notify_emails"`
 
 	// Channel Monitor feature switch
 	ChannelMonitorEnabled                bool   `json:"channel_monitor_enabled"`

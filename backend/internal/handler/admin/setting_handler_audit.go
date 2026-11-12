@@ -564,6 +564,12 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.BalanceLowNotifyRechargeURL != after.BalanceLowNotifyRechargeURL {
 		changed = append(changed, "balance_low_notify_recharge_url")
 	}
+	if before.BalanceRechargeSuccessNotifyEnabled != after.BalanceRechargeSuccessNotifyEnabled {
+		changed = append(changed, "balance_recharge_success_notify_enabled")
+	}
+	if before.SubscriptionPurchaseSuccessNotifyEnabled != after.SubscriptionPurchaseSuccessNotifyEnabled {
+		changed = append(changed, "subscription_purchase_success_notify_enabled")
+	}
 	if before.SubscriptionExpiryNotifyEnabled != after.SubscriptionExpiryNotifyEnabled {
 		changed = append(changed, "subscription_expiry_notify_enabled")
 	}

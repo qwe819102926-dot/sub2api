@@ -542,6 +542,8 @@ const baseSettingsResponse = {
   balance_low_notify_threshold: 0,
   balance_low_notify_recharge_url: "",
   subscription_expiry_notify_enabled: true,
+  balance_recharge_success_notify_enabled: false,
+  subscription_purchase_success_notify_enabled: false,
   account_quota_notify_enabled: false,
   account_quota_notify_emails: [],
   // 平台限额嵌套字段（新后端契约）
@@ -569,6 +571,7 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        EmailTemplateEditor: true,
       },
     },
   });
@@ -2052,4 +2055,20 @@ describe("admin SettingsView platform quota matrix", () => {
     // 不管输入是什么，提交值应为 null（而非 "" 或 NaN）
     expect(quotas["anthropic"]?.["daily"]).toBe(null);
   });
+  it("saves payment success email switches independently and defaults them off", async () => {
+    const wrapper=mountView();await flushPromises();
+    const emailTab=wrapper.findAll('button').find(node=>node.text().includes('admin.settings.tabs.email'));
+    expect(emailTab).toBeDefined();await emailTab!.trigger('click');await flushPromises();
+    const recharge=wrapper.get('[data-testid="recharge-success-email-toggle"]');
+    const subscription=wrapper.get('[data-testid="subscription-success-email-toggle"]');
+    expect((recharge.element as HTMLInputElement).checked).toBe(false);
+    expect((subscription.element as HTMLInputElement).checked).toBe(false);
+    await recharge.setValue(true);
+    await wrapper.find('form').trigger('submit.prevent');await flushPromises();
+    expect(updateSettings.mock.calls.at(-1)![0]).toMatchObject({balance_recharge_success_notify_enabled:true,subscription_purchase_success_notify_enabled:false});
+    await recharge.setValue(false);await subscription.setValue(true);
+    await wrapper.find('form').trigger('submit.prevent');await flushPromises();
+    expect(updateSettings.mock.calls.at(-1)![0]).toMatchObject({balance_recharge_success_notify_enabled:false,subscription_purchase_success_notify_enabled:true});
+  });
+
 });

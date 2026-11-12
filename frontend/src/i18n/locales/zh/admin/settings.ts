@@ -926,6 +926,14 @@ export default {
         sending: '发送中...',
         enterRecipientHint: '请输入收件人邮箱地址'
       },
+      paymentSuccessNotify: {
+        title: '支付成功邮件通知',
+        description: '两个开关默认关闭，保存后生效。关闭不影响充值到账或订阅开通、续期。',
+        recharge: '充值成功邮件通知',
+        rechargeHint: '开启后，余额充值支付成功并入账时向用户发送邮件。',
+        subscription: '订阅开通／续期成功邮件通知',
+        subscriptionHint: '开启后，订阅订单支付成功并开通或续期时向用户发送邮件。',
+      },
       emailTemplates: {
         title: '邮件模板',
         description: '按事件和语言自定义通知邮件主题与 HTML 内容。',
