@@ -377,6 +377,13 @@ func (s *NotificationEmailService) Send(ctx context.Context, input NotificationE
 	if err != nil {
 		return notificationEmailTemplateErr(err)
 	}
+	// Payment success receipts are disabled for this site. Suppress them before
+	// reading preferences, rendering templates, or contacting SMTP; fulfillment
+	// still completes normally and other notification events keep their behavior.
+	if normalizedEvent == NotificationEmailEventBalanceRechargeSuccess || normalizedEvent == NotificationEmailEventSubscriptionPurchaseSuccess {
+		return nil
+	}
+
 	recipient := strings.TrimSpace(input.RecipientEmail)
 	if recipient == "" {
 		return nil
@@ -1064,7 +1071,7 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 	NotificationEmailEventSubscriptionPurchaseSuccess: {
 		Event:        NotificationEmailEventSubscriptionPurchaseSuccess,
 		Label:        "Subscription purchase success",
-		Description:  "Sent after a subscription purchase is fulfilled.",
+		Description:  "Disabled on this site. Subscription purchase and renewal success emails are not sent.",
 		Category:     "subscription",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "subscription_group", "subscription_days", "expiry_time", "order_id"),
@@ -1088,7 +1095,7 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 	NotificationEmailEventBalanceRechargeSuccess: {
 		Event:        NotificationEmailEventBalanceRechargeSuccess,
 		Label:        "Balance recharge success",
-		Description:  "Sent after a balance recharge order is fulfilled.",
+		Description:  "Disabled on this site. Balance recharge success emails are not sent.",
 		Category:     "billing",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "recharge_amount", "current_balance", "order_id"),

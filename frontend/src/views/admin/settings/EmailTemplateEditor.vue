@@ -357,7 +357,7 @@ const eventDisplayMeta: Record<string, EventDisplayMeta> = {
   },
   "subscription.purchase_success": {
     label: "订阅开通成功",
-    timing: "订阅订单完成支付并成功开通或续期后发送。",
+    timing: "本站已关闭订阅开通、续期成功邮件，支付完成后不会自动发送。",
     categoryLabel: "订阅",
   },
   "subscription.expiry_reminder": {
@@ -372,7 +372,7 @@ const eventDisplayMeta: Record<string, EventDisplayMeta> = {
   },
   "balance.recharge_success": {
     label: "余额充值成功",
-    timing: "余额充值订单支付完成并入账后发送。",
+    timing: "本站已关闭充值成功邮件，余额入账后不会自动发送。",
     categoryLabel: "计费",
   },
   "account.quota_alert": {
@@ -420,7 +420,7 @@ const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
   },
   "subscription.purchase_success": {
     label: "Subscription Activated",
-    timing: "Sent after a subscription order is paid and the subscription is activated or extended.",
+    timing: "Disabled on this site. Subscription activation and renewal success emails are not sent.",
     categoryLabel: "Subscription",
   },
   "subscription.expiry_reminder": {
@@ -435,7 +435,7 @@ const eventDisplayMetaEn: Record<string, EventDisplayMeta> = {
   },
   "balance.recharge_success": {
     label: "Balance Recharge Success",
-    timing: "Sent after a balance recharge order is paid and credited.",
+    timing: "Disabled on this site. Balance recharge success emails are not sent.",
     categoryLabel: "Billing",
   },
   "account.quota_alert": {

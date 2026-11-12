@@ -702,3 +702,26 @@ func (s *notificationEmailTestSMTPServer) handleConn(conn net.Conn) {
 		}
 	}
 }
+
+func TestNotificationEmailPaymentSuccessSuppressed(t *testing.T) {
+	for _, event := range []string{NotificationEmailEventBalanceRechargeSuccess, NotificationEmailEventSubscriptionPurchaseSuccess} {
+		t.Run(event, func(t *testing.T) {
+			repo := newNotificationEmailMemorySettingRepo()
+			svc := NewNotificationEmailService(repo, nil)
+			// A nil SMTP service would fail if the event reached delivery. Suppression
+			// must also avoid falsely recording a sent receipt or an unsubscribe.
+			require.NoError(t, svc.Send(context.Background(), NotificationEmailSendInput{Event: event, RecipientEmail: "buyer@example.com", SourceType: "payment_order", SourceID: "123"}))
+			require.Empty(t, repo.values)
+		})
+	}
+}
+
+func TestNotificationEmailOtherEventsStillReachDelivery(t *testing.T) {
+	for _, event := range []string{NotificationEmailEventBalanceLow, NotificationEmailEventSubscriptionExpiryReminder} {
+		t.Run(event, func(t *testing.T) {
+			svc := NewNotificationEmailService(newNotificationEmailMemorySettingRepo(), nil)
+			err := svc.Send(context.Background(), NotificationEmailSendInput{Event: event, RecipientEmail: "user@example.com", Locale: "en"})
+			require.ErrorContains(t, err, "email service is not configured")
+		})
+	}
+}
