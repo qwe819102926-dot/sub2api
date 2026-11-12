@@ -26,7 +26,17 @@ func (s *openAIAccountRuntimeStats) latencyFactor(id int64, ms float64, now time
 	if !ok {
 		return 0.5
 	}
-	stat := v.(*openAIAccountRuntimeStat)
+	stat, ok := v.(*openAIAccountRuntimeStat)
+	if !ok || stat == nil {
+		return 0.5
+	}
 	// A fixed latency scale avoids one slow outlier distorting every score.
 	return 0.5 + openAISchedulerFreshness(stat.lastTTFTAt.Load(), now)*(2000/(2000+math.Max(0, ms))-0.5)
+}
+
+func (s *openAIAccountRuntimeStats) currentTime() time.Time {
+	if s != nil && s.now != nil {
+		return s.now()
+	}
+	return time.Now()
 }

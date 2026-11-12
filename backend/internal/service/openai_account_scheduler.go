@@ -182,6 +182,8 @@ func (m *openAIAccountSchedulerMetrics) recordSwitch() {
 }
 
 type openAIAccountRuntimeStats struct {
+	// now is set before use in deterministic tests; production uses time.Now.
+	now          func() time.Time
 	accounts     sync.Map
 	accountCount atomic.Int64
 }
@@ -236,7 +238,7 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 	}
 	const alpha = 0.2
 	stat := s.loadOrCreate(accountID)
-	stat.lastResultAt.Store(time.Now().UnixNano())
+	stat.lastResultAt.Store(s.currentTime().UnixNano())
 
 	errorSample := 1.0
 	if success {
@@ -245,7 +247,7 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 	updateEWMAAtomic(&stat.errorRateEWMABits, errorSample, alpha)
 
 	if firstTokenMs != nil && *firstTokenMs > 0 {
-		stat.lastTTFTAt.Store(time.Now().UnixNano())
+		stat.lastTTFTAt.Store(s.currentTime().UnixNano())
 		ttft := float64(*firstTokenMs)
 		ttftBits := math.Float64bits(ttft)
 		for {
@@ -277,7 +279,7 @@ func (s *openAIAccountRuntimeStats) snapshot(accountID int64) (errorRate float64
 	if stat == nil {
 		return 0, 0, false
 	}
-	errorRate = clamp01(math.Float64frombits(stat.errorRateEWMABits.Load())) * openAISchedulerFreshness(stat.lastResultAt.Load(), time.Now())
+	errorRate = clamp01(math.Float64frombits(stat.errorRateEWMABits.Load())) * openAISchedulerFreshness(stat.lastResultAt.Load(), s.currentTime())
 	ttftValue := math.Float64frombits(stat.ttftEWMABits.Load())
 	if math.IsNaN(ttftValue) {
 		return errorRate, 0, false

@@ -141,7 +141,9 @@ func (s *defaultOpenAIAccountScheduler) recordDiagnosticScore(ctx context.Contex
 		row.TTFT = &item.ttft
 		if s.stats != nil {
 			if v, ok := s.stats.accounts.Load(item.account.ID); ok {
-				row.LatencyFreshness = openAISchedulerFreshness(v.(*openAIAccountRuntimeStat).lastTTFTAt.Load(), now)
+				if stat, ok := v.(*openAIAccountRuntimeStat); ok && stat != nil {
+					row.LatencyFreshness = openAISchedulerFreshness(stat.lastTTFTAt.Load(), now)
+				}
 			}
 		}
 	}

@@ -2816,6 +2816,8 @@ func TestReportOpenAIAccountScheduleResult_SuccessClearsModelTransientState(t *t
 
 func TestDefaultOpenAIAccountScheduler_ShouldEscapeStickyAccount_ThresholdBoundary(t *testing.T) {
 	stats := newOpenAIAccountRuntimeStats()
+	now := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	stats.now = func() time.Time { return now }
 	accountID := int64(21501)
 	ttft := 15000
 	stats.report(accountID, true, &ttft)
