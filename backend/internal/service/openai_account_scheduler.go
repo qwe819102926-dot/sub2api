@@ -191,8 +191,6 @@ type openAIAccountRuntimeStat struct {
 	ttftEWMABits      atomic.Uint64
 	lastResultAt      atomic.Int64
 	lastTTFTAt        atomic.Int64
-	cacheRatioBits    atomic.Uint64
-	lastCacheAt       atomic.Int64
 }
 
 func newOpenAIAccountRuntimeStats() *openAIAccountRuntimeStats {
@@ -1009,9 +1007,6 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 			weights.Reset*resetFactor +
 			weights.QuotaHeadroom*quotaHeadroomFactor +
 			weights.UpstreamCost*(upstreamCostFactor-openAIUpstreamCostNeutralFactor)
-		if req.UseUpstreamTokenCost {
-			item.score += 2 * (s.stats.cacheFactor(item.account.ID, now) - 0.5)
-		}
 		if req.StickyWeighted {
 			if req.PreviousResponseCanMove && req.StickyPreviousAccountID > 0 && item.account.ID == req.StickyPreviousAccountID {
 				item.score += weights.Previous

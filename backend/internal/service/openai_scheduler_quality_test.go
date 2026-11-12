@@ -23,22 +23,6 @@ func TestOpenAISchedulerQualityAgesOut(t *testing.T) {
 	require.InDelta(t, 0.5, s.latencyFactor(1, float64(slow), now), 0.01)
 }
 
-func TestOpenAISchedulerCacheQuality(t *testing.T) {
-	s := newOpenAIAccountRuntimeStats()
-	now := time.Now()
-	require.Equal(t, 0.5, s.cacheFactor(1, now))
-	for i := 0; i < 20; i++ {
-		s.reportCache(1, 1000, 900)
-		s.reportCache(2, 1000, 100)
-	}
-	require.Greater(t, s.cacheFactor(1, time.Now()), s.cacheFactor(2, time.Now()))
-	before := s.cacheFactor(1, time.Now())
-	s.reportCache(1, 0, 0)
-	require.InDelta(t, before, s.cacheFactor(1, time.Now()), 0.001)
-	s.loadOrCreate(1).lastCacheAt.Store(now.Add(-time.Hour).UnixNano())
-	require.InDelta(t, 0.5, s.cacheFactor(1, now), 0.01)
-}
-
 func TestOpenAISchedulerStickyDoesNotOverrideScoreOrder(t *testing.T) {
 	scheduler := &defaultOpenAIAccountScheduler{}
 	req := OpenAIAccountScheduleRequest{StickyWeighted: true, StickyAccountID: 1}
@@ -73,21 +57,12 @@ func TestOpenAISchedulerQualityCombinedRanking(t *testing.T) {
 	fast, slow := 1000, 20000
 	stats.report(1, true, &fast)
 	stats.report(2, true, &slow)
-	for i := 0; i < 20; i++ {
-		stats.reportCache(1, 1000, 900)
-		stats.reportCache(2, 1000, 100)
-	}
 	req := OpenAIAccountScheduleRequest{UseUpstreamTokenCost: true}
 	plan := scheduler.buildOpenAIAccountLoadPlan(context.Background(), req, accounts, nil)
 	require.Greater(t, plan.candidates[0].score, plan.candidates[1].score)
 	require.Equal(t, int64(1), plan.selectionOrder[0].account.ID)
-	// With identical prices and cache history, faster accounts still rank higher.
+	// With identical prices, faster accounts still rank higher.
 	accounts[1] = upstreamCostTestAccount(2, UpstreamBillingProbeStatusOK, 0.02, now.Add(-time.Minute), 30*time.Minute)
 	plan = scheduler.buildOpenAIAccountLoadPlan(context.Background(), OpenAIAccountScheduleRequest{}, accounts, nil)
-	require.Greater(t, plan.candidates[0].score, plan.candidates[1].score)
-	// Cache advantage alone increases the score for token requests.
-	stats.report(2, true, &fast)
-	stats.loadOrCreate(2).ttftEWMABits.Store(stats.loadOrCreate(1).ttftEWMABits.Load())
-	plan = scheduler.buildOpenAIAccountLoadPlan(context.Background(), req, accounts, nil)
 	require.Greater(t, plan.candidates[0].score, plan.candidates[1].score)
 }
