@@ -5,6 +5,7 @@ export interface SchedulingDiagnosticAccount {
   name: string
   reason?: string
   rate: number | null
+  rate_source?: string
   score: number | null
   parts?: Record<string, number>
   ttft_ms: number | null

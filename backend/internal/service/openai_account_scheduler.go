@@ -2899,10 +2899,36 @@ func newOpenAILegacyUpstreamRateOrder(accounts []*Account, now time.Time, oauthS
 }
 
 func openAISchedulingRate(account *Account, now time.Time, oauthSchedulingRateMultiplier float64) (float64, bool) {
-	if account != nil && account.IsOpenAIOAuthLike() {
-		return oauthSchedulingRateMultiplier, true
+	rate, _, ok := openAISchedulingRateWithSource(account, now, oauthSchedulingRateMultiplier)
+	return rate, ok
+}
+
+// A fresh probe takes precedence; a missing/expired/invalid probe must not
+// discard the account's manually configured or last synchronized billing rate.
+func openAISchedulingRateWithSource(account *Account, now time.Time, oauthSchedulingRateMultiplier float64) (float64, string, bool) {
+	if account == nil {
+		return 0, "", false
 	}
-	return openAIFreshUpstreamBillingRate(account, now)
+	if account.IsOpenAIOAuthLike() {
+		if oauthSchedulingRateMultiplier < 0 || math.IsNaN(oauthSchedulingRateMultiplier) || math.IsInf(oauthSchedulingRateMultiplier, 0) {
+			return 0, "", false
+		}
+		return oauthSchedulingRateMultiplier, "oauth", true
+	}
+	if !account.IsOpenAIApiKey() {
+		return 0, "", false
+	}
+	if rate, ok := openAIFreshUpstreamBillingRate(account, now); ok {
+		return rate, "probe", true
+	}
+	if account.RateMultiplier == nil {
+		return account.BillingRateMultiplier(), "default", true
+	}
+	rate := *account.RateMultiplier
+	if rate < 0 || math.IsNaN(rate) || math.IsInf(rate, 0) {
+		return 0, "", false
+	}
+	return rate, "account", true
 }
 
 // compare returns -1 when a should be selected before b, 1 when b should be

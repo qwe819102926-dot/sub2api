@@ -12,6 +12,7 @@ const schedulerDiagnosticRows = 200
 // Diagnostics contain only routing metadata, never session identifiers, prompts,
 // credentials or raw upstream errors. They describe selection, not completion.
 type SchedulerDiagnosticAccount struct {
+	RateSource       string             `json:"rate_source,omitempty"`
 	ID               int64              `json:"id"`
 	Name             string             `json:"name"`
 	Reason           string             `json:"reason,omitempty"`
@@ -131,8 +132,9 @@ func (s *defaultOpenAIAccountScheduler) recordDiagnosticScore(ctx context.Contex
 	}
 	row := SchedulerDiagnosticAccount{ID: item.account.ID, Name: item.account.Name, Score: &item.score, Parts: parts, ErrorRate: item.errorRate}
 	if req.UseUpstreamTokenCost {
-		if rate, ok := openAISchedulingRate(item.account, now, s.service.openAIOAuthSchedulingRateMultiplier(ctx)); ok {
+		if rate, source, ok := openAISchedulingRateWithSource(item.account, now, s.service.openAIOAuthSchedulingRateMultiplier(ctx)); ok {
 			row.Rate = &rate
+			row.RateSource = source
 		}
 	}
 	if item.hasTTFT {

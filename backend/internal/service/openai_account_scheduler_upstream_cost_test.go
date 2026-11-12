@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"math"
 	"strconv"
 	"testing"
 	"time"
@@ -436,7 +435,7 @@ func TestOpenAIUpstreamCostFactorsSparseProbeIsNeutral(t *testing.T) {
 	}
 }
 
-func TestOpenAIUpstreamCostFactorsCoverageShrinksSparseSignal(t *testing.T) {
+func TestOpenAIUpstreamCostFactorsMissingProbesUseSavedDefaultRate(t *testing.T) {
 	now := time.Date(2026, 7, 13, 12, 0, 0, 0, time.UTC)
 	accounts := []*Account{
 		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
@@ -447,9 +446,9 @@ func TestOpenAIUpstreamCostFactorsCoverageShrinksSparseSignal(t *testing.T) {
 	}
 
 	factors := openAIUpstreamCostFactors(accounts, now, defaultOpenAIOAuthSchedulingRateMultiplier)
-	center := math.Sqrt(0.03 * 0.8)
-	require.InDelta(t, 0.5+0.2*(1/(1+0.03/center)-0.5), factors[1], 1e-12)
-	require.InDelta(t, 0.5+0.2*(1/(1+0.8/center)-0.5), factors[2], 1e-12)
+	// Missing probes fall back to the normal account billing default, 1.0.
+	require.InDelta(t, 1/(1+0.03), factors[1], 1e-12)
+	require.InDelta(t, 1/(1+0.8), factors[2], 1e-12)
 	require.Equal(t, openAIUpstreamCostNeutralFactor, factors[3])
 }
 
@@ -473,7 +472,8 @@ func TestOpenAILegacyUpstreamRateOrderRequiresComparableRates(t *testing.T) {
 		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.03, now.Add(-time.Minute), 30*time.Minute),
 		{ID: 2, Platform: PlatformOpenAI, Type: AccountTypeAPIKey},
 	}, now, defaultOpenAIOAuthSchedulingRateMultiplier)
-	require.False(t, oneKnown.enabled)
+	require.True(t, oneKnown.enabled)
+	require.Equal(t, 1.0, oneKnown.rates[2])
 
 	allEqual := newOpenAILegacyUpstreamRateOrder([]*Account{
 		upstreamCostTestAccount(1, UpstreamBillingProbeStatusOK, 0.3, now.Add(-time.Minute), 30*time.Minute),

@@ -67,6 +67,12 @@ export default {
       "profit_threshold": "不满足分组利润门槛",
       "profit_invalid_account_rate": "账号结算倍率无效"
     },
-    "noCandidates": "本次没有候选评分记录，未选择账号；可能在评分前就因无可用候选等条件返回。"
+    "noCandidates": "本次没有候选评分记录，未选择账号；可能在评分前就因无可用候选等条件返回。",
+    "rateSources": {
+      "probe": "上游有效探测",
+      "account": "账号保存倍率（手填/同步）",
+      "default": "默认倍率 1",
+      "oauth": "OAuth 调度参考倍率"
+    }
   }
 }

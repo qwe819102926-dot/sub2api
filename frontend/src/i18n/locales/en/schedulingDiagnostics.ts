@@ -67,6 +67,12 @@ export default {
       "profit_threshold": "Group profit threshold not met",
       "profit_invalid_account_rate": "Invalid account billing rate"
     },
-    "noCandidates": "No candidate scores or account selection were recorded; selection may have returned before scoring."
+    "noCandidates": "No candidate scores or account selection were recorded; selection may have returned before scoring.",
+    "rateSources": {
+      "probe": "Fresh upstream probe",
+      "account": "Saved account rate (manual/synced)",
+      "default": "Default rate: 1",
+      "oauth": "OAuth scheduling reference"
+    }
   }
 }

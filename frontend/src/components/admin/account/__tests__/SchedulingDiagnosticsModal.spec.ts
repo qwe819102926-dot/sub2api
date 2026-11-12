@@ -10,7 +10,7 @@ const record = {
  selected_id: 2, top_k: 1, cost_enabled: true, sticky_weighted: true, truncated: false,
  accounts: [
  { id: 1, name: 'cheap', reason: 'model_not_supported', rate: null, score: null, ttft_ms: null, order: 0 },
- { id: 2, name: 'fast', rate: 0.03, score: 8.5, parts: { cost: 2, latency: 1.5, sticky: 0.5 }, ttft_ms: 1200, error_rate: 0.1, latency_freshness: 0.5, order: 1 }
+ { id: 2, name: 'fast', rate: 0.03, rate_source: 'account', score: 8.5, parts: { cost: 2, latency: 1.5, sticky: 0.5 }, ttft_ms: 1200, error_rate: 0.1, latency_freshness: 0.5, order: 1 }
  ]
 }
 function create() {
@@ -29,6 +29,7 @@ describe('SchedulingDiagnosticsModal', () => {
   expect(wrapper.text()).toContain('8.500')
   expect(wrapper.text()).toContain('1200 ms')
   expect(wrapper.text()).toContain('倍率 2.000')
+  expect(wrapper.text()).toContain('账号保存倍率（手填/同步）')
   expect(wrapper.find('tbody tr.bg-emerald-50').text()).toContain('fast')
  })
  it('distinguishes empty records from a loading failure and allows retry', async () => {
