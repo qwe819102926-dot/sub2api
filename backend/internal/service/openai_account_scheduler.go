@@ -2819,7 +2819,7 @@ func openAIUpstreamCostFactors(accounts []*Account, now time.Time, oauthScheduli
 			continue
 		}
 		factors[account.ID] = openAIUpstreamCostNeutralFactor
-		if !account.IsOpenAIApiKey() && !account.IsOpenAIOAuthLike() {
+		if !isUpstreamBillingProbeAccount(account) && !account.IsOpenAIOAuthLike() {
 			continue
 		}
 		eligibleCount++
@@ -2880,10 +2880,9 @@ func newOpenAILegacyUpstreamRateOrder(accounts []*Account, now time.Time, oauthS
 		if account == nil {
 			continue
 		}
-		// 与 openAIUpstreamCostFactors 使用同一道平台门控：只有 OpenAI 平台账号
-		// 的倍率参与 legacy 低倍率优先排序。上游自报倍率来自中转方，不能让它对
-		// 其他平台的调度产生影响——否则自报低价即可吸走流量，而实际结算走本地倍率。
-		if !account.IsOpenAIApiKey() && !account.IsOpenAIOAuthLike() {
+		// Match the cost scorer: all supported API-key platforms use a fresh
+		// upstream rate or their saved account rate; OpenAI OAuth uses its reference.
+		if !isUpstreamBillingProbeAccount(account) && !account.IsOpenAIOAuthLike() {
 			continue
 		}
 		rate, ok := openAISchedulingRate(account, now, oauthSchedulingRateMultiplier)
@@ -2917,7 +2916,7 @@ func openAISchedulingRateWithSource(account *Account, now time.Time, oauthSchedu
 		}
 		return oauthSchedulingRateMultiplier, "oauth", true
 	}
-	if !account.IsOpenAIApiKey() {
+	if !isUpstreamBillingProbeAccount(account) {
 		return 0, "", false
 	}
 	if rate, ok := openAIFreshUpstreamBillingRate(account, now); ok {
