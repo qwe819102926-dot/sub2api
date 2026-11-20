@@ -113,6 +113,73 @@ func TestApplyUsageBillingEffects_FlagsBalanceOverdraft(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+type usageBillingBonusRateSetting struct {
+	service.SettingRepository
+}
+
+func (usageBillingBonusRateSetting) GetValue(_ context.Context, key string) (string, error) {
+	if key == service.SettingBonusBalanceConsumptionRate {
+		return "2", nil
+	}
+	return "", service.ErrSettingNotFound
+}
+
+func TestApplyUsageBillingEffects_BonusRateForImageGeneration(t *testing.T) {
+	for _, tt := range []struct {
+		name          string
+		imageCount    int
+		bonusBalance  float64
+		wantBonus     float64
+		wantPrincipal float64
+	}{
+		{name: "text uses global rate", bonusBalance: 1, wantBonus: 0.04},
+		{name: "image uses one to one", imageCount: 1, bonusBalance: 1, wantBonus: 0.02},
+		{name: "image splits bonus and principal one to one", imageCount: 1, bonusBalance: 0.01, wantBonus: 0.01, wantPrincipal: 0.01},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			db, mock, err := sqlmock.New()
+			require.NoError(t, err)
+			defer func() { _ = db.Close() }()
+
+			const userID int64 = 42
+			mock.ExpectBegin()
+			mock.ExpectQuery(bonusBalanceSelectSQL).
+				WithArgs(userID).
+				WillReturnRows(sqlmock.NewRows([]string{"bonus_balance"}).AddRow(tt.bonusBalance))
+			mock.ExpectExec(bonusBalanceDeductSQL).
+				WithArgs(tt.wantBonus, userID).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+			if tt.wantPrincipal > 0 {
+				mock.ExpectQuery(conditionalBalanceDeductSQL).
+					WithArgs(tt.wantPrincipal, userID).
+					WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(1 - tt.wantPrincipal))
+			} else {
+				mock.ExpectQuery(currentBalanceSelectSQL).
+					WithArgs(userID).
+					WillReturnRows(sqlmock.NewRows([]string{"balance"}).AddRow(1))
+			}
+			mock.ExpectCommit()
+
+			tx, err := db.BeginTx(ctx, nil)
+			require.NoError(t, err)
+			defer func() { _ = tx.Rollback() }()
+			repo := &usageBillingRepository{settingRepo: usageBillingBonusRateSetting{}}
+			result := &service.UsageBillingApplyResult{}
+			err = repo.applyUsageBillingEffects(ctx, tx, &service.UsageBillingCommand{
+				UserID:      userID,
+				ImageCount:  tt.imageCount,
+				BalanceCost: 0.02,
+			}, result)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantBonus, result.BonusDeducted)
+			require.Equal(t, tt.wantPrincipal, result.PrincipalDeducted)
+			require.NoError(t, tx.Commit())
+			require.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+}
+
 func TestApplyUsageBillingEffects_DeletedAPIKeyStillBillsBalance(t *testing.T) {
 	ctx := context.Background()
 	db, mock, err := sqlmock.New()

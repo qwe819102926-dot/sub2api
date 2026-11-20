@@ -191,7 +191,12 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, cmd.UserID, cmd.BalanceCost, r.bonusBalanceConsumptionRate(ctx))
+		// Image generation spends bonus balance at face value, regardless of its pricing mode.
+		bonusRate := 1.0
+		if cmd.ImageCount <= 0 {
+			bonusRate = r.bonusBalanceConsumptionRate(ctx)
+		}
+		newBalance, sufficient, bonusDeducted, principalDeducted, err := deductUsageBillingBalanceDetailed(ctx, tx, cmd.UserID, cmd.BalanceCost, bonusRate)
 		if err != nil {
 			return err
 		}
