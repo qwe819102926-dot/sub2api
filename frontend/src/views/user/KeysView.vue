@@ -392,7 +392,7 @@
           </template>
 
           <template #cell-actions="{ row }">
-            <div class="flex items-center gap-1">
+            <div class="flex flex-wrap items-center gap-1 md:flex-nowrap">
               <!-- Use Key Button -->
               <button
                 @click="openUseKeyModal(row)"
@@ -409,6 +409,15 @@
               >
                 <Icon name="upload" size="sm" />
                 <span class="text-xs">{{ t('keys.importToCcSwitch') }}</span>
+              </button>
+              <button
+                type="button"
+                :title="t('keys.magpieDesktopRequired')"
+                @click="importToMagpie(row)"
+                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+              >
+                <Icon name="upload" size="sm" />
+                <span class="whitespace-nowrap text-xs">{{ t('keys.importToMagpie') }}</span>
               </button>
               <!-- Toggle Status Button -->
               <button
@@ -1276,6 +1285,7 @@ import {
   buildCcSwitchImportDeeplink,
   type CcSwitchClientType
 } from '@/utils/ccswitchImport'
+import { buildMagpieImportDeeplink } from '@/utils/magpieImport'
 
 // Helper to format date for datetime-local input
 const formatDateTimeLocal = (isoDate: string): string => {
@@ -2056,6 +2066,19 @@ const resetRateLimitUsage = async () => {
   } catch (error: any) {
     const errorMsg = error.response?.data?.detail || t('keys.failedToResetRateLimit')
     appStore.showError(errorMsg)
+  }
+}
+
+const importToMagpie = (row: ApiKey) => {
+  try {
+    const deeplink = buildMagpieImportDeeplink(
+      publicSettings.value?.api_base_url?.trim() || window.location.origin,
+      publicSettings.value?.site_name || '',
+      row
+    )
+    window.open(deeplink, '_self')
+  } catch {
+    appStore.showError(t('keys.magpieImportFailed'))
   }
 }
 

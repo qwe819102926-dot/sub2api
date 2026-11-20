@@ -44,6 +44,9 @@ const messages: Record<string, string> = {
   'keys.expiresAt': 'Expires',
   'keys.group': 'Group',
   'keys.id': 'ID',
+  'keys.importToCcSwitch': 'Import to CCS',
+  'keys.importToMagpie': 'Import to Magpie',
+  'keys.magpieDesktopRequired': 'Requires the Magpie desktop app',
   'keys.currentConcurrency': 'Current Concurrency',
   'keys.lastUsedAt': 'Last Used',
   'keys.lastUsedIP': 'Last Used IP',
@@ -312,6 +315,63 @@ describe('user KeysView column settings', () => {
     expect(visibleColumnKeys(wrapper)).not.toContain('last_used_at')
     expect(visibleColumnKeys(wrapper)).not.toContain('last_used_ip')
     expect(visibleColumnKeys(wrapper)).not.toContain('id')
+  })
+
+  it.each([
+    ['openai', 'responses', '/relay/v1'],
+    ['grok', 'responses', '/relay/v1'],
+    ['composite', 'responses', '/relay/v1'],
+    ['kimi', 'chat', '/relay/v1'],
+    ['zhipu', 'chat', '/relay/v1'],
+    ['deepseek', 'chat', '/relay/v1'],
+    ['gemini', 'gemini', '/relay/v1beta'],
+    ['antigravity', 'anthropic', '/relay/antigravity'],
+    ['anthropic', 'anthropic', '/relay'],
+  ])('opens Magpie with the selected %s key and API endpoint', async (platform, protocol, path) => {
+    const gateway = 'https://api.example.test'
+    const selectedKey = 'sk-test-second+key'
+    getPublicSettings.mockResolvedValue({
+      api_base_url: `${gateway}/relay/v1/`,
+      site_name: 'key智API',
+      hide_ccs_import_button: true,
+    })
+    listKeys.mockResolvedValue({
+      items: [
+        createApiKey(),
+        { ...createApiKey(), id: 2, key: selectedKey, group: { platform } },
+      ],
+      total: 2,
+      pages: 1,
+    })
+    const wrapper = await mountView()
+    const open = vi.spyOn(window, 'open').mockReturnValue(null)
+
+    try {
+      const buttons = wrapper.findAll('button')
+      expect(buttons.some((button) => button.text().includes('Import to CCS'))).toBe(false)
+      expect(wrapper.html()).not.toContain(selectedKey)
+      const imports = wrapper.findAll('button[title="Requires the Magpie desktop app"]')
+      expect(imports).toHaveLength(2)
+      expect(imports[1].text()).toContain('Import to Magpie')
+      await imports[1].trigger('click')
+
+      expect(open).toHaveBeenCalledTimes(1)
+      const [deeplink, target] = open.mock.calls[0]
+      const url = new URL(String(deeplink))
+      expect(target).toBe('_self')
+      expect(url.protocol).toBe('magpie:')
+      expect(url.hostname).toBe('import')
+      expect(url.searchParams.get('name')).toBe('key智API · test-key')
+      expect(url.searchParams.get('id')).toBe('sub2api-api-example-test-2')
+      expect(url.searchParams.get('key')).toBe(selectedKey)
+      expect(url.searchParams.get(protocol)).toBe(`${gateway}${path}`)
+      if (platform === 'antigravity') {
+        expect(url.searchParams.get('gemini')).toBe(`${gateway}/relay/antigravity/v1beta`)
+      }
+    } finally {
+      open.mockRestore()
+      wrapper.unmount()
+    }
   })
 
   it('opens bulk editing with only selected visible keys', async () => {
