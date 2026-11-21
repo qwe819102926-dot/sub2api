@@ -117,12 +117,21 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 	// Enhance policy with required directives (nonce placeholder and Cloudflare Insights)
 	policy = enhanceCSPPolicy(policy)
 
+	reportOnlyPolicy := ""
+	if cfg.ReportOnly {
+		reportOnlyPolicy = previewCSPPolicy(policy)
+	}
+
 	return func(c *gin.Context) {
 		finalPolicy := policy
+		finalReportOnly := reportOnlyPolicy
 		if getFrameSrcOrigins != nil {
 			for _, origin := range getFrameSrcOrigins() {
 				if origin != "" {
 					finalPolicy = addToDirective(finalPolicy, "frame-src", origin)
+					if finalReportOnly != "" {
+						finalReportOnly = addToDirective(finalReportOnly, "frame-src", origin)
+					}
 				}
 			}
 		}
@@ -134,29 +143,83 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 			// retain the default clickjacking protection.
 			c.Header("X-Frame-Options", "SAMEORIGIN")
 			finalPolicy = replaceFrameAncestors(finalPolicy, "'self'")
+			if finalReportOnly != "" {
+				finalReportOnly = replaceFrameAncestors(finalReportOnly, "'self'")
+			}
 		} else {
 			c.Header("X-Frame-Options", "DENY")
 		}
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		if c.Request != nil && c.Request.URL != nil && c.Request.URL.Path == "/payment/result" {
+			c.Header("Referrer-Policy", "no-referrer")
+			c.Header("Cache-Control", "no-store")
+		}
 		if isAPIRoutePath(c) {
 			c.Next()
 			return
 		}
 
 		if cfg.Enabled {
-			// Generate nonce for this request
 			nonce, err := GenerateNonce()
+			nonceSource := "'unsafe-inline'"
 			if err != nil {
-				// crypto/rand 失败时降级为无 nonce 的 CSP 策略
-				log.Printf("[SecurityHeaders] %v — 降级为无 nonce 的 CSP", err)
-				c.Header("Content-Security-Policy", strings.ReplaceAll(finalPolicy, NonceTemplate, "'unsafe-inline'"))
+				log.Printf("[SecurityHeaders] %v", err)
 			} else {
 				c.Set(CSPNonceKey, nonce)
-				c.Header("Content-Security-Policy", strings.ReplaceAll(finalPolicy, NonceTemplate, "'nonce-"+nonce+"'"))
+				nonceSource = "'nonce-" + nonce + "'"
+			}
+			c.Header("Content-Security-Policy", strings.ReplaceAll(finalPolicy, NonceTemplate, nonceSource))
+			if finalReportOnly != "" {
+				c.Header("Content-Security-Policy-Report-Only", strings.ReplaceAll(finalReportOnly, NonceTemplate, nonceSource))
 			}
 		}
 		c.Next()
 	}
+}
+
+// previewCSPPolicy proposes removing broad sources without changing the enforced policy.
+func previewCSPPolicy(policy string) string {
+	directives := strings.Split(policy, ";")
+	broaderConnect := false
+	for i, directive := range directives {
+		values := strings.Fields(directive)
+		if len(values) == 0 {
+			continue
+		}
+		blocked := ""
+		switch values[0] {
+		case "style-src", "style-src-elem", "style-src-attr":
+			blocked = "'unsafe-inline'"
+		case "connect-src":
+			blocked = "https:"
+		default:
+			continue
+		}
+		allowed := values[:1]
+		for _, value := range values[1:] {
+			if value != blocked {
+				allowed = append(allowed, value)
+			} else if values[0] == "connect-src" {
+				broaderConnect = true
+			}
+		}
+		if len(allowed) == 1 && values[0] != "connect-src" {
+			allowed = append(allowed, "'none'")
+		}
+		directives[i] = strings.Join(allowed, " ")
+	}
+	preview := strings.Join(directives, "; ")
+	if !broaderConnect {
+		return preview
+	}
+	for _, origin := range []string{
+		"https://challenges.cloudflare.com", "https://cloudflareinsights.com",
+		"https://*.alicdn.com", StripeDomain, AirwallexStaticDomain,
+		AirwallexCheckoutDomain, AirwallexDemoStaticDomain, AirwallexDemoCheckoutDomain,
+	} {
+		preview = addToDirective(preview, "connect-src", origin)
+	}
+	return preview
 }
 
 func isUsageGuideDocument(c *gin.Context) bool {

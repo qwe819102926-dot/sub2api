@@ -535,3 +535,21 @@ func BenchmarkSecurityHeadersMiddleware(b *testing.B) {
 		middleware(c)
 	}
 }
+
+func TestSecurityHeadersAddsNarrowerCSPAsReportOnly(t *testing.T) {
+	r := gin.New()
+	r.Use(SecurityHeaders(config.CSPConfig{Enabled: true, ReportOnly: true}, nil))
+	r.GET("/payment/result", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/payment/result", nil))
+	enforced := w.Header().Get("Content-Security-Policy")
+	preview := w.Header().Get("Content-Security-Policy-Report-Only")
+	assert.True(t, directiveHasValue(enforced, "connect-src", "https:"))
+	assert.False(t, directiveHasValue(preview, "connect-src", "https:"))
+	assert.True(t, directiveHasValue(enforced, "style-src", "'unsafe-inline'"))
+	assert.False(t, directiveHasValue(preview, "style-src", "'unsafe-inline'"))
+	assert.True(t, directiveHasValue(preview, "connect-src", StripeDomain))
+	assert.Equal(t, "no-referrer", w.Header().Get("Referrer-Policy"))
+	assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+}
