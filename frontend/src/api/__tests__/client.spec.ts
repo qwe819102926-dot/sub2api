@@ -201,7 +201,7 @@ describe('API Client', () => {
       await apiClient.get('/payment/plans')
       expect(adapter.mock.calls[0][0].headers.get('X-User-UI-Request')).toBe('1')
 
-      await apiClient.post('/payment/public/orders/verify', {})
+      await apiClient.post('/payment/public/orders/resolve', { resume_token: 'fixture' })
       expect(adapter.mock.calls[1][0].headers.get('X-User-UI-Request')).toBeFalsy()
     })
 

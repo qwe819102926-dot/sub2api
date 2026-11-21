@@ -103,7 +103,7 @@ func (h *PaymentHandler) ClaimConsumptionReward(c *gin.Context) {
 	}
 	var req claimConsumptionRewardRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 	balance, err := h.paymentService.ClaimConsumptionReward(c.Request.Context(), subject.UserID, req.Threshold)
@@ -362,7 +362,7 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 
 	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 	if strings.TrimSpace(req.WechatResumeToken) != "" {
@@ -535,7 +535,7 @@ func (h *PaymentHandler) RequestRefund(c *gin.Context) {
 
 	var req RefundRequestBody
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -562,7 +562,7 @@ type VerifyOrderRequest struct {
 }
 
 type ResolveOrderByResumeTokenRequest struct {
-	ResumeToken string `json:"resume_token" binding:"required"`
+	ResumeToken string `json:"resume_token" binding:"required,max=4096"`
 }
 
 // VerifyOrder actively queries the upstream payment provider to check
@@ -576,7 +576,7 @@ func (h *PaymentHandler) VerifyOrder(c *gin.Context) {
 
 	var req VerifyOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -614,18 +614,6 @@ type PublicOrderResult struct {
 	PlanID              *int64     `json:"plan_id,omitempty"`
 }
 
-// PublicOrderVerifyResult is returned by the legacy anonymous out_trade_no
-// lookup. Keep this intentionally minimal because out_trade_no is not secret.
-type PublicOrderVerifyResult struct {
-	OutTradeNo  string     `json:"out_trade_no"`
-	Status      string     `json:"status"`
-	Paid        bool       `json:"paid"`
-	CreatedAt   time.Time  `json:"created_at"`
-	ExpiresAt   time.Time  `json:"expires_at"`
-	PaidAt      *time.Time `json:"paid_at,omitempty"`
-	CompletedAt *time.Time `json:"completed_at,omitempty"`
-}
-
 func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 	return PublicOrderResult{
 		IsSubscriptionReset: service.IsSubscriptionResetOrder(order),
@@ -651,58 +639,13 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 	}
 }
 
-func buildPublicOrderVerifyResult(order *dbent.PaymentOrder) PublicOrderVerifyResult {
-	return PublicOrderVerifyResult{
-		OutTradeNo:  order.OutTradeNo,
-		Status:      order.Status,
-		Paid:        publicOrderStatusPaid(order.Status),
-		CreatedAt:   order.CreatedAt,
-		ExpiresAt:   order.ExpiresAt,
-		PaidAt:      order.PaidAt,
-		CompletedAt: order.CompletedAt,
-	}
-}
-
-func publicOrderStatusPaid(status string) bool {
-	switch status {
-	case service.OrderStatusPaid,
-		service.OrderStatusCompleted,
-		service.OrderStatusRefundRequested,
-		service.OrderStatusRefunding,
-		service.OrderStatusRefundPending,
-		service.OrderStatusPartiallyRefunded,
-		service.OrderStatusRefunded,
-		service.OrderStatusRefundFailed:
-		return true
-	default:
-		return false
-	}
-}
-
-// VerifyOrderPublic keeps the legacy anonymous out_trade_no lookup available as
-// a compatibility path for older result pages and staggered deploys.
-// POST /api/v1/payment/public/orders/verify
-func (h *PaymentHandler) VerifyOrderPublic(c *gin.Context) {
-	var req VerifyOrderRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
-		return
-	}
-
-	order, err := h.paymentService.VerifyOrderPublic(c.Request.Context(), req.OutTradeNo)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, buildPublicOrderVerifyResult(order))
-}
-
 // ResolveOrderPublicByResumeToken resolves a payment order from a signed resume token.
 // POST /api/v1/payment/public/orders/resolve
 func (h *PaymentHandler) ResolveOrderPublicByResumeToken(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	var req ResolveOrderByResumeTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 

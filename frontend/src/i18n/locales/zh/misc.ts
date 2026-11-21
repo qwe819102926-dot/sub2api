@@ -457,6 +457,8 @@ export default {
       requestRefund: '申请退款',
     },
     result: {
+      signInToView: '登录后查看订单',
+      signIn: '登录',
       success: '支付成功',
       subscriptionSuccess: '订阅成功',
       processing: '支付处理中',

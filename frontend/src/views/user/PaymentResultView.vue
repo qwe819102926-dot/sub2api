@@ -19,7 +19,7 @@
             class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
             <div class="h-10 w-10 animate-spin rounded-full border-4 border-yellow-500 border-t-transparent"></div>
           </div>
-          <div v-else
+          <div v-else-if="!loginRedirect"
             class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
             <svg class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -69,25 +69,12 @@
             </div>
           </div>
         </div>
-        <!-- EasyPay return info (when no order loaded) -->
-        <div v-else-if="returnInfo" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
-          <div class="space-y-3 text-sm">
-            <div v-if="returnInfo.outTradeNo" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ returnInfo.outTradeNo }}</span>
-            </div>
-            <div v-if="returnInfo.money" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(Number(returnInfo.money) || 0) }}</span>
-            </div>
-            <div v-if="returnInfo.type" class="flex justify-between">
-              <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(returnInfo.type), normalizedOrderPaymentType(returnInfo.type)) }}</span>
-            </div>
-          </div>
-        </div>
         <!-- Actions -->
-        <div class="flex gap-3">
+        <button v-if="loginRedirect" class="btn btn-primary w-full"
+          @click="router.push({ path: '/login', query: { redirect: loginRedirect } })">
+          {{ t('payment.result.signIn') }}
+        </button>
+        <div v-else class="flex gap-3">
           <button class="btn btn-secondary flex-1" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
           <button class="btn btn-primary flex-1" @click="router.push('/orders')">{{ t('payment.result.viewOrders') }}</button>
         </div>
@@ -109,8 +96,8 @@ import {
 import { usePaymentStore } from '@/stores/payment'
 import { useAuthStore } from '@/stores/auth'
 import { paymentAPI } from '@/api/payment'
-import type { PublicOrderVerifyResult } from '@/api/payment'
-import type { OrderStatus, PaymentOrder } from '@/types/payment'
+import type { PublicOrderResult } from '@/api/payment'
+import type { OrderStatus } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
 
@@ -121,19 +108,10 @@ const router = useRouter()
 const paymentStore = usePaymentStore()
 const authStore = useAuthStore()
 
-type ResolvedOrder = PaymentOrder | PublicOrderVerifyResult
-
-const order = ref<ResolvedOrder | null>(null)
+const order = ref<PublicOrderResult | null>(null)
 const loading = ref(true)
 const currency = ref('CNY')
-
-interface ReturnInfo {
-  outTradeNo: string
-  money: string
-  type: string
-  tradeStatus: string
-}
-const returnInfo = ref<ReturnInfo | null>(null)
+const loginRedirect = ref('')
 
 const SUCCESS_STATUSES = new Set(['COMPLETED', 'PAID', 'RECHARGING'])
 const PENDING_STATUSES = new Set(['PENDING', 'CREATED', 'WAITING', 'PROCESSING'])
@@ -178,6 +156,7 @@ const isPending = computed(() => {
 })
 
 const statusTitle = computed(() => {
+  if (loginRedirect.value) return t('payment.result.signInToView')
   if (isSuccess.value && order.value && 'is_subscription_reset' in order.value && order.value.is_subscription_reset) return t('userSubscriptions.resetSuccess')
   if (isSuccess.value) {
     return t('payment.result.success')
@@ -196,7 +175,7 @@ function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, currency.value, localeCode.value)
 }
 
-function setResolvedOrder(nextOrder: ResolvedOrder | null): void {
+function setResolvedOrder(nextOrder: PublicOrderResult | null): void {
   order.value = nextOrder
   if (nextOrder && 'currency' in nextOrder && nextOrder.currency) {
     currency.value = normalizePaymentCurrency(nextOrder.currency)
@@ -204,7 +183,7 @@ function setResolvedOrder(nextOrder: ResolvedOrder | null): void {
   refreshUserBalanceForSuccessfulOrder(nextOrder)
 }
 
-function refreshUserBalanceForSuccessfulOrder(nextOrder: ResolvedOrder | null): void {
+function refreshUserBalanceForSuccessfulOrder(nextOrder: PublicOrderResult | null): void {
   if (!nextOrder || userBalanceRefreshStarted || normalizeOrderStatus(nextOrder.status) !== 'COMPLETED') {
     return
   }
@@ -218,15 +197,15 @@ function refreshUserBalanceForSuccessfulOrder(nextOrder: ResolvedOrder | null): 
   })
 }
 
-function hasOrderId(nextOrder: ResolvedOrder | null): nextOrder is PaymentOrder {
+function hasOrderId(nextOrder: PublicOrderResult | null): nextOrder is PublicOrderResult {
   return !!nextOrder && 'id' in nextOrder && typeof nextOrder.id === 'number'
 }
 
-function hasAmountFields(nextOrder: ResolvedOrder | null): nextOrder is PaymentOrder {
+function hasAmountFields(nextOrder: PublicOrderResult | null): nextOrder is PublicOrderResult {
   return !!nextOrder && 'pay_amount' in nextOrder && typeof nextOrder.pay_amount === 'number' && 'amount' in nextOrder && typeof nextOrder.amount === 'number'
 }
 
-function hasPaymentType(nextOrder: ResolvedOrder | null): nextOrder is PaymentOrder {
+function hasPaymentType(nextOrder: PublicOrderResult | null): nextOrder is PublicOrderResult {
   return !!nextOrder && 'payment_type' in nextOrder && typeof nextOrder.payment_type === 'string' && nextOrder.payment_type.trim() !== ''
 }
 
@@ -298,7 +277,7 @@ function restoreRecoverySnapshot(context: {
   return restored
 }
 
-async function resolveOrderFromResumeToken(resumeToken: string): Promise<ResolvedOrder | null> {
+async function resolveOrderFromResumeToken(resumeToken: string): Promise<PublicOrderResult | null> {
   try {
     const result = await paymentAPI.resolveOrderPublicByResumeToken(resumeToken)
     return result.data
@@ -307,17 +286,12 @@ async function resolveOrderFromResumeToken(resumeToken: string): Promise<Resolve
   }
 }
 
-async function resolveOrderFromOutTradeNo(outTradeNo: string): Promise<ResolvedOrder | null> {
+async function resolveOrderFromOutTradeNo(outTradeNo: string): Promise<PublicOrderResult | null> {
   try {
     const result = await paymentAPI.verifyOrder(outTradeNo)
     return result.data
   } catch (_err: unknown) {
-    try {
-      const result = await paymentAPI.verifyOrderPublic(outTradeNo)
-      return result.data
-    } catch (_innerErr: unknown) {
-      return null
-    }
+    return null
   }
 }
 
@@ -340,7 +314,7 @@ function clearRecoverySnapshotForTerminalStatus(status: string | null | undefine
   }
 }
 
-function scheduleStatusRefresh(refreshOrder: (() => Promise<ResolvedOrder | null>) | null): void {
+function scheduleStatusRefresh(refreshOrder: (() => Promise<PublicOrderResult | null>) | null): void {
   clearStatusRefreshTimer()
   if (!refreshOrder || !isPending.value || refreshAttempts.value >= STATUS_REFRESH_MAX_ATTEMPTS) {
     return
@@ -365,7 +339,6 @@ onMounted(async () => {
   const routeOrderId = Number(readRouteQueryString('order_id')) || 0
   let outTradeNo = readRouteQueryString('out_trade_no')
   let orderId = 0
-  let resumeTokenLookupFailed = false
 
   const restored = restoreRecoverySnapshot({
     resumeToken,
@@ -389,47 +362,33 @@ onMounted(async () => {
       if (!orderId) {
         orderId = hasOrderId(resolvedOrder) ? resolvedOrder.id : 0
       }
-    } else if (routeOrderId > 0) {
-      resumeTokenLookupFailed = true
-      orderId = routeOrderId
-    } else {
-      resumeTokenLookupFailed = true
-    }
-  } else if (routeOrderId > 0) {
-    orderId = routeOrderId
-  }
-
-  const hasLegacyFallbackContext = readRouteQueryString('trade_status').trim() !== ''
-  const shouldUsePublicOutTradeNo = outTradeNo !== '' && (hasLegacyFallbackContext || routeOrderId > 0 || orderId > 0)
-
-  if (!order.value && orderId && (!resumeToken || routeOrderId > 0)) {
-    try {
-      setResolvedOrder(await paymentStore.pollOrderStatus(orderId))
-    } catch (_err: unknown) {
-      // Order lookup failed, will try legacy fallback below when possible.
     }
   }
 
-  if (!order.value && shouldUsePublicOutTradeNo && (!resumeToken || resumeTokenLookupFailed)) {
-    const legacyOrder = await resolveOrderFromOutTradeNo(outTradeNo)
-    if (legacyOrder) {
-      setResolvedOrder(legacyOrder)
-      if (!orderId) {
-        orderId = hasOrderId(legacyOrder) ? legacyOrder.id : 0
+  if (!order.value) {
+    if (routeOrderId > 0) orderId = routeOrderId
+    if (authStore.isAuthenticated) {
+      if (orderId) {
+        try {
+          setResolvedOrder(await paymentStore.pollOrderStatus(orderId))
+        } catch (_err: unknown) {
+          // Legacy callbacks can carry only the merchant order number.
+        }
       }
+      if (!order.value && outTradeNo) {
+        const verifiedOrder = await resolveOrderFromOutTradeNo(outTradeNo)
+        setResolvedOrder(verifiedOrder)
+        if (hasOrderId(verifiedOrder)) orderId = verifiedOrder.id
+      }
+    } else if (orderId || outTradeNo || resumeToken) {
+      const query = new URLSearchParams()
+      if (orderId) query.set('order_id', String(orderId))
+      if (outTradeNo) query.set('out_trade_no', outTradeNo)
+      loginRedirect.value = query.size ? `/payment/result?${query.toString()}` : '/orders'
     }
   }
 
-  if (!order.value && !orderId && outTradeNo && hasLegacyFallbackContext) {
-    returnInfo.value = {
-      outTradeNo,
-      money: String(route.query.money || ''),
-      type: String(route.query.type || ''),
-      tradeStatus: String(route.query.trade_status || ''),
-    }
-  }
-
-  const refreshOrder = async (): Promise<ResolvedOrder | null> => {
+  const refreshOrder = async (): Promise<PublicOrderResult | null> => {
     if (resumeToken) {
       const resolvedOrder = await resolveOrderFromResumeToken(resumeToken)
       if (resolvedOrder) {
@@ -437,15 +396,15 @@ onMounted(async () => {
       }
     }
 
-    if (orderId) {
+    if (authStore.isAuthenticated && orderId) {
       try {
         return await paymentStore.pollOrderStatus(orderId)
       } catch (_err: unknown) {
-        // Fall through to legacy public verification when order polling is unavailable.
+        // Fall through to owner verification when order polling is unavailable.
       }
     }
 
-    if (shouldUsePublicOutTradeNo) {
+    if (authStore.isAuthenticated && outTradeNo) {
       return await resolveOrderFromOutTradeNo(outTradeNo)
     }
 
@@ -456,8 +415,6 @@ onMounted(async () => {
     scheduleStatusRefresh(refreshOrder)
   } else if (order.value) {
     clearRecoverySnapshotForTerminalStatus(order.value.status)
-  } else if (returnInfo.value) {
-    clearRecoverySnapshot()
   }
   loading.value = false
 })

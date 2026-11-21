@@ -8,7 +8,7 @@ const routeState = vi.hoisted(() => ({
 const routerPush = vi.hoisted(() => vi.fn())
 const pollOrderStatus = vi.hoisted(() => vi.fn())
 const verifyOrder = vi.hoisted(() => vi.fn())
-const verifyOrderPublic = vi.hoisted(() => vi.fn())
+const authState = vi.hoisted(() => ({ isAuthenticated: true }))
 const resolveOrderPublicByResumeToken = vi.hoisted(() => vi.fn())
 const refreshUser = vi.hoisted(() => vi.fn())
 
@@ -38,15 +38,12 @@ vi.mock('@/stores/payment', () => ({
 }))
 
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    refreshUser,
-  }),
+  useAuthStore: () => Object.assign(authState, { refreshUser }),
 }))
 
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     verifyOrder,
-    verifyOrderPublic,
     resolveOrderPublicByResumeToken,
   },
 }))
@@ -111,7 +108,7 @@ describe('PaymentResultView', () => {
     routerPush.mockReset()
     pollOrderStatus.mockReset()
     verifyOrder.mockReset()
-    verifyOrderPublic.mockReset()
+    authState.isAuthenticated = true
     resolveOrderPublicByResumeToken.mockReset()
     refreshUser.mockReset()
     refreshUser.mockResolvedValue({})
@@ -317,19 +314,18 @@ describe('PaymentResultView', () => {
 
     expect(resolveOrderPublicByResumeToken).toHaveBeenCalledWith('resume-fail')
     expect(pollOrderStatus).toHaveBeenCalledWith(77)
-    expect(verifyOrderPublic).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('payment.result.success')
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
   })
 
-  it('falls back to public out_trade_no verification when resume_token recovery fails in legacy return flows', async () => {
+  it('uses authenticated order verification when resume_token recovery fails in legacy return flows', async () => {
     routeState.query = {
       resume_token: 'resume-fail',
       out_trade_no: 'legacy-should-not-run',
       trade_status: 'TRADE_SUCCESS',
     }
     resolveOrderPublicByResumeToken.mockRejectedValueOnce(new Error('resume failed'))
-    verifyOrderPublic.mockResolvedValueOnce({
+    verifyOrder.mockResolvedValueOnce({
       data: {
         ...orderFactory('PAID'),
         out_trade_no: 'legacy-should-not-run',
@@ -347,7 +343,7 @@ describe('PaymentResultView', () => {
     await flushPromises()
 
     expect(resolveOrderPublicByResumeToken).toHaveBeenCalledWith('resume-fail')
-    expect(verifyOrderPublic).toHaveBeenCalledWith('legacy-should-not-run')
+    expect(verifyOrder).toHaveBeenCalledWith('legacy-should-not-run')
     expect(pollOrderStatus).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('payment.result.success')
   })
@@ -372,70 +368,38 @@ describe('PaymentResultView', () => {
     await flushPromises()
 
     expect(resolveOrderPublicByResumeToken).not.toHaveBeenCalled()
-    expect(verifyOrderPublic).not.toHaveBeenCalled()
     expect(pollOrderStatus).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('payment.result.failed')
     expect(wrapper.text()).not.toContain('sub2_20260420abcd1234')
   })
 
-  it('uses public out_trade_no verification when no signed resume context is available', async () => {
+  it('asks a signed-out user to sign in before retrieving a legacy order', async () => {
+    authState.isAuthenticated = false
     routeState.query = {
       out_trade_no: 'legacy-123',
+      resume_token: 'expired-resume-token',
       trade_status: 'TRADE_SUCCESS',
+      money: '799',
     }
-    verifyOrder.mockRejectedValue(new Error('auth required'))
-    verifyOrderPublic.mockResolvedValue({
-      data: orderFactory('PAID'),
-    })
+    resolveOrderPublicByResumeToken.mockRejectedValueOnce(new Error('expired token'))
 
     const wrapper = mount(PaymentResultView, {
-      global: {
-        stubs: {
-          OrderStatusBadge: true,
-        },
-      },
+      global: { stubs: { OrderStatusBadge: true } },
     })
-
     await flushPromises()
 
-    expect(verifyOrder).toHaveBeenCalledWith('legacy-123')
-    expect(verifyOrderPublic).toHaveBeenCalledWith('legacy-123')
+    expect(verifyOrder).not.toHaveBeenCalled()
     expect(pollOrderStatus).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('payment.result.success')
+    expect(wrapper.text()).toContain('payment.result.signInToView')
+    expect(wrapper.text()).not.toContain('799')
+    await wrapper.get('button').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/login',
+      query: { redirect: '/payment/result?out_trade_no=legacy-123' },
+    })
   })
 
-  it('renders the minimal public out_trade_no verification result without payment_type', async () => {
-    routeState.query = {
-      out_trade_no: 'legacy-minimal',
-      trade_status: 'TRADE_SUCCESS',
-    }
-    verifyOrder.mockRejectedValue(new Error('auth required'))
-    verifyOrderPublic.mockResolvedValue({
-      data: {
-        out_trade_no: 'legacy-minimal',
-        status: 'PAID',
-        paid: true,
-        created_at: '2026-04-20T12:00:00Z',
-        expires_at: '2026-04-20T12:30:00Z',
-      },
-    })
-
-    const wrapper = mount(PaymentResultView, {
-      global: {
-        stubs: {
-          OrderStatusBadge: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    expect(wrapper.text()).toContain('payment.result.success')
-    expect(wrapper.text()).toContain('legacy-minimal')
-    expect(wrapper.text()).not.toContain('payment.orders.paymentMethod')
-  })
-
-  it('prefers authenticated order verification before falling back to public lookup', async () => {
+  it('retrieves the legacy order for a signed-in user', async () => {
     routeState.query = {
       out_trade_no: 'auth-verify-123',
       trade_status: 'TRADE_SUCCESS',
@@ -455,29 +419,11 @@ describe('PaymentResultView', () => {
     await flushPromises()
 
     expect(verifyOrder).toHaveBeenCalledWith('auth-verify-123')
-    expect(verifyOrderPublic).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('payment.result.success')
   })
 
-  it('does not use public out_trade_no verification for bare order numbers without legacy return markers', async () => {
-    routeState.query = {
-      out_trade_no: 'legacy-bare',
-    }
-
-    mount(PaymentResultView, {
-      global: {
-        stubs: {
-          OrderStatusBadge: true,
-        },
-      },
-    })
-
-    await flushPromises()
-
-    expect(verifyOrderPublic).not.toHaveBeenCalled()
-  })
-
   it('resolves order by resume token when local recovery snapshot is missing', async () => {
+    authState.isAuthenticated = false
     routeState.query = {
       resume_token: 'resume-77',
     }

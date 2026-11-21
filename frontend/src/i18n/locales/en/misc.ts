@@ -433,6 +433,8 @@ export default {
       requestRefund: 'Request Refund',
     },
     result: {
+      signInToView: 'Sign in to view your order',
+      signIn: 'Sign in',
       success: 'Payment Successful',
       subscriptionSuccess: 'Subscription Successful',
       processing: 'Payment Processing',

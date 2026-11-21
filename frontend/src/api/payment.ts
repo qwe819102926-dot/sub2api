@@ -26,13 +26,7 @@ export interface SubscriptionResetQuote {
   plan_ids?: number[]
 }
 
-export interface PublicOrderVerifyResult {
-  out_trade_no: string
-  status: string
-  paid: boolean
-  created_at: string
-  expires_at: string
-}
+export type PublicOrderResult = Omit<PaymentOrder, 'user_id'>
 
 export const paymentAPI = {
 	getSubscriptionResetQuote(subscriptionId: number, planId?: number) {
@@ -111,14 +105,9 @@ export const paymentAPI = {
     return apiClient.post<PaymentOrder>('/payment/orders/verify', { out_trade_no: outTradeNo })
   },
 
-  /** Legacy-compatible public order lookup by out_trade_no */
-  verifyOrderPublic(outTradeNo: string) {
-    return apiClient.post<PublicOrderVerifyResult>('/payment/public/orders/verify', { out_trade_no: outTradeNo })
-  },
-
   /** Resolve an order from a signed resume token without auth */
   resolveOrderPublicByResumeToken(resumeToken: string) {
-    return apiClient.post<PublicOrderVerifyResult>('/payment/public/orders/resolve', { resume_token: resumeToken })
+    return apiClient.post<PublicOrderResult>('/payment/public/orders/resolve', { resume_token: resumeToken })
   },
 
   /** Request a refund for a completed order */

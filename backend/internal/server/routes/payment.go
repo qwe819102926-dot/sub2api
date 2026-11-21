@@ -13,13 +13,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// publicOrderVerifyRateLimit caps anonymous legacy out_trade_no lookups per
-// client IP. The payment result page polls at most a handful of times per
-// order, so this leaves ample headroom for real users while making
-// out_trade_no enumeration impractical.
 const (
-	publicOrderVerifyRateLimit       = 20
-	publicOrderVerifyRateLimitWindow = time.Minute
+	publicOrderResolveRateLimit       = 60
+	publicOrderResolveRateLimitWindow = time.Minute
 )
 
 // RegisterPaymentRoutes registers all payment-related routes:
@@ -67,21 +63,13 @@ func RegisterPaymentRoutes(
 		}
 	}
 
-	// --- Public payment endpoints (no auth) ---
-	// Signed resume-token recovery is the preferred public lookup path.
-	// The legacy anonymous out_trade_no verify endpoint remains available as a
-	// persisted-state compatibility path for staggered upgrades.
-	// The anonymous verify endpoint is IP rate-limited to prevent out_trade_no
-	// enumeration. It fails open on Redis errors so an outage never blocks a
-	// user who is mid-payment from seeing their result.
-	publicRateLimiter := ratelimit.NewRateLimiter(redisClient)
+	// Checkout links may resume without login by presenting a signed token.
 	public := v1.Group("/payment/public")
-	{
-		public.POST("/orders/verify",
-			publicRateLimiter.Limit("payment-public-order-verify", publicOrderVerifyRateLimit, publicOrderVerifyRateLimitWindow),
-			paymentHandler.VerifyOrderPublic)
-		public.POST("/orders/resolve", paymentHandler.ResolveOrderPublicByResumeToken)
-	}
+	public.POST("/orders/resolve",
+		ratelimit.NewRateLimiter(redisClient).LimitWithOptions("payment-public-order-resolve", publicOrderResolveRateLimit, publicOrderResolveRateLimitWindow, ratelimit.RateLimitOptions{
+			FailureMode: ratelimit.RateLimitFailClose,
+		}),
+		paymentHandler.ResolveOrderPublicByResumeToken)
 
 	// --- Webhook endpoints (no auth) ---
 	webhook := v1.Group("/payment/webhook")

@@ -95,6 +95,11 @@ func ErrorFrom(c *gin.Context, err error) bool {
 	return true
 }
 
+// InvalidRequest rejects malformed input without disclosing decoder internals.
+func InvalidRequest(c *gin.Context) {
+	ErrorWithDetails(c, http.StatusBadRequest, "Invalid request", "INVALID_REQUEST", nil)
+}
+
 // BadRequest 返回400错误
 func BadRequest(c *gin.Context, message string) {
 	Error(c, http.StatusBadRequest, message)
