@@ -137,6 +137,38 @@ func TestUnknownOrderWebhookAcksWithSuccess(t *testing.T) {
 	require.Empty(t, w.Body.String(), "Stripe expects an empty body on the ack path")
 }
 
+func TestSignedWebhookDoesNotAcknowledgeBeforeVerification(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := &PaymentWebhookHandler{paymentService: &service.PaymentService{}}
+	router := gin.New()
+	router.POST("/stripe", h.StripeWebhook)
+	router.POST("/airwallex", h.AirwallexWebhook)
+	tests := []struct {
+		name    string
+		path    string
+		headers map[string]string
+		status  int
+	}{
+		{"stripe missing signature", "/stripe", nil, http.StatusBadRequest},
+		{"airwallex missing signature", "/airwallex", map[string]string{"X-Timestamp": "header-present"}, http.StatusBadRequest},
+		{"airwallex missing timestamp", "/airwallex", map[string]string{"X-Signature": "header-present"}, http.StatusBadRequest},
+		{"stripe provider unavailable", "/stripe", map[string]string{"Stripe-Signature": "header-present"}, http.StatusServiceUnavailable},
+		{"airwallex provider unavailable", "/airwallex", map[string]string{"X-Signature": "header-present", "X-Timestamp": "header-present"}, http.StatusServiceUnavailable},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, nil)
+			for key, value := range tc.headers {
+				req.Header.Set(key, value)
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			require.Equal(t, tc.status, rec.Code)
+		})
+	}
+}
+
 func TestWebhookConstants(t *testing.T) {
 	t.Run("maxWebhookBodySize is 1MB", func(t *testing.T) {
 		assert.Equal(t, int64(1<<20), int64(maxWebhookBodySize))

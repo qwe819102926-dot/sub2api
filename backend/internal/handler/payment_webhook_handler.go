@@ -75,6 +75,15 @@ func (h *PaymentWebhookHandler) AirwallexWebhook(c *gin.Context) {
 
 // handleNotify is the shared logic for all provider webhook handlers.
 func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string) {
+	stripeWebhook := providerKey == payment.TypeStripe
+	airwallexWebhook := providerKey == payment.TypeAirwallex
+	if (stripeWebhook && strings.TrimSpace(c.GetHeader("Stripe-Signature")) == "") ||
+		(airwallexWebhook && (strings.TrimSpace(c.GetHeader("X-Signature")) == "" ||
+			strings.TrimSpace(c.GetHeader("X-Timestamp")) == "")) {
+		c.String(http.StatusBadRequest, "verify failed")
+		return
+	}
+
 	var rawBody string
 	if c.Request.Method == http.MethodGet {
 		// GET callbacks (e.g. EasyPay) pass params as URL query string
@@ -96,6 +105,12 @@ func (h *PaymentWebhookHandler) handleNotify(c *gin.Context, providerKey string)
 	providers, err := h.paymentService.GetWebhookProviders(c.Request.Context(), providerKey, outTradeNo)
 	if err != nil {
 		slog.Warn("[Payment Webhook] provider not found", "provider", providerKey, "outTradeNo", outTradeNo, "error", err)
+		if stripeWebhook || airwallexWebhook {
+			// A signed delivery may be valid once provider configuration is available again.
+			// A success response here would prevent the provider from retrying it.
+			c.String(http.StatusServiceUnavailable, "payment webhook unavailable")
+			return
+		}
 		if providerKey == payment.TypeWxpay {
 			c.String(http.StatusBadRequest, "verify failed")
 			return
