@@ -1933,6 +1933,9 @@ type openAIResponsesWSUsageLogCase struct {
 	firstFrameCloseExpected bool
 	// secondTurnCloseExpected：第二个 turn 被拒（连接被 1008 关闭）。
 	secondTurnCloseExpected bool
+	// midFrameCloseExpected：midPayload 被拒（连接被 1008 关闭），帧不到达上游。
+	midFrameCloseExpected bool
+	closeReason           string
 }
 
 type openAIResponsesWSUsageLogResult struct {
@@ -3043,6 +3046,10 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 	cancelWrite()
 	require.NoError(t, err)
 
+	wantCloseReason := tc.closeReason
+	if wantCloseReason == "" {
+		wantCloseReason = "not available for this group"
+	}
 	if tc.firstFrameCloseExpected {
 		readCtx, cancelRead := context.WithTimeout(context.Background(), 3*time.Second)
 		_, _, readErr := clientConn.Read(readCtx)
@@ -3051,7 +3058,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		var closeErr coderws.CloseError
 		require.ErrorAs(t, readErr, &closeErr)
 		require.Equal(t, coderws.StatusPolicyViolation, closeErr.Code)
-		require.Contains(t, closeErr.Reason, "not available for this group")
+		require.Contains(t, closeErr.Reason, wantCloseReason)
 		_ = clientConn.CloseNow()
 		return openAIResponsesWSUsageLogResult{}
 	}
@@ -3071,6 +3078,19 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 		err = clientConn.Write(writeCtx, coderws.MessageText, []byte(tc.midPayload))
 		cancelWrite()
 		require.NoError(t, err)
+		if tc.midFrameCloseExpected {
+			readCtx, cancelRead := context.WithTimeout(context.Background(), 3*time.Second)
+			_, _, readErr := clientConn.Read(readCtx)
+			cancelRead()
+			require.Error(t, readErr, "mid frame should have been rejected with a close")
+			var closeErr coderws.CloseError
+			require.ErrorAs(t, readErr, &closeErr)
+			require.Equal(t, coderws.StatusPolicyViolation, closeErr.Code)
+			require.Contains(t, closeErr.Reason, wantCloseReason)
+			require.Len(t, upstreamPayloadCh, 1, "rejected mid frame must not reach upstream")
+			_ = clientConn.CloseNow()
+			return openAIResponsesWSUsageLogResult{}
+		}
 		readCompleted()
 	}
 	if strings.TrimSpace(tc.secondPayload) != "" && (turnCount >= 2) {
@@ -3086,7 +3106,7 @@ func runOpenAIResponsesWebSocketUsageLogCase(t *testing.T, tc openAIResponsesWSU
 			var closeErr coderws.CloseError
 			require.ErrorAs(t, readErr, &closeErr)
 			require.Equal(t, coderws.StatusPolicyViolation, closeErr.Code)
-			require.Contains(t, closeErr.Reason, "not available for this group")
+			require.Contains(t, closeErr.Reason, wantCloseReason)
 			_ = clientConn.CloseNow()
 			return openAIResponsesWSUsageLogResult{}
 		}

@@ -71,7 +71,7 @@ func TestGatewayRoutesGroupModelAllowlistMountedOnEveryGatewayRoute(t *testing.T
 	// This fork keeps explicit root aliases and a fixed-source routing layer.
 	for _, line := range strings.Split(source, "\n") {
 		if strings.Contains(line, "r.") && strings.Contains(line, "gin.HandlerFunc(apiKeyAuth)") {
-			require.Contains(t, line, "gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, fixedSourceRouting,",
+			require.Contains(t, line, "gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, rejectConflictingFields, fixedSourceRouting,",
 				"root aliases must check the public model before fixed-source or composite routing")
 		}
 	}
@@ -97,7 +97,7 @@ func TestGatewayRoutesGroupModelAllowlistMountedOnEveryGatewayRoute(t *testing.T
 	}
 
 	// codexDirect 链是一条 Use 调用，直接断言顺序。
-	codexDirect := regexp.MustCompile(regexp.QuoteMeta(`codexDirect.Use(bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, fixedSourceRouting, compositeTarget, requireGroupAnthropic)`))
+	codexDirect := regexp.MustCompile(regexp.QuoteMeta(`codexDirect.Use(groupBodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), groupModelAllowlist, rejectConflictingFields, fixedSourceRouting, compositeTarget, requireGroupAnthropic)`))
 	require.Regexp(t, codexDirect, source, "codexDirect chain must mount the allowlist after auth and before compositeTarget")
 
 	// 所有带 apiKeyAuth 的根路径路由必须收敛到 rootRoute，避免漏挂。

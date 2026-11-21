@@ -217,3 +217,12 @@ func appendJSONUnicodeEscape(dst []byte, b byte) []byte {
 	const hex = "0123456789abcdef"
 	return append(dst, '\\', 'u', '0', '0', hex[b>>4], hex[b&0x0f])
 }
+
+// BodyTooLargeMessage formats a gateway request body limit.
+func BodyTooLargeMessage(limit int64) string {
+	const mb = 1024 * 1024
+	if limit >= mb {
+		return fmt.Sprintf("Request body too large, limit is %dMB", limit/mb)
+	}
+	return fmt.Sprintf("Request body too large, limit is %dB", limit)
+}
