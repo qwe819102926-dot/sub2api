@@ -152,3 +152,13 @@ func TestRegistrationGuardDailyIPQuotaAndFailClosed(t *testing.T) {
 	_, err = g.Acquire(ctx, ticket, "user@example.com", registrationTestUA)
 	require.ErrorIs(t, err, service.ErrServiceUnavailable)
 }
+
+func TestRegistrationVerifyCodeCooldownAcrossIPs(t *testing.T) {
+	g, redisServer := newRegistrationGuardTest(t)
+	ctx := context.Background()
+
+	require.NoError(t, g.ReserveVerifyCode(ctx, "user@example.com", "203.0.113.10"))
+	require.ErrorIs(t, g.ReserveVerifyCode(ctx, "USER@example.com", "203.0.114.10"), service.ErrRegistrationLimited)
+	redisServer.FastForward(time.Minute)
+	require.NoError(t, g.ReserveVerifyCode(ctx, "user@example.com", "203.0.114.10"))
+}

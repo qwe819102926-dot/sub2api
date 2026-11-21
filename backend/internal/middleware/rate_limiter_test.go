@@ -9,6 +9,7 @@ import (
 
 	ippkg "github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
@@ -223,4 +224,34 @@ func TestRateLimiterSuccessAndLimit(t *testing.T) {
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	require.Equal(t, http.StatusTooManyRequests, recorder.Code)
+}
+
+func TestRateLimiterNormalizesLoginAccountAcrossIPs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { _ = rdb.Close() })
+	limiter := NewRateLimiter(rdb)
+
+	check := func(email, address string) (bool, *httptest.ResponseRecorder) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/login", nil)
+		c.Request.RemoteAddr = address
+		return limiter.AllowLoginAccount(c, email), w
+	}
+	for range 10 {
+		ok, _ := check("User@example.com", "203.0.113.10:1234")
+		require.True(t, ok)
+	}
+	ok, rec := check("user@example.com", "203.0.114.10:1234")
+	require.False(t, ok)
+	require.Equal(t, http.StatusTooManyRequests, rec.Code)
+	require.Equal(t, "60", rec.Header().Get("Retry-After"))
+
+	ok, _ = check("other@example.com", "203.0.114.10:1234")
+	require.True(t, ok)
+	server.FastForward(time.Minute)
+	ok, _ = check("user@example.com", "203.0.114.10:1234")
+	require.True(t, ok)
 }

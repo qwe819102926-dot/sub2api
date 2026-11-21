@@ -259,3 +259,40 @@ func (s *stubUserRepo) DisableTotp(ctx context.Context, userID int64) error {
 func (s *stubUserRepo) GetByIDIncludeDeleted(ctx context.Context, id int64) (*service.User, error) {
 	panic("unexpected GetByIDIncludeDeleted call")
 }
+
+func TestAdminAuthEnforcesTOTPVerifiedSessionWhenConfigured(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	cfg := &config.Config{
+		JWT:      config.JWTConfig{Secret: "test-secret", ExpireHour: 1},
+		Security: config.SecurityConfig{AdminRequireTOTP: true},
+	}
+	auth := service.NewAuthService(nil, nil, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
+	admin := &service.User{ID: 1, Role: service.RoleAdmin, Status: service.StatusActive, TotpEnabled: true}
+	users := service.NewUserService(&stubUserRepo{
+		getByID: func(context.Context, int64) (*service.User, error) { return admin, nil },
+	}, nil, nil, nil)
+	router := gin.New()
+	router.Use(gin.HandlerFunc(NewAdminAuthMiddleware(auth, users, nil, nil)))
+	router.GET("/admin", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+	access := func(token string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		router.ServeHTTP(rec, req)
+		return rec
+	}
+	unverified, err := auth.GenerateToken(context.Background(), admin)
+	require.NoError(t, err)
+	rec := access(unverified)
+	require.Equal(t, http.StatusForbidden, rec.Code)
+	require.Contains(t, rec.Body.String(), "ADMIN_TOTP_REQUIRED")
+
+	verified, err := auth.GenerateToken(service.WithVerifiedLoginTOTP(context.Background()), admin)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, access(verified).Code)
+
+	reboundAt := time.Now().Add(time.Minute)
+	admin.TotpEnabledAt = &reboundAt
+	require.Equal(t, http.StatusForbidden, access(verified).Code)
+}

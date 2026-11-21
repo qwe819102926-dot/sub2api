@@ -723,11 +723,12 @@ type ForwardedClientIPSettings struct {
 }
 
 type SecurityConfig struct {
-	URLAllowlist    URLAllowlistConfig   `mapstructure:"url_allowlist"`
-	ResponseHeaders ResponseHeaderConfig `mapstructure:"response_headers"`
-	CSP             CSPConfig            `mapstructure:"csp"`
-	ProxyFallback   ProxyFallbackConfig  `mapstructure:"proxy_fallback"`
-	ProxyProbe      ProxyProbeConfig     `mapstructure:"proxy_probe"`
+	AdminRequireTOTP bool                 `mapstructure:"admin_require_totp"`
+	URLAllowlist     URLAllowlistConfig   `mapstructure:"url_allowlist"`
+	ResponseHeaders  ResponseHeaderConfig `mapstructure:"response_headers"`
+	CSP              CSPConfig            `mapstructure:"csp"`
+	ProxyFallback    ProxyFallbackConfig  `mapstructure:"proxy_fallback"`
+	ProxyProbe       ProxyProbeConfig     `mapstructure:"proxy_probe"`
 	// TrustForwardedIPForAPIKeyACL enables legacy raw forwarded-header takeover.
 	// When disabled, server.trusted_proxies is authoritative for all client-IP consumers.
 	TrustForwardedIPForAPIKeyACL  bool                                       `mapstructure:"trust_forwarded_ip_for_api_key_acl"`
@@ -831,8 +832,9 @@ type ResponseHeaderConfig struct {
 }
 
 type CSPConfig struct {
-	Enabled bool   `mapstructure:"enabled"`
-	Policy  string `mapstructure:"policy"`
+	ReportOnly bool   `mapstructure:"report_only"`
+	Enabled    bool   `mapstructure:"enabled"`
+	Policy     string `mapstructure:"policy"`
 }
 
 type ProxyFallbackConfig struct {
@@ -2085,8 +2087,10 @@ func setDefaults() {
 	viper.SetDefault("security.response_headers.enabled", true)
 	viper.SetDefault("security.response_headers.additional_allowed", []string{})
 	viper.SetDefault("security.response_headers.force_remove", []string{})
+	viper.SetDefault("security.admin_require_totp", false)
 	viper.SetDefault("security.csp.enabled", true)
 	viper.SetDefault("security.csp.policy", DefaultCSPPolicy)
+	viper.SetDefault("security.csp.report_only", true)
 	viper.SetDefault("security.proxy_probe.insecure_skip_verify", false)
 	viper.SetDefault("security.trust_forwarded_ip_for_api_key_acl", true)
 
@@ -2677,6 +2681,9 @@ func setEnvReachableDefaults() {
 }
 
 func (c *Config) Validate() error {
+	if c.Security.AdminRequireTOTP && !c.Totp.EncryptionKeyConfigured {
+		return fmt.Errorf("security.admin_require_totp requires a persistent TOTP encryption key")
+	}
 	forwardedClientIPHeaders, err := NormalizeForwardedClientIPHeaders(c.Security.ForwardedClientIPHeaders)
 	if err != nil {
 		return fmt.Errorf("security.forwarded_client_ip_headers: %w", err)

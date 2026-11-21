@@ -1181,3 +1181,37 @@ func (s *emailBindCacheStub) IncrNotifyVerifyCodeAttempts(context.Context, strin
 func (s *emailBindCacheStub) ConsumePasswordResetToken(context.Context, string, string) (bool, error) {
 	return false, nil
 }
+
+func TestAuthServiceRefreshCarriesVerifiedTOTPForTheSameSession(t *testing.T) {
+	user := &service.User{ID: 42, Role: service.RoleAdmin, Status: service.StatusActive, TotpEnabled: true}
+	cfg := &config.Config{
+		JWT: config.JWTConfig{Secret: "test-session-secret", ExpireHour: 1, RefreshTokenExpireDays: 1},
+	}
+	svc := service.NewAuthService(nil, newEmailBindUserRepoStub(user), nil,
+		newEmailBindRefreshTokenCacheStub(), cfg, nil, nil, nil, nil, nil, nil, nil, nil)
+	ctx := context.Background()
+
+	for _, tc := range []struct {
+		name         string
+		loginContext context.Context
+		verified     bool
+	}{
+		{"password only", ctx, false},
+		{"after second factor", service.WithVerifiedLoginTOTP(ctx), true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			pair, err := svc.GenerateTokenPair(tc.loginContext, user, "")
+			require.NoError(t, err)
+			claims, err := svc.ValidateToken(pair.AccessToken)
+			require.NoError(t, err)
+			require.Equal(t, tc.verified, claims.TOTPVerifiedAt > 0)
+
+			rotated, err := svc.RefreshTokenPair(ctx, pair.RefreshToken)
+			require.NoError(t, err)
+			renewed, err := svc.ValidateToken(rotated.AccessToken)
+			require.NoError(t, err)
+			require.Equal(t, claims.SessionID, renewed.SessionID)
+			require.Equal(t, claims.TOTPVerifiedAt, renewed.TOTPVerifiedAt)
+		})
+	}
+}

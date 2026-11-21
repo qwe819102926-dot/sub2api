@@ -160,3 +160,24 @@ func TestRegistrationEndpointsRejectNodeBeforeIssuingMailOrAccounts(t *testing.T
 		require.Contains(t, w.Body.String(), "REGISTRATION_BROWSER_REQUIRED")
 	}
 }
+
+func TestAuthInputErrorsDoNotLeakValidationInternals(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := registrationGuardHandler(t, false)
+	router := gin.New()
+	router.POST("/register", h.Register)
+	router.POST("/forgot-password", h.ForgotPassword)
+
+	bad := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"invalid","password":"x"}`))
+	router.ServeHTTP(bad, req)
+	require.Equal(t, http.StatusBadRequest, bad.Code)
+	require.Contains(t, bad.Body.String(), "INVALID_REQUEST")
+	require.NotContains(t, bad.Body.String(), "RegisterRequest")
+
+	disabled := httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/forgot-password", strings.NewReader(`{"email":"user@example.com"}`))
+	router.ServeHTTP(disabled, req)
+	require.Equal(t, http.StatusForbidden, disabled.Code)
+	require.Contains(t, disabled.Body.String(), "PASSWORD_RESET_DISABLED")
+}

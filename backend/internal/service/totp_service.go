@@ -312,6 +312,10 @@ func (s *TotpService) Disable(ctx context.Context, userID int64, emailCode, pass
 		return fmt.Errorf("get user: %w", err)
 	}
 
+	if user.IsAdmin() && s.settingService != nil && s.settingService.cfg != nil && s.settingService.cfg.Security.AdminRequireTOTP {
+		return infraerrors.Forbidden("ADMIN_TOTP_REQUIRED", "Administrator two-factor authentication must remain enabled")
+	}
+
 	if !user.TotpEnabled {
 		return ErrTotpNotSetup
 	}

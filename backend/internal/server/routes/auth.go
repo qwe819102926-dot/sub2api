@@ -25,6 +25,7 @@ func RegisterAuthRoutes(
 ) {
 	// 创建速率限制器
 	rateLimiter := middleware.NewRateLimiter(redisClient)
+	h.Auth.SetLoginRateLimiter(rateLimiter)
 	h.Auth.SetRegistrationGuard(service.NewRegistrationGuard(repository.NewRegistrationGuardCache(redisClient)))
 
 	// 公开接口

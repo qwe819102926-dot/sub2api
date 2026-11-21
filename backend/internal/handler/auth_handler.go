@@ -8,8 +8,8 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
+	"github.com/Wei-Shaw/sub2api/internal/middleware"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -28,6 +28,7 @@ type AuthHandler struct {
 	totpService          *service.TotpService
 	userAttributeService *service.UserAttributeService
 	registrationGuard    *service.RegistrationGuard
+	loginRateLimiter     *middleware.RateLimiter
 
 	dingTalkClientInstance *DingTalkClient
 	dingTalkClientMu       sync.Mutex
@@ -180,7 +181,7 @@ func (h *AuthHandler) isBackendModeEnabled(ctx context.Context) bool {
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -194,7 +195,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// Final account creation requires a fresh captcha, independent of email delivery.
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptchaForRegister(c.Request.Context(), proof, ip.GetClientIP(c), req.VerifyCode); err != nil {
+	if err := h.authService.VerifyCaptchaForRegister(c.Request.Context(), proof, middleware2.SecurityClientIP(c), req.VerifyCode); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -224,7 +225,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	var req SendVerifyCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -233,12 +234,12 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 		return
 	}
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, middleware2.SecurityClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	if err := h.registrationGuard.ReserveAttempt(c.Request.Context(), req.Email, middleware2.SecurityClientIP(c)); err != nil {
+	if err := h.registrationGuard.ReserveVerifyCode(c.Request.Context(), req.Email, middleware2.SecurityClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -260,21 +261,29 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	})
 }
 
-// Login handles user login
+// SetLoginRateLimiter is called once during route setup.
+func (h *AuthHandler) SetLoginRateLimiter(limiter *middleware.RateLimiter) {
+	h.loginRateLimiter = limiter
+}
+
+// Login handles user login.
 // POST /api/v1/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, middleware2.SecurityClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
+	if h.loginRateLimiter != nil && !h.loginRateLimiter.AllowLoginAccount(c, req.Email) {
+		return
+	}
 	token, user, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -288,7 +297,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	// Check if TOTP 2FA is enabled for this user
-	if h.totpService != nil && h.settingSvc.IsTotpEnabled(c.Request.Context()) && user.TotpEnabled {
+	if h.totpService != nil && user.TotpEnabled && (h.settingSvc.IsTotpEnabled(c.Request.Context()) || (user.IsAdmin() && h.authService.AdminTOTPRequired())) {
 		// Create a temporary login session for 2FA
 		tempToken, err := h.totpService.CreateLoginSession(c.Request.Context(), user.ID, user.Email)
 		if err != nil {
@@ -327,7 +336,7 @@ type Login2FARequest struct {
 func (h *AuthHandler) Login2FA(c *gin.Context) {
 	var req Login2FARequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -338,13 +347,7 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 	// Get the login session
 	session, err := h.totpService.GetLoginSession(c.Request.Context(), req.TempToken)
 	if err != nil || session == nil {
-		tokenPrefix := ""
-		if len(req.TempToken) >= 8 {
-			tokenPrefix = req.TempToken[:8]
-		}
-		slog.Debug("login_2fa_session_invalid",
-			"temp_token_prefix", tokenPrefix,
-			"error", err)
+		slog.Debug("login_2fa_session_invalid", "error", err)
 		response.BadRequest(c, "Invalid or expired 2FA session")
 		return
 	}
@@ -361,6 +364,8 @@ func (h *AuthHandler) Login2FA(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+
+	c.Request = c.Request.WithContext(service.WithVerifiedLoginTOTP(c.Request.Context()))
 
 	// Get the user (before session deletion so we can check backend mode)
 	user, err := h.userService.GetByID(c.Request.Context(), session.UserID)
@@ -509,7 +514,7 @@ func (h *AuthHandler) ValidatePromoCode(c *gin.Context) {
 
 	var req ValidatePromoCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -576,7 +581,7 @@ func (h *AuthHandler) ValidateInvitationCode(c *gin.Context) {
 
 	var req ValidateInvitationCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -630,12 +635,17 @@ type ForgotPasswordResponse struct {
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
+		return
+	}
+
+	if !h.authService.IsPasswordResetEnabled(c.Request.Context()) {
+		response.ErrorWithDetails(c, 403, "Password reset is unavailable", "PASSWORD_RESET_DISABLED", nil)
 		return
 	}
 
 	proof := captchaProof(req.TurnstileToken, req.TencentCaptchaTicket, req.TencentCaptchaRandstr)
-	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, ip.GetClientIP(c)); err != nil {
+	if err := h.authService.VerifyCaptcha(c.Request.Context(), proof, middleware2.SecurityClientIP(c)); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -643,7 +653,7 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	frontendBaseURL := strings.TrimSpace(h.settingSvc.GetFrontendURL(c.Request.Context()))
 	if frontendBaseURL == "" {
 		slog.Error("frontend_url not configured in settings or config; cannot build password reset link")
-		response.InternalError(c, "Password reset is not configured")
+		response.ErrorWithDetails(c, 503, "Password reset is temporarily unavailable", "PASSWORD_RESET_UNAVAILABLE", nil)
 		return
 	}
 
@@ -676,7 +686,7 @@ type ResetPasswordResponse struct {
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 
@@ -711,7 +721,7 @@ type RefreshTokenResponse struct {
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req RefreshTokenRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request: "+err.Error())
+		response.InvalidRequest(c)
 		return
 	}
 

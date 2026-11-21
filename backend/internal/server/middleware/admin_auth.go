@@ -203,6 +203,11 @@ func validateJWTForAdmin(
 		return false
 	}
 
+	if authService.AdminTOTPRequired() && !validAdminTOTPProof(user, claims) {
+		AbortWithError(c, 403, "ADMIN_TOTP_REQUIRED", "Sign in again with administrator two-factor authentication")
+		return false
+	}
+
 	c.Set(string(ContextKeyUser), AuthSubject{
 		UserID:      user.ID,
 		Concurrency: user.Concurrency,
@@ -213,4 +218,9 @@ func validateJWTForAdmin(
 	c.Set("auth_method", "jwt")
 
 	return true
+}
+
+func validAdminTOTPProof(user *service.User, claims *service.JWTClaims) bool {
+	return user.TotpEnabled && claims.TOTPVerifiedAt > 0 &&
+		(user.TotpEnabledAt == nil || claims.TOTPVerifiedAt >= user.TotpEnabledAt.UnixMilli())
 }

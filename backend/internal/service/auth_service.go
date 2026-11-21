@@ -65,7 +65,8 @@ type JWTClaims struct {
 	// SessionID 会话 ID（与 refresh token family 对应），用于单会话撤销与 step-up 授权绑定。
 	SessionID string `json:"sid,omitempty"`
 	// BindingHash 会话指纹哈希（IP+UA），会话绑定开启时校验；空值表示旧 token（平滑升级）。
-	BindingHash string `json:"bnd,omitempty"`
+	BindingHash    string `json:"bnd,omitempty"`
+	TOTPVerifiedAt int64  `json:"totp_verified_at,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -1449,6 +1450,22 @@ func isReservedEmail(email string) bool {
 		strings.HasSuffix(normalized, DingTalkConnectSyntheticEmailDomain)
 }
 
+type loginTOTPContextKey struct{}
+
+// WithVerifiedLoginTOTP marks a context after a successful TOTP login challenge.
+func WithVerifiedLoginTOTP(ctx context.Context) context.Context {
+	return context.WithValue(ctx, loginTOTPContextKey{}, time.Now().UnixMilli())
+}
+
+func loginTOTPVerifiedAt(ctx context.Context) int64 {
+	verifiedAt, _ := ctx.Value(loginTOTPContextKey{}).(int64)
+	return verifiedAt
+}
+
+func (s *AuthService) AdminTOTPRequired() bool {
+	return s.cfg != nil && s.cfg.Security.AdminRequireTOTP
+}
+
 // GenerateToken 生成JWT access token
 // 使用新的access_token_expire_minutes配置项（如果配置了），否则回退到expire_hour。
 // 会话指纹（IP/UA）从 ctx 中提取（由 HTTP 入口中间件注入），缺失时生成不带绑定的 token。
@@ -1457,11 +1474,11 @@ func (s *AuthService) GenerateToken(ctx context.Context, user *User) (string, er
 	if err != nil {
 		return "", fmt.Errorf("generate session id: %w", err)
 	}
-	return s.generateAccessToken(user, sessionID, sessionBindingHashFromContext(ctx))
+	return s.generateAccessToken(user, sessionID, sessionBindingHashFromContext(ctx), loginTOTPVerifiedAt(ctx))
 }
 
 // generateAccessToken 生成带会话 ID 与绑定指纹的 access token。
-func (s *AuthService) generateAccessToken(user *User, sessionID, bindingHash string) (string, error) {
+func (s *AuthService) generateAccessToken(user *User, sessionID, bindingHash string, verifiedAt int64) (string, error) {
 	now := time.Now()
 	var expiresAt time.Time
 	if s.cfg.JWT.AccessTokenExpireMinutes > 0 {
@@ -1472,12 +1489,13 @@ func (s *AuthService) generateAccessToken(user *User, sessionID, bindingHash str
 	}
 
 	claims := &JWTClaims{
-		UserID:       user.ID,
-		Email:        user.Email,
-		Role:         user.Role,
-		TokenVersion: resolvedTokenVersion(user),
-		SessionID:    sessionID,
-		BindingHash:  bindingHash,
+		UserID:         user.ID,
+		Email:          user.Email,
+		Role:           user.Role,
+		TokenVersion:   resolvedTokenVersion(user),
+		SessionID:      sessionID,
+		BindingHash:    bindingHash,
+		TOTPVerifiedAt: verifiedAt,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
@@ -1555,7 +1573,8 @@ func (s *AuthService) RefreshToken(ctx context.Context, oldTokenString string) (
 		}
 	}
 
-	// 生成新token
+	// Carry forward the proof from the signed session.
+	ctx = context.WithValue(ctx, loginTOTPContextKey{}, claims.TOTPVerifiedAt)
 	return s.GenerateToken(ctx, user)
 }
 
@@ -1747,7 +1766,7 @@ func (s *AuthService) GenerateTokenPair(ctx context.Context, user *User, familyI
 	}
 
 	// 生成Access Token（携带会话ID与绑定指纹）
-	accessToken, err := s.generateAccessToken(user, familyID, sessionBindingHashFromContext(ctx))
+	accessToken, err := s.generateAccessToken(user, familyID, sessionBindingHashFromContext(ctx), loginTOTPVerifiedAt(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("generate access token: %w", err)
 	}
@@ -1790,12 +1809,13 @@ func (s *AuthService) generateRefreshToken(ctx context.Context, user *User, fami
 	ttl := time.Duration(s.cfg.JWT.RefreshTokenExpireDays) * 24 * time.Hour
 
 	data := &RefreshTokenData{
-		UserID:       user.ID,
-		TokenVersion: resolvedTokenVersion(user),
-		FamilyID:     familyID,
-		BindingHash:  sessionBindingHashFromContext(ctx),
-		CreatedAt:    now,
-		ExpiresAt:    now.Add(ttl),
+		UserID:         user.ID,
+		TokenVersion:   resolvedTokenVersion(user),
+		FamilyID:       familyID,
+		BindingHash:    sessionBindingHashFromContext(ctx),
+		TOTPVerifiedAt: loginTOTPVerifiedAt(ctx),
+		CreatedAt:      now,
+		ExpiresAt:      now.Add(ttl),
 	}
 
 	// 存储Token数据
@@ -1895,6 +1915,7 @@ func (s *AuthService) RefreshTokenPair(ctx context.Context, refreshToken string)
 	}
 
 	// 生成新的Token对，保持同一个家族ID
+	ctx = context.WithValue(ctx, loginTOTPContextKey{}, data.TOTPVerifiedAt)
 	pair, err := s.GenerateTokenPair(ctx, user, data.FamilyID)
 	if err != nil {
 		return nil, err

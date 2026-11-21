@@ -2,10 +2,12 @@ package middleware
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	ippkg "github.com/Wei-Shaw/sub2api/internal/pkg/ip"
@@ -156,6 +158,23 @@ func (r *RateLimiter) LimitWithOptions(key string, limit int, window time.Durati
 
 		c.Next()
 	}
+}
+
+// AllowLoginAccount bounds password attempts across sources for a normalized login.
+func (r *RateLimiter) AllowLoginAccount(c *gin.Context, email string) bool {
+	const window = time.Minute
+	account := sha256.Sum256([]byte(strings.ToLower(strings.TrimSpace(email))))
+	result, err := r.Allow(c.Request.Context(), fmt.Sprintf("auth-login-account:%x", account), 10, window)
+	if err != nil {
+		log.Printf("[RateLimit] redis error: key=auth-login-account mode=fail-close err=%v", err)
+		abortRateLimit(c, window)
+		return false
+	}
+	if !result.Allowed {
+		abortRateLimit(c, result.RetryAfter)
+		return false
+	}
+	return true
 }
 
 func windowTTLMillis(window time.Duration) int64 {

@@ -67,6 +67,15 @@ func registrationBinding(email, userAgent string) string {
 // rotation within a /64 shares a quota. IPv4 subnet limits are deliberately
 // higher to reduce impact on users sharing an ISP or corporate network.
 func (g *RegistrationGuard) ReserveAttempt(ctx context.Context, email, clientIP string) error {
+	return g.reserveAttempt(ctx, email, clientIP, false)
+}
+
+// ReserveVerifyCode puts the email cooldown and the longer quotas in one atomic check.
+func (g *RegistrationGuard) ReserveVerifyCode(ctx context.Context, email, clientIP string) error {
+	return g.reserveAttempt(ctx, email, clientIP, true)
+}
+
+func (g *RegistrationGuard) reserveAttempt(ctx context.Context, email, clientIP string, forEmailCode bool) error {
 	if g == nil || g.cache == nil {
 		return ErrServiceUnavailable
 	}
@@ -82,18 +91,23 @@ func (g *RegistrationGuard) ReserveAttempt(ctx context.Context, email, clientIP 
 		ipIdentity = netip.PrefixFrom(addr, 64).Masked().String()
 	}
 	network := netip.PrefixFrom(addr, bits).Masked().String()
+	emailHash := registrationHash(strings.ToLower(strings.TrimSpace(email)))
 	keys := []string{
 		"registration:quota:ip-short:" + registrationHash(ipIdentity),
 		"registration:quota:ip-day:" + registrationHash(ipIdentity),
-		"registration:quota:email-day:" + registrationHash(strings.ToLower(strings.TrimSpace(email))),
+		"registration:quota:email-day:" + emailHash,
 		"registration:quota:network-day:" + registrationHash(network),
 	}
-	allowed, err := g.cache.ReserveAttempts(ctx, []RegistrationQuota{
+	quotas := []RegistrationQuota{
 		{Key: keys[0], Limit: 3, Window: 10 * time.Minute},
 		{Key: keys[1], Limit: 10, Window: 24 * time.Hour},
 		{Key: keys[2], Limit: 5, Window: 24 * time.Hour},
 		{Key: keys[3], Limit: 50, Window: 24 * time.Hour},
-	})
+	}
+	if forEmailCode {
+		quotas = append(quotas, RegistrationQuota{Key: "registration:quota:email-minute:" + emailHash, Limit: 1, Window: time.Minute})
+	}
+	allowed, err := g.cache.ReserveAttempts(ctx, quotas)
 	if err != nil {
 		return ErrServiceUnavailable
 	}
