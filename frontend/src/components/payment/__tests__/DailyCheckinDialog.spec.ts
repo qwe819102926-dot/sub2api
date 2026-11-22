@@ -33,6 +33,7 @@ async function render() {
   return wrapper
 }
 async function open() { document.querySelector<HTMLButtonElement>('.ci-trigger')!.click(); await flushPromises() }
+async function openDetails() { document.querySelector<HTMLButtonElement>('.ci-footer .ci-link')!.click(); await flushPromises() }
 function claimedStatus(): DailyCheckinStatus {
   return { ...server, checked_in_today: true, current_streak: 4, total_days: 4, total_reward: 40.37, today_reward: 0.37,
     records: [...server.records, { date: '2026-10-21', streak_day: 4, reward: 0.37, created_at: '2026-10-21T04:00:00Z' }] }
@@ -53,11 +54,11 @@ describe('daily check-in header and calendar', () => {
     server = { ...server, current_streak: 2, cycle_day: 3, today_reward: 1,
       records: [{ date: '2026-10-20', streak_day: 2, reward: 5, created_at: '2026-10-20T01:00:00Z' }] }
     await render(); await open()
+    await openDetails()
     expect(document.querySelector('.ci-claim')?.textContent).toContain('+1赠金')
     expect(document.querySelector('.ci-milestone')?.textContent).toContain('+1当天到账')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-21"]')?.textContent).toContain('+1')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-20"]')?.textContent).toContain('+5')
-    document.querySelector<HTMLButtonElement>('.ci-footer .ci-link')!.click(); await flushPromises()
     expect(document.querySelector('.ci-rules')?.textContent).toContain('普通日随机领取 0.20～0.30')
     expect(document.querySelector('.ci-rules')?.textContent).toContain('1、3、5、10')
     expect(document.querySelector('.ci-rules')?.textContent).toContain(zh.checkin.rechargeRequired)
@@ -67,7 +68,13 @@ describe('daily check-in header and calendar', () => {
     await render(); await open()
     const button = document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')!
     expect(button.disabled).toBe(true)
+    expect(button.textContent?.trim()).toBe(zh.checkin.rechargeUnmet)
     expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeRequired)
+    expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeGiftExcluded)
+    const qr = document.querySelector<HTMLImageElement>('.ci-trial-qr img')!
+    expect(qr.alt).toBe(zh.checkin.trialQR)
+    expect(qr.src).toContain('trial-credit-group-qq.png')
+    expect(qr.closest('a')?.href).toBe(qr.src)
     button.click()
     expect(mocks.claim).not.toHaveBeenCalled()
 
@@ -90,9 +97,11 @@ describe('daily check-in header and calendar', () => {
     expect(document.querySelector('[role="dialog"]')).toBeNull()
     await open()
     expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-modal')).toBe('true')
+    expect(document.querySelector('.ci-calendar')).toBeNull()
+    await openDetails()
     expect(document.querySelector('.ci-weekday')?.textContent).toBe('一')
     expect(document.querySelector('.ci-date[aria-label^="2026-10-24"]')?.textContent).toContain('7 天')
-    expect(document.querySelector('.ci-claim strong')).toBeNull()
+    expect(document.querySelector('.ci-today-reward')).toBeNull()
     const node = document.querySelector<HTMLButtonElement>('.ci-milestone[aria-label*="2026-11-01"]')!
     node.click(); await flushPromises()
     expect(mocks.get).toHaveBeenLastCalledWith('2026-11')
@@ -101,6 +110,7 @@ describe('daily check-in header and calendar', () => {
   })
   it('credits once, shows the actual random reward, and retains the header badge after closing', async () => {
     await render(); await open()
+    await openDetails()
     let resolveClaim!: (value: { data: DailyCheckinStatus }) => void
     mocks.claim.mockImplementation(() => new Promise(resolve => { resolveClaim = resolve }))
     const button = document.querySelector<HTMLButtonElement>('.ci-action')!
@@ -120,6 +130,7 @@ describe('daily check-in header and calendar', () => {
   it('preserves the checked badge when browsing another month and reopens without another claim', async () => {
     server = claimedStatus()
     await render(); await open()
+    await openDetails()
     document.querySelector<HTMLButtonElement>('.ci-milestone[aria-label*="2026-11-01"]')!.click(); await flushPromises()
     expect(document.querySelector('.ci-trigger')?.textContent).toContain('今日已签到')
     expect(document.querySelector<HTMLButtonElement>('.ci-action')?.disabled).toBe(true)

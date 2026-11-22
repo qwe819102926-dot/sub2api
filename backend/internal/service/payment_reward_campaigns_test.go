@@ -108,26 +108,32 @@ func TestDailyCheckinRechargeEligibility(t *testing.T) {
 		status   string
 		amount   float64
 		paidAt   time.Time
+		currency string
 		eligible bool
 	}{
-		{"recent recharge", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now.Add(-time.Hour), true},
-		{"at cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, cutoff, true},
-		{"before cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, cutoff.Add(-time.Second), false},
-		{"future payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now.Add(time.Second), false},
-		{"no payment time", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, time.Time{}, false},
-		{"subscription", user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, 5, now, false},
-		{"unfulfilled order", user.ID, payment.OrderTypeBalance, OrderStatusPaid, 5, now, false},
-		{"refunded order", user.ID, payment.OrderTypeBalance, OrderStatusRefunded, 5, now, false},
-		{"zero payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 0, now, false},
-		{"another user's order", other.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now, false},
+		{"recent recharge", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 12, now.Add(-time.Hour), "", true},
+		{"exact threshold at cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 9.90, cutoff, "CNY", true},
+		{"one cent below threshold", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 9.89, now, "CNY", false},
+		{"different currency", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 10, now, "USD", false},
+		{"before cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 12, cutoff.Add(-time.Second), "", false},
+		{"future payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 12, now.Add(time.Second), "", false},
+		{"no payment time", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 12, time.Time{}, "", false},
+		{"subscription", user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, 12, now, "", false},
+		{"unfulfilled order", user.ID, payment.OrderTypeBalance, OrderStatusPaid, 12, now, "", false},
+		{"refunded order", user.ID, payment.OrderTypeBalance, OrderStatusRefunded, 12, now, "", false},
+		{"zero payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 0, now, "", false},
+		{"another user's order", other.ID, payment.OrderTypeBalance, OrderStatusCompleted, 12, now, "", false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			create := client.PaymentOrder.Create().SetUserID(tc.userID).SetUserEmail(user.Email).SetUserName("checkin").
-				SetAmount(5).SetPayAmount(tc.amount).SetRechargeCode("checkin").SetPaymentType(payment.TypeAlipay).
+				SetAmount(15).SetPayAmount(tc.amount).SetRechargeCode("checkin").SetPaymentType(payment.TypeAlipay).
 				SetPaymentTradeNo("checkin").SetOrderType(tc.kind).SetStatus(tc.status).
 				SetClientIP("127.0.0.1").SetSrcHost("example.com").SetExpiresAt(now.Add(time.Hour))
 			if !tc.paidAt.IsZero() {
 				create.SetPaidAt(tc.paidAt)
+			}
+			if tc.currency != "" {
+				create.SetProviderSnapshot(map[string]any{"currency": tc.currency})
 			}
 			order, err := create.Save(ctx)
 			require.NoError(t, err)
@@ -141,12 +147,12 @@ func TestDailyCheckinRechargeEligibility(t *testing.T) {
 }
 
 func expectDailyCheckinRecharge(mock sqlmock.Sqlmock, eligible bool) {
-	rows := sqlmock.NewRows([]string{"id"})
+	rows := sqlmock.NewRows([]string{"id", "provider_snapshot"})
 	if eligible {
-		rows.AddRow(1)
+		rows.AddRow(1, nil)
 	}
-	mock.ExpectQuery(`SELECT .* FROM "payment_orders" WHERE .*LIMIT 1`).
-		WithArgs(int64(42), payment.OrderTypeBalance, OrderStatusCompleted, float64(0), sqlmock.AnyArg(), sqlmock.AnyArg()).
+	mock.ExpectQuery(`SELECT .* FROM "payment_orders" WHERE .*`).
+		WithArgs(int64(42), payment.OrderTypeBalance, OrderStatusCompleted, 9.90, sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(rows)
 }
 

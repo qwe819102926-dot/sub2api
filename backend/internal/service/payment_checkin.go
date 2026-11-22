@@ -18,6 +18,7 @@ const (
 	dailyCheckinMinCents       = 20
 	dailyCheckinMaxCents       = 30
 	dailyCheckinRechargeWindow = 30 * 24 * time.Hour
+	dailyCheckinMinRechargeCNY = 9.90
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
@@ -91,14 +92,23 @@ func dailyCheckinReward(streakDay int) float64 {
 }
 
 func hasDailyCheckinRecharge(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (bool, error) {
-	return orders.Query().Where(
+	matching, err := orders.Query().Where(
 		paymentorder.UserIDEQ(userID),
 		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
 		paymentorder.StatusEQ(OrderStatusCompleted),
-		paymentorder.PayAmountGT(0),
+		paymentorder.PayAmountGTE(dailyCheckinMinRechargeCNY),
 		paymentorder.PaidAtGTE(now.Add(-dailyCheckinRechargeWindow)),
 		paymentorder.PaidAtLTE(now),
-	).Exist(ctx)
+	).Select(paymentorder.FieldProviderSnapshot).All(ctx)
+	if err != nil {
+		return false, err
+	}
+	for _, order := range matching {
+		if PaymentOrderCurrency(order) == payment.DefaultPaymentCurrency {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64, month string) (*DailyCheckinStatus, error) {
@@ -247,7 +257,7 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 		return nil, fmt.Errorf("check recent recharge: %w", err)
 	}
 	if !hasRecharge {
-		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "A completed balance recharge in the last 30 days is required to check in")
+		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires a single completed balance recharge of at least CNY 9.90 paid in the last 30 days")
 	}
 	reward := dailyCheckinReward(streak)
 	var recordID int64
