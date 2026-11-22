@@ -442,6 +442,16 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyModelPlazaEnabled] = strconv.FormatBool(settings.ModelPlazaEnabled)
 	updates[SettingKeyModelPlazaRequireAuth] = strconv.FormatBool(settings.ModelPlazaRequireAuth)
 	updates[SettingKeyModelPlazaDescription] = settings.ModelPlazaDescription
+	officialPriceOverrides, err := normalizeModelPlazaOfficialPriceOverrides(settings.ModelPlazaOfficialPriceOverrides)
+	if err != nil {
+		return nil, infraerrors.BadRequest("INVALID_MODEL_PLAZA_OFFICIAL_PRICE_OVERRIDES", err.Error())
+	}
+	settings.ModelPlazaOfficialPriceOverrides = officialPriceOverrides
+	officialPriceOverridesJSON, err := json.Marshal(officialPriceOverrides)
+	if err != nil {
+		return nil, err
+	}
+	updates[SettingKeyModelPlazaOfficialPriceOverrides] = string(officialPriceOverridesJSON)
 	updates[SettingKeyPluginManagementEnabled] = strconv.FormatBool(settings.PluginManagementEnabled)
 
 	// Affiliate (邀请返利) feature switch

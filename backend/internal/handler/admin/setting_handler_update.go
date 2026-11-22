@@ -349,9 +349,10 @@ type UpdateSettingsRequest struct {
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
 
 	// Model Plaza feature switches + description
-	ModelPlazaEnabled     *bool   `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth *bool   `json:"model_plaza_require_auth"`
-	ModelPlazaDescription *string `json:"model_plaza_description"`
+	ModelPlazaEnabled                *bool                                     `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth            *bool                                     `json:"model_plaza_require_auth"`
+	ModelPlazaDescription            *string                                   `json:"model_plaza_description"`
+	ModelPlazaOfficialPriceOverrides []service.ModelPlazaOfficialPriceOverride `json:"model_plaza_official_price_overrides"`
 
 	// Plugin management menu visibility switch; plugin runtime is unaffected.
 	PluginManagementEnabled *bool `json:"plugin_management_enabled"`
@@ -1983,6 +1984,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ModelPlazaDescription
 		}(),
+		ModelPlazaOfficialPriceOverrides: req.ModelPlazaOfficialPriceOverrides,
 		PluginManagementEnabled: func() bool {
 			if req.PluginManagementEnabled != nil {
 				return *req.PluginManagementEnabled
@@ -2160,6 +2162,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		}
 	}
 
+	if _, skipped := omitted[service.SettingKeyModelPlazaOfficialPriceOverrides]; skipped {
+		settings.ModelPlazaOfficialPriceOverrides = previousSettings.ModelPlazaOfficialPriceOverrides
+	}
 	h.auditSettingsUpdate(c, previousSettings, settings, previousAuthSourceDefaults, authSourceDefaults, auditReq)
 
 	// 重新获取设置返回
@@ -2442,10 +2447,11 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 
-		ModelPlazaEnabled:       updatedSettings.ModelPlazaEnabled,
-		ModelPlazaRequireAuth:   updatedSettings.ModelPlazaRequireAuth,
-		ModelPlazaDescription:   updatedSettings.ModelPlazaDescription,
-		PluginManagementEnabled: updatedSettings.PluginManagementEnabled,
+		ModelPlazaEnabled:                updatedSettings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth:            updatedSettings.ModelPlazaRequireAuth,
+		ModelPlazaDescription:            updatedSettings.ModelPlazaDescription,
+		ModelPlazaOfficialPriceOverrides: updatedSettings.ModelPlazaOfficialPriceOverrides,
+		PluginManagementEnabled:          updatedSettings.PluginManagementEnabled,
 
 		AffiliateEnabled:         updatedSettings.AffiliateEnabled,
 		SignupBonusEnabled:       updatedSettings.SignupBonusEnabled,

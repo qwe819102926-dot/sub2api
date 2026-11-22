@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -36,7 +37,7 @@ func NewModelPlazaHandler(
 	}
 }
 
-// modelPlazaOfficialPricing 官方参考价（USD per token，与计费目录同源）。
+// modelPlazaOfficialPricing 官方参考价（USD per token）。
 type modelPlazaOfficialPricing struct {
 	InputPrice        *float64 `json:"input_price"`
 	OutputPrice       *float64 `json:"output_price"`
@@ -151,7 +152,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	out := make([]modelPlazaGroup, 0, len(visible))
 	for i := range visible {
-		out = append(out, toModelPlazaGroupDTO(&visible[i], userRates))
+		out = append(out, toModelPlazaGroupDTO(&visible[i], userRates, rt.OfficialPriceOverrides))
 	}
 	response.Success(c, modelPlazaResponse{
 		Description: rt.Description,
@@ -184,15 +185,19 @@ func filterPlazaVisibleGroups(
 }
 
 // toModelPlazaGroupDTO 将 service 层广场分组映射为白名单 DTO,并合并用户专属倍率。
-func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) modelPlazaGroup {
+func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, overrides map[string]service.ModelPlazaOfficialPriceOverride) modelPlazaGroup {
 	models := make([]modelPlazaModel, 0, len(g.Models))
 	for i := range g.Models {
 		m := &g.Models[i]
+		officialPricing := m.OfficialPricing
+		if override, exists := overrides[strings.ToLower(strings.TrimSpace(m.Name))]; exists {
+			officialPricing = override.DisplayPricing(officialPricing)
+		}
 		models = append(models, modelPlazaModel{
 			Name:             m.Name,
 			Platform:         m.Platform,
 			Pricing:          toUserPricing(m.Pricing),
-			OfficialPricing:  toModelPlazaOfficialPricing(m.OfficialPricing),
+			OfficialPricing:  toModelPlazaOfficialPricing(officialPricing),
 			LongContextBasis: string(m.LongContextBasis),
 			TimePricing:      toModelPlazaTimePricing(m.TimePricing),
 		})

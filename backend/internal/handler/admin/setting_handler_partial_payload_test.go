@@ -3,6 +3,8 @@
 package admin
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 
@@ -10,6 +12,54 @@ import (
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestUpdateSettingsModelPlazaOfficialPriceOverrides(t *testing.T) {
+	h, repo := newStepUpSwitchTestHandler(t, nil)
+	const key = service.SettingKeyModelPlazaOfficialPriceOverrides
+	ctx := context.Background()
+	require.Empty(t, h.settingService.GetModelPlazaRuntime(ctx).OfficialPriceOverrides)
+
+	rec := doUpdateSettings(t, h, map[string]any{key: []map[string]any{
+		{"model": " DeepSeek-V4-Pro ", "input_price": 0.5, "cache_read_price": 0},
+		{"model": "default-only"},
+	}}, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	var response struct {
+		Data struct {
+			OfficialPriceOverrides []service.ModelPlazaOfficialPriceOverride `json:"model_plaza_official_price_overrides"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &response))
+	stored := repo.values[key]
+	overrides := h.settingService.GetModelPlazaRuntime(ctx).OfficialPriceOverrides
+	require.Len(t, overrides, 1)
+	price := overrides["deepseek-v4-pro"]
+	require.Equal(t, []service.ModelPlazaOfficialPriceOverride{price}, response.Data.OfficialPriceOverrides)
+	require.NotNil(t, price.InputPrice)
+	require.Equal(t, 0.5, *price.InputPrice)
+	require.NotNil(t, price.CacheReadPrice)
+	require.Zero(t, *price.CacheReadPrice)
+	require.Nil(t, price.OutputPrice)
+
+	rec = doUpdateSettings(t, h, map[string]any{"model_plaza_enabled": true}, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.Equal(t, stored, repo.values[key])
+
+	for _, rows := range [][]map[string]any{
+		{{"model": "bad", "input_price": -1}},
+		{{"model": " ", "input_price": 1}},
+		{{"model": "duplicate", "input_price": 0}, {"model": " DUPLICATE ", "output_price": 1}},
+	} {
+		rec = doUpdateSettings(t, h, map[string]any{key: rows}, nil)
+		require.Equal(t, http.StatusBadRequest, rec.Code, rec.Body.String())
+		require.Equal(t, stored, repo.values[key])
+	}
+
+	rec = doUpdateSettings(t, h, map[string]any{key: []any{}}, nil)
+	require.Equal(t, http.StatusOK, rec.Code, rec.Body.String())
+	require.JSONEq(t, "[]", repo.values[key])
+	require.Empty(t, h.settingService.GetModelPlazaRuntime(ctx).OfficialPriceOverrides)
+}
 
 // Saving settings is a whole-document PUT. A client that sends only the field it
 // cares about must not reset everything else: a payload as small as

@@ -7407,6 +7407,12 @@
                 class="input font-mono text-sm"
               ></textarea>
             </div>
+            <ModelPlazaOfficialPrices
+              v-if="form.model_plaza_enabled"
+              v-model="form.model_plaza_official_price_overrides"
+              :disabled="saving"
+              @update:model-value="modelPlazaOfficialPricesEdited = true"
+            />
           </div>
         </div>
 
@@ -9060,6 +9066,7 @@ import ProxySelector from "@/components/common/ProxySelector.vue";
 import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
+import ModelPlazaOfficialPrices from "@/views/admin/settings/ModelPlazaOfficialPrices.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
@@ -10074,6 +10081,7 @@ const form = reactive<SettingsForm>({
   model_plaza_enabled: false,
   model_plaza_require_auth: false,
   model_plaza_description: '',
+  model_plaza_official_price_overrides: [],
   // Plugin management menu visibility; plugin runtime is unaffected.
   plugin_management_enabled: false,
   // Affiliate (邀请返利) feature switch
@@ -11038,6 +11046,8 @@ const codexSyncedVersionLabel = computed(() => {
   });
 });
 
+const modelPlazaOfficialPricesEdited = ref(false);
+
 async function loadSettings() {
   loading.value = true;
   loadFailed.value = false;
@@ -11051,6 +11061,7 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    modelPlazaOfficialPricesEdited.value = false;
     syncCaptchaProviderSelection();
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
@@ -11286,6 +11297,21 @@ function findDuplicateDefaultSubscription(
 async function saveSettings() {
   saving.value = true;
   try {
+    if (
+      modelPlazaOfficialPricesEdited.value &&
+      form.model_plaza_official_price_overrides.some((row) =>
+        [
+          row.input_price,
+          row.output_price,
+          row.cache_read_price,
+          row.cache_write_price,
+          row.cache_write_1h_price,
+        ].some((price) => price !== null && (!Number.isFinite(price) || price < 0)),
+      )
+    ) {
+      appStore.showError(t("admin.settings.features.modelPlaza.invalidOfficialPrice"));
+      return;
+    }
     const normalizedTableDefaultPageSize = Math.floor(
       Number(form.table_default_page_size),
     );
@@ -11747,6 +11773,9 @@ async function saveSettings() {
       model_plaza_enabled: form.model_plaza_enabled,
       model_plaza_require_auth: form.model_plaza_require_auth,
       model_plaza_description: form.model_plaza_description,
+      model_plaza_official_price_overrides: modelPlazaOfficialPricesEdited.value
+        ? form.model_plaza_official_price_overrides
+        : undefined,
       plugin_management_enabled: form.plugin_management_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
@@ -11800,6 +11829,7 @@ async function saveSettings() {
     const updated = await settingsStepUp.run(() =>
       adminAPI.settings.updateSettings(payload),
     );
+    modelPlazaOfficialPricesEdited.value = false;
     for (const [key, value] of Object.entries(updated)) {
       if (key === "openai_fast_policy_settings") continue;
       if (value !== null && value !== undefined) {

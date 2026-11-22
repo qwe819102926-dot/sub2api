@@ -401,6 +401,16 @@ export function deriveWeChatConnectStoredMode(
 /**
  * System settings interface
  */
+/** Official prices shown in the Model Plaza, in USD per million tokens. */
+export interface ModelPlazaOfficialPriceOverride {
+  model: string;
+  input_price: number | null;
+  output_price: number | null;
+  cache_write_price: number | null;
+  cache_write_1h_price: number | null;
+  cache_read_price: number | null;
+}
+
 export interface SystemSettings {
   // Registration settings
   registration_enabled: boolean;
@@ -740,6 +750,7 @@ export interface SystemSettings {
   model_plaza_enabled: boolean;
   model_plaza_require_auth: boolean;
   model_plaza_description: string;
+  model_plaza_official_price_overrides: ModelPlazaOfficialPriceOverride[];
   plugin_management_enabled: boolean;
 
   // Affiliate (邀请返利) feature switch
@@ -1051,6 +1062,7 @@ export interface UpdateSettingsRequest {
   model_plaza_enabled?: boolean;
   model_plaza_require_auth?: boolean;
   model_plaza_description?: string;
+  model_plaza_official_price_overrides?: ModelPlazaOfficialPriceOverride[];
   plugin_management_enabled?: boolean;
 
   // Affiliate (邀请返利) feature switch

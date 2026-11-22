@@ -523,6 +523,9 @@ const (
 	// the Model Plaza page (global pricing notes, exchange rate, promotions, ...).
 	SettingKeyModelPlazaDescription = "model_plaza_description"
 
+	// SettingKeyModelPlazaOfficialPriceOverrides stores the JSON list of public display overrides.
+	SettingKeyModelPlazaOfficialPriceOverrides = "model_plaza_official_price_overrides"
+
 	// SettingKeyPluginManagementEnabled controls sidebar visibility only; it does
 	// not stop or otherwise change already loaded plugin runtimes.
 	SettingKeyPluginManagementEnabled = "plugin_management_enabled"

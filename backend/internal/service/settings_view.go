@@ -219,10 +219,11 @@ type SystemSettings struct {
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
 	// Model Plaza feature (public group/model pricing showcase)
-	ModelPlazaEnabled       bool   `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth   bool   `json:"model_plaza_require_auth"`
-	ModelPlazaDescription   string `json:"model_plaza_description"`
-	PluginManagementEnabled bool   `json:"plugin_management_enabled"`
+	ModelPlazaEnabled                bool                              `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth            bool                              `json:"model_plaza_require_auth"`
+	ModelPlazaDescription            string                            `json:"model_plaza_description"`
+	ModelPlazaOfficialPriceOverrides []ModelPlazaOfficialPriceOverride `json:"model_plaza_official_price_overrides"`
+	PluginManagementEnabled          bool                              `json:"plugin_management_enabled"`
 
 	// Claude Code version check
 	MinClaudeCodeVersion string

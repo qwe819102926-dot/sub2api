@@ -104,7 +104,7 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	}
 
 	// 有专属倍率:user_rate_multiplier 序列化输出
-	dto := toModelPlazaGroupDTO(&g, map[int64]float64{2: 0.5})
+	dto := toModelPlazaGroupDTO(&g, map[int64]float64{2: 0.5}, nil)
 	raw, err := json.Marshal(dto)
 	require.NoError(t, err)
 	var decoded map[string]any
@@ -140,7 +140,7 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	require.False(t, hasTimePricing, "无分时时不输出 time_pricing")
 
 	// 无专属倍率:user_rate_multiplier 整个字段省略
-	dtoNoRate := toModelPlazaGroupDTO(&g, nil)
+	dtoNoRate := toModelPlazaGroupDTO(&g, nil, nil)
 	rawNoRate, err := json.Marshal(dtoNoRate)
 	require.NoError(t, err)
 	var decodedNoRate map[string]any
@@ -151,6 +151,60 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 
 func TestToModelPlazaOfficialPricing_NilPassthrough(t *testing.T) {
 	require.Nil(t, toModelPlazaOfficialPricing(nil))
+}
+
+func TestToModelPlazaGroupDTO_OfficialPriceOverridesAffectOnlyReferencePrices(t *testing.T) {
+	defaultPrice := &service.PlazaOfficialPricing{
+		InputPrice:  testPtr(1e-6),
+		OutputPrice: testPtr(2e-6),
+		Intervals: []service.PricingInterval{
+			{InputPrice: testPtr(1e-6), OutputPrice: testPtr(2e-6)},
+			{InputPrice: testPtr(2e-6), OutputPrice: testPtr(4e-6), CacheReadPrice: testPtr(1e-7)},
+		},
+	}
+	g := service.PlazaGroup{Models: []service.PlazaModel{
+		{
+			Name: "DeepSeek-V4-Pro",
+			Pricing: &service.ChannelModelPricing{
+				BillingMode: service.BillingModeToken,
+				InputPrice:  testPtr(8e-6),
+			},
+			OfficialPricing: defaultPrice,
+		},
+		{Name: "deepseek-v4.1-flash", OfficialPricing: defaultPrice},
+		{Name: "glm-example"},
+		{Name: "kimi-example", OfficialPricing: &service.PlazaOfficialPricing{
+			CacheReadPrice: testPtr(2e-7),
+			Intervals: []service.PricingInterval{
+				{InputPrice: testPtr(1e-6)},
+				{InputPrice: testPtr(2e-6)},
+			},
+		}},
+	}}
+	overrides := map[string]service.ModelPlazaOfficialPriceOverride{
+		"deepseek-v4-pro": {InputPrice: testPtr(3.0), CacheReadPrice: testPtr(0.0)},
+		"glm-example":     {OutputPrice: testPtr(5.0)},
+		"kimi-example":    {CacheWrite1hPrice: testPtr(0.3)},
+	}
+
+	result := toModelPlazaGroupDTO(&g, nil, overrides)
+	pro, flash, glm := result.Models[0], result.Models[1], result.Models[2]
+	require.Equal(t, testPtr(8e-6), pro.Pricing.InputPrice)
+	require.Equal(t, testPtr(3e-6), pro.OfficialPricing.InputPrice)
+	require.Equal(t, testPtr(2e-6), pro.OfficialPricing.OutputPrice)
+	require.Equal(t, testPtr(0.0), pro.OfficialPricing.CacheReadPrice)
+	require.Equal(t, testPtr(3e-6), pro.OfficialPricing.Intervals[1].InputPrice)
+	require.Equal(t, testPtr(4e-6), pro.OfficialPricing.Intervals[1].OutputPrice)
+	require.Equal(t, testPtr(0.0), pro.OfficialPricing.Intervals[1].CacheReadPrice)
+	require.Equal(t, testPtr(1e-6), flash.OfficialPricing.InputPrice)
+	require.Equal(t, testPtr(2e-6), flash.OfficialPricing.Intervals[1].InputPrice)
+	require.Equal(t, testPtr(1e-7), flash.OfficialPricing.Intervals[1].CacheReadPrice)
+	require.Nil(t, glm.OfficialPricing.InputPrice)
+	require.Equal(t, testPtr(5e-6), glm.OfficialPricing.OutputPrice)
+	kimi := result.Models[3].OfficialPricing
+	require.Equal(t, testPtr(2e-7), kimi.CacheReadPrice)
+	require.Equal(t, testPtr(3e-7), kimi.CacheWrite1hPrice)
+	require.Nil(t, kimi.Intervals[0].CacheWrite1hPrice)
 }
 
 func TestToModelPlazaGroupDTO_LongContextTiersAndBasis(t *testing.T) {
@@ -180,7 +234,7 @@ func TestToModelPlazaGroupDTO_LongContextTiersAndBasis(t *testing.T) {
 		}},
 	}
 
-	raw, err := json.Marshal(toModelPlazaGroupDTO(&g, nil))
+	raw, err := json.Marshal(toModelPlazaGroupDTO(&g, nil, nil))
 	require.NoError(t, err)
 	var decoded map[string]any
 	require.NoError(t, json.Unmarshal(raw, &decoded))
@@ -224,7 +278,7 @@ func TestToModelPlazaGroupDTO_TimePricing(t *testing.T) {
 			}},
 		}},
 	}
-	raw, err := json.Marshal(toModelPlazaGroupDTO(&g, nil))
+	raw, err := json.Marshal(toModelPlazaGroupDTO(&g, nil, nil))
 	require.NoError(t, err)
 	var decoded map[string]any
 	require.NoError(t, json.Unmarshal(raw, &decoded))

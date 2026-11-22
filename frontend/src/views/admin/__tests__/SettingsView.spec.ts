@@ -7,6 +7,7 @@ import enSettings from "@/i18n/locales/en/admin/settings";
 import zhCommon from "@/i18n/locales/zh/common";
 import zhSettings from "@/i18n/locales/zh/admin/settings";
 import SettingsView from "../SettingsView.vue";
+import ModelPlazaOfficialPrices from "../settings/ModelPlazaOfficialPrices.vue";
 
 const {
   getSettings,
@@ -780,6 +781,55 @@ describe("admin SettingsView payment visible method controls", () => {
     expect(updateSettings).toHaveBeenCalledWith(
       expect.objectContaining({ channel_monitor_hide_user_ranking: false }),
     );
+    wrapper.unmount();
+  });
+
+  it("saves and removes Model Plaza official reference prices through the settings form", async () => {
+    const settings = {
+      ...baseSettingsResponse,
+      model_plaza_enabled: true,
+      model_plaza_official_price_overrides: [],
+    };
+    getSettings.mockResolvedValue(settings);
+    updateSettings.mockImplementation(async (payload) => ({ ...settings, ...payload }));
+    const wrapper = mountView();
+    await flushPromises();
+    const featuresTab = wrapper.findAll("button")
+      .find((button) => button.text() === "admin.settings.tabs.features");
+    expect(featuresTab).toBeDefined();
+    await featuresTab!.trigger("click");
+
+    const editor = wrapper.getComponent(ModelPlazaOfficialPrices);
+    expect(editor.isVisible()).toBe(true);
+    await wrapper.get("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.lastCall?.[0].model_plaza_official_price_overrides).toBeUndefined();
+
+    await editor.get("button").trigger("click");
+    await editor.get('input[type="text"]').setValue("deepseek-v4-pro");
+    const [input, output, cacheRead] = editor.findAll('input[type="number"]');
+    await input.setValue("0.5");
+    await output.setValue("1.25");
+    await output.setValue("");
+    await cacheRead.setValue("0");
+    await wrapper.get("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.lastCall?.[0].model_plaza_official_price_overrides).toEqual([{
+      model: "deepseek-v4-pro",
+      input_price: 0.5,
+      output_price: null,
+      cache_read_price: 0,
+      cache_write_price: null,
+      cache_write_1h_price: null,
+    }]);
+
+    const remove = editor.findAll("button")
+      .find((button) => button.text() === "admin.settings.features.modelPlaza.removeOfficialPrice");
+    expect(remove).toBeDefined();
+    await remove!.trigger("click");
+    await wrapper.get("form").trigger("submit.prevent");
+    await flushPromises();
+    expect(updateSettings.mock.lastCall?.[0].model_plaza_official_price_overrides).toEqual([]);
     wrapper.unmount();
   });
 

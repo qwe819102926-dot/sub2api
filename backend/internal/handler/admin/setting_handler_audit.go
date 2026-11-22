@@ -2,6 +2,7 @@ package admin
 
 import (
 	"log/slog"
+	"reflect"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -596,6 +597,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.ModelPlazaDescription != after.ModelPlazaDescription {
 		changed = append(changed, "model_plaza_description")
+	}
+	if !reflect.DeepEqual(before.ModelPlazaOfficialPriceOverrides, after.ModelPlazaOfficialPriceOverrides) {
+		changed = append(changed, "model_plaza_official_price_overrides")
 	}
 	if before.SignupBonusEnabled != after.SignupBonusEnabled {
 		changed = append(changed, "signup_bonus_enabled")
