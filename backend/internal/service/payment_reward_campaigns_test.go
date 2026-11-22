@@ -11,6 +11,8 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 
 	"entgo.io/ent/dialect"
@@ -81,6 +83,92 @@ func TestDailyCheckinBusinessDateAtShanghaiMidnight(t *testing.T) {
 	require.Equal(t, "2026-11-01", dailyCheckinDate(before.Add(time.Second)).Format("2006-01-02"))
 }
 
+func TestDailyCheckinRechargeEligibility(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	_, err := client.ExecContext(ctx, `ALTER TABLE users ADD COLUMN bonus_balance DECIMAL(20,8) NOT NULL DEFAULT 0`)
+	require.NoError(t, err)
+	user, err := client.User.Create().SetEmail("checkin-recharge@example.com").SetPasswordHash("hash").Save(ctx)
+	require.NoError(t, err)
+	_, err = client.ExecContext(ctx, `UPDATE users SET bonus_balance = 50 WHERE id = ?`, user.ID)
+	require.NoError(t, err)
+	other, err := client.User.Create().SetEmail("other-recharge@example.com").SetPasswordHash("hash").Save(ctx)
+	require.NoError(t, err)
+	now := time.Date(2026, 11, 22, 12, 0, 0, 0, dailyCheckinLocation)
+	cutoff := now.Add(-30 * 24 * time.Hour)
+
+	eligible, err := hasDailyCheckinRecharge(ctx, client.PaymentOrder, user.ID, now)
+	require.NoError(t, err)
+	require.False(t, eligible, "bonus balance alone does not qualify")
+
+	for _, tc := range []struct {
+		name     string
+		userID   int64
+		kind     string
+		status   string
+		amount   float64
+		paidAt   time.Time
+		eligible bool
+	}{
+		{"recent recharge", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now.Add(-time.Hour), true},
+		{"at cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, cutoff, true},
+		{"before cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, cutoff.Add(-time.Second), false},
+		{"future payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now.Add(time.Second), false},
+		{"no payment time", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, time.Time{}, false},
+		{"subscription", user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, 5, now, false},
+		{"unfulfilled order", user.ID, payment.OrderTypeBalance, OrderStatusPaid, 5, now, false},
+		{"refunded order", user.ID, payment.OrderTypeBalance, OrderStatusRefunded, 5, now, false},
+		{"zero payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 0, now, false},
+		{"another user's order", other.ID, payment.OrderTypeBalance, OrderStatusCompleted, 5, now, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			create := client.PaymentOrder.Create().SetUserID(tc.userID).SetUserEmail(user.Email).SetUserName("checkin").
+				SetAmount(5).SetPayAmount(tc.amount).SetRechargeCode("checkin").SetPaymentType(payment.TypeAlipay).
+				SetPaymentTradeNo("checkin").SetOrderType(tc.kind).SetStatus(tc.status).
+				SetClientIP("127.0.0.1").SetSrcHost("example.com").SetExpiresAt(now.Add(time.Hour))
+			if !tc.paidAt.IsZero() {
+				create.SetPaidAt(tc.paidAt)
+			}
+			order, err := create.Save(ctx)
+			require.NoError(t, err)
+			t.Cleanup(func() { require.NoError(t, client.PaymentOrder.DeleteOneID(order.ID).Exec(ctx)) })
+
+			eligible, err := hasDailyCheckinRecharge(ctx, client.PaymentOrder, user.ID, now)
+			require.NoError(t, err)
+			require.Equal(t, tc.eligible, eligible)
+		})
+	}
+}
+
+func expectDailyCheckinRecharge(mock sqlmock.Sqlmock, eligible bool) {
+	rows := sqlmock.NewRows([]string{"id"})
+	if eligible {
+		rows.AddRow(1)
+	}
+	mock.ExpectQuery(`SELECT .* FROM "payment_orders" WHERE .*LIMIT 1`).
+		WithArgs(int64(42), payment.OrderTypeBalance, OrderStatusCompleted, float64(0), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WillReturnRows(rows)
+}
+
+func TestClaimDailyCheckinRequiresRecentRecharge(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	service := newPaymentServiceForSQLMock(db)
+	t.Cleanup(func() { _ = service.entClient.Close() })
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(dailyCheckinDate(time.Now()).AddDate(0, 0, -1), 5))
+	expectDailyCheckinRecharge(mock, false)
+	mock.ExpectRollback()
+
+	status, err := service.ClaimDailyCheckin(context.Background(), 42)
+	require.Nil(t, status)
+	require.True(t, infraerrors.IsForbidden(err))
+	require.Equal(t, "CHECKIN_RECHARGE_REQUIRED", infraerrors.Reason(err))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestGetDailyCheckinStatusReturnsRowsError(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
@@ -112,7 +200,8 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(today, 1))
+		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}))
+	expectDailyCheckinRecharge(mock, true)
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*ON CONFLICT \(user_id, checkin_date\) DO NOTHING.*RETURNING id`).
 		WithArgs(int64(42), today, 1, &checkinRewardArgument{}).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}))
@@ -127,10 +216,12 @@ func TestClaimDailyCheckinDuplicateIsIdempotent(t *testing.T) {
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, 0.10))
+	expectDailyCheckinRecharge(mock, false)
 
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)
+	require.False(t, status.HasRecentRecharge)
 	require.Equal(t, 1, status.TotalDays)
 	require.Equal(t, 0.10, status.TodayReward, "duplicate claims preserve the amount originally credited")
 	require.NoError(t, mock.ExpectationsWereMet())
@@ -148,6 +239,7 @@ func TestClaimDailyCheckinRollsBackWhenUserIsNotUpdated(t *testing.T) {
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}))
+	expectDailyCheckinRecharge(mock, true)
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*RETURNING id`).
 		WithArgs(int64(42), sqlmock.AnyArg(), 1, reward).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(7))
@@ -176,6 +268,7 @@ func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(previous, 4))
+	expectDailyCheckinRecharge(mock, true)
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*RETURNING id`).
 		WithArgs(int64(42), today, 1, reward).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(8))
@@ -193,6 +286,7 @@ func TestClaimDailyCheckinResetsStreakAfterBreak(t *testing.T) {
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
 		WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 1, 0.37))
+	expectDailyCheckinRecharge(mock, true)
 
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
@@ -216,9 +310,11 @@ func TestGetDailyCheckinHistoricalMonthPreservesToday(t *testing.T) {
 		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(30, 35.8))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).
 		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 100.0))
+	expectDailyCheckinRecharge(mock, true)
 	status, err := service.GetDailyCheckinStatus(context.Background(), 42, "2025-01")
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)
+	require.True(t, status.HasRecentRecharge)
 	require.Equal(t, 30, status.CurrentStreak)
 	require.Equal(t, 30, status.CycleDay)
 	require.Equal(t, 100.0, status.TodayReward, "historical credits retain the original reward amount")
@@ -239,6 +335,7 @@ func TestClaimDailyCheckinMilestoneCreditsOnlyBonusBalance(t *testing.T) {
 	mock.ExpectBegin()
 	mock.ExpectQuery(`(?s)SELECT checkin_date, streak_day.*FOR UPDATE`).WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day"}).AddRow(today.AddDate(0, 0, -1), 29))
+	expectDailyCheckinRecharge(mock, true)
 	mock.ExpectQuery(`(?s)INSERT INTO user_daily_checkins.*RETURNING id`).WithArgs(int64(42), today, 30, 10.0).
 		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(30))
 	mock.ExpectExec(`UPDATE users SET bonus_balance = COALESCE\(bonus_balance, 0\) \+ \$1, updated_at = NOW\(\) WHERE id = \$2 AND deleted_at IS NULL`).
@@ -251,6 +348,7 @@ func TestClaimDailyCheckinMilestoneCreditsOnlyBonusBalance(t *testing.T) {
 		WithArgs(int64(42)).WillReturnRows(sqlmock.NewRows([]string{"count", "total"}).AddRow(30, 32.0))
 	mock.ExpectQuery(`SELECT checkin_date, streak_day, reward_amount FROM user_daily_checkins`).WithArgs(int64(42)).
 		WillReturnRows(sqlmock.NewRows([]string{"checkin_date", "streak_day", "reward_amount"}).AddRow(today, 30, 10.0))
+	expectDailyCheckinRecharge(mock, true)
 	status, err := service.ClaimDailyCheckin(context.Background(), 42)
 	require.NoError(t, err)
 	require.True(t, status.CheckedInToday)

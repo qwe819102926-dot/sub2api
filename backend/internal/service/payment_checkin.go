@@ -6,12 +6,18 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"time"
+
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
-	dailyCheckinCycleLength = 30
-	dailyCheckinMinCents    = 20
-	dailyCheckinMaxCents    = 30
+	dailyCheckinCycleLength    = 30
+	dailyCheckinMinCents       = 20
+	dailyCheckinMaxCents       = 30
+	dailyCheckinRechargeWindow = 30 * 24 * time.Hour
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
@@ -57,6 +63,8 @@ type DailyCheckinStatus struct {
 	NextResetAt     string                  `json:"next_reset_at"`
 	OrdinaryRewards []float64               `json:"ordinary_rewards"` // Inclusive [minimum, maximum] range.
 	Milestones      []DailyCheckinMilestone `json:"milestones"`
+
+	HasRecentRecharge bool `json:"has_recent_recharge"`
 }
 
 // Store the business calendar date as UTC midnight so PostgreSQL DATE values
@@ -80,6 +88,17 @@ func dailyCheckinReward(streakDay int) float64 {
 		return preview
 	}
 	return float64(dailyCheckinMinCents+rand.IntN(dailyCheckinMaxCents-dailyCheckinMinCents+1)) / 100
+}
+
+func hasDailyCheckinRecharge(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (bool, error) {
+	return orders.Query().Where(
+		paymentorder.UserIDEQ(userID),
+		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
+		paymentorder.StatusEQ(OrderStatusCompleted),
+		paymentorder.PayAmountGT(0),
+		paymentorder.PaidAtGTE(now.Add(-dailyCheckinRechargeWindow)),
+		paymentorder.PaidAtLTE(now),
+	).Exist(ctx)
 }
 
 func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64, month string) (*DailyCheckinStatus, error) {
@@ -181,11 +200,16 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 		status.CycleDay = (status.CurrentStreak % status.CycleLength) + 1
 		status.TodayReward = dailyCheckinRewardPreview(status.CurrentStreak + 1)
 	}
+	status.HasRecentRecharge, err = hasDailyCheckinRecharge(ctx, s.entClient.PaymentOrder, userID, now)
+	if err != nil {
+		return nil, fmt.Errorf("check recent recharge: %w", err)
+	}
 	return status, nil
 }
 
 func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*DailyCheckinStatus, error) {
-	today := dailyCheckinDate(time.Now())
+	now := time.Now()
+	today := dailyCheckinDate(now)
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("start check-in transaction: %w", err)
@@ -210,9 +234,20 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 	streak := 1
 	if !previousDate.IsZero() {
 		previous := time.Date(previousDate.Year(), previousDate.Month(), previousDate.Day(), 0, 0, 0, 0, time.UTC)
+		if previous.Equal(today) {
+			_ = tx.Rollback()
+			return s.GetDailyCheckinStatus(ctx, userID, today.Format("2006-01"))
+		}
 		if previous.AddDate(0, 0, 1).Equal(today) {
 			streak = previousStreak + 1
 		}
+	}
+	hasRecharge, err := hasDailyCheckinRecharge(ctx, tx.PaymentOrder, userID, now)
+	if err != nil {
+		return nil, fmt.Errorf("check recent recharge: %w", err)
+	}
+	if !hasRecharge {
+		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "A completed balance recharge in the last 30 days is required to check in")
 	}
 	reward := dailyCheckinReward(streak)
 	var recordID int64

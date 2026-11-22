@@ -50,6 +50,7 @@ export default {
     pending: 'Not yet checked in',
     noRecord: 'No check-in record',
     projectedNode: 'Projected streak day {day}',
+    rechargeRequired: 'Check-in requires a completed balance recharge in the last 30 days. Bonus balance granted by an administrator does not count.',
     ordinaryRule: 'Check in once a day. Ordinary days award a random {rewards} bonus balance; the credited amount is shown after check-in.',
     milestoneRule: 'Streak days 3, 7, 15 and 30 award a total of 1, 3, 5 and 10, replacing the ordinary daily reward.',
     resetRule: 'Rewards repeat every {days} days across calendar months. A missed day resets the streak. Check-in resets at 00:00 Asia/Shanghai. All rewards go to bonus balance.'

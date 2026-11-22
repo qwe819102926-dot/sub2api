@@ -24,12 +24,22 @@
             </section>
             <aside>
               <section class="ci-stage"><div class="ci-stage-heading"><h3><Icon name="trophy" size="sm" />{{ t('checkin.stages') }}</h3><span>{{ completedInCycle }} / {{ status.cycle_length }} {{ t('checkin.days') }}</span></div><p class="ci-muted">{{ t('checkin.stageHint') }}</p><div class="ci-milestones"><button v-for="milestone in milestones" :key="milestone.day" type="button" class="ci-milestone" :class="{ complete: milestone.day <= completedInCycle, next: milestone.day === nextMilestone?.day }" :disabled="loading || submitting" :aria-label="`${t('checkin.streakDay', { day: milestone.day })}, ${t('checkin.dayTotal')}, +${format(milestone.reward)}, ${milestone.date}`" @click="selectMilestone(milestone.date)"><span>{{ t('checkin.nodeDay', { day: milestone.day }) }}<Icon name="gift" size="xs" /></span><strong>+{{ format(milestone.reward) }}</strong><small>{{ t('checkin.dayTotal') }}</small><small>{{ milestone.day <= completedInCycle ? t('checkin.reached') : t('checkin.remaining', { days: milestone.day - completedInCycle }) }}</small></button></div></section>
-              <section class="ci-claim" aria-live="polite"><p>{{ t(status.checked_in_today ? 'checkin.checkedEntry' : 'checkin.todayLabel') }}</p><strong v-if="todayRewardLabel">{{ todayRewardLabel }}<small>{{ t('checkin.bonusUnit') }}</small></strong><p>{{ t('checkin.bonusOnly') }}</p><button type="button" class="ci-action" :disabled="loading || submitting || status.checked_in_today" @click="claim"><Icon :name="status.checked_in_today ? 'check' : 'gift'" size="sm" />{{ t(status.checked_in_today ? 'checkin.checkedEntry' : submitting ? 'common.processing' : 'checkin.checkinNow') }}</button></section>
+              <section class="ci-claim" aria-live="polite">
+                <template v-if="status.checked_in_today || status.has_recent_recharge">
+                  <p>{{ t(status.checked_in_today ? 'checkin.checkedEntry' : 'checkin.todayLabel') }}</p>
+                  <strong v-if="todayRewardLabel">{{ todayRewardLabel }}<small>{{ t('checkin.bonusUnit') }}</small></strong>
+                  <p>{{ t('checkin.bonusOnly') }}</p>
+                </template>
+                <p v-else>{{ t('checkin.rechargeRequired') }}</p>
+                <button type="button" class="ci-action" :disabled="loading || submitting || status.checked_in_today || !status.has_recent_recharge" @click="claim">
+                  <Icon :name="status.checked_in_today ? 'check' : 'gift'" size="sm" />{{ t(status.checked_in_today ? 'checkin.checkedEntry' : submitting ? 'common.processing' : 'checkin.checkinNow') }}
+                </button>
+              </section>
               <section class="ci-records"><div><h3>{{ t('checkin.recentRecords') }}</h3><button v-if="status.records.length > 3" type="button" class="ci-link" :aria-expanded="allRecords" @click="allRecords = !allRecords">{{ t(allRecords ? 'checkin.lessRecords' : 'checkin.allRecords') }}</button></div><div v-for="record in recentRecords" :key="record.date" class="ci-record"><span>{{ record.date }}<small>{{ t('checkin.streakDay', { day: record.streak_day }) }}</small></span><strong>+{{ format(record.reward) }}</strong></div><p v-if="!recentRecords.length" class="ci-muted">{{ t('checkin.noRecords') }}</p></section>
             </aside>
           </div>
           <footer class="ci-footer"><span>{{ t('checkin.totalReward') }} <strong>+{{ format(status.total_reward) }}</strong></span><button type="button" class="ci-link" :aria-expanded="showRules" @click="showRules = !showRules">{{ t('checkin.rules') }}<Icon :name="showRules ? 'chevronUp' : 'chevronDown'" size="xs" /></button></footer>
-          <div v-if="showRules" class="ci-rules"><p>{{ t('checkin.ordinaryRule', { rewards: status.ordinary_rewards.map(format).join('～') }) }}</p><p>{{ t('checkin.milestoneRule') }}</p><p>{{ t('checkin.resetRule', { days: status.cycle_length }) }}</p></div>
+          <div v-if="showRules" class="ci-rules"><p>{{ t('checkin.rechargeRequired') }}</p><p>{{ t('checkin.ordinaryRule', { rewards: status.ordinary_rewards.map(format).join('～') }) }}</p><p>{{ t('checkin.milestoneRule') }}</p><p>{{ t('checkin.resetRule', { days: status.cycle_length }) }}</p></div>
         </div>
       </section>
     </div>
@@ -145,7 +155,7 @@ async function changeMonth(offset: number) {
 }
 async function selectMilestone(date: string) { selectedDate.value = date; if (status.value?.month !== date.slice(0, 7)) await load(date.slice(0, 7)) }
 async function claim() {
-  if (!status.value || submitting.value || status.value.checked_in_today || !auth.user) return
+  if (!status.value?.has_recent_recharge || loading.value || submitting.value || status.value.checked_in_today || !auth.user) return
   const owner = auth.user.id
   const request = ++revision
   submitting.value = true
@@ -158,7 +168,13 @@ async function claim() {
     app.showSuccess(t('checkin.success'))
     emit('checked')
     await auth.refreshUser().catch(() => undefined)
-  } catch { if (active && request === revision) app.showError(t('checkin.failed')) }
+  } catch (error) {
+    if (active && request === revision && auth.user?.id === owner) {
+      const rechargeRequired = typeof error === 'object' && error !== null && 'reason' in error && error.reason === 'CHECKIN_RECHARGE_REQUIRED'
+      if (rechargeRequired && status.value) status.value.has_recent_recharge = false
+      app.showError(t(rechargeRequired ? 'checkin.rechargeRequired' : 'checkin.failed'))
+    }
+  }
   finally { if (active && request === revision) { submitting.value = false; loading.value = false; void load(status.value?.month, false) } }
 }
 function refreshOnFocus() { if (document.visibilityState !== 'hidden' && Date.now() - lastLoaded > 60000) void load(status.value?.month, false) }

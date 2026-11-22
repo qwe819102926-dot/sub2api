@@ -18,7 +18,7 @@ function translate(key: string, params: Record<string, string | number> = {}) {
 }
 function initialStatus(): DailyCheckinStatus {
   return {
-    checked_in_today: false, current_streak: 3, total_days: 3, total_reward: 40,
+    checked_in_today: false, has_recent_recharge: true, current_streak: 3, total_days: 3, total_reward: 40,
     cycle_day: 4, cycle_length: 30, today_reward: 0.2, reward_cycle: [],
     today: '2026-10-21', next_reset_at: '2026-10-22T00:00:00+08:00', month: '2026-10',
     ordinary_rewards: [0.2, 0.3], milestones: [{ day: 3, reward: 1 }, { day: 7, reward: 3 }, { day: 15, reward: 5 }, { day: 30, reward: 10 }],
@@ -60,6 +60,30 @@ describe('daily check-in header and calendar', () => {
     document.querySelector<HTMLButtonElement>('.ci-footer .ci-link')!.click(); await flushPromises()
     expect(document.querySelector('.ci-rules')?.textContent).toContain('普通日随机领取 0.20～0.30')
     expect(document.querySelector('.ci-rules')?.textContent).toContain('1、3、5、10')
+    expect(document.querySelector('.ci-rules')?.textContent).toContain(zh.checkin.rechargeRequired)
+  })
+  it('disables claiming without a recent recharge and refreshes eligibility when reopened', async () => {
+    server = { ...server, has_recent_recharge: false }
+    await render(); await open()
+    const button = document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')!
+    expect(button.disabled).toBe(true)
+    expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeRequired)
+    button.click()
+    expect(mocks.claim).not.toHaveBeenCalled()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    server = { ...server, has_recent_recharge: true }
+    await open()
+    expect(document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')?.disabled).toBe(false)
+  })
+  it('shows the recharge rule when eligibility expires after the dialog loads', async () => {
+    await render(); await open()
+    mocks.claim.mockRejectedValueOnce({ reason: 'CHECKIN_RECHARGE_REQUIRED' })
+    server = { ...server, has_recent_recharge: false }
+    document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')!.click()
+    await flushPromises()
+    expect(mocks.error).toHaveBeenCalledWith(zh.checkin.rechargeRequired)
+    expect(document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')?.disabled).toBe(true)
   })
   it('opens a centered dialog and marks milestones by streak dates, including across months', async () => {
     await render()
