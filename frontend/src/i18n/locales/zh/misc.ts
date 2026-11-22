@@ -50,7 +50,7 @@ export default {
     pending: '待签到',
     noRecord: '暂无签到记录',
     projectedNode: '预计连续第 {day} 天',
-    rechargeRequired: '近 30 天内单笔实付充值满 9.9 元即可签到。',
+    rechargeRequired: '近 30 天内累计实付充值满 9.9 元即可签到。',
     rechargeGiftExcluded: '管理员赠送余额不计入。',
     rechargeToUnlock: '充值达标后可签到',
     rechargeUnmet: '暂未达标',

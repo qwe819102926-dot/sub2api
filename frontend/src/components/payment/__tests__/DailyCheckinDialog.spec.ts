@@ -69,7 +69,7 @@ describe('daily check-in header and calendar', () => {
     const button = document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')!
     expect(button.disabled).toBe(true)
     expect(button.textContent?.trim()).toBe(zh.checkin.rechargeUnmet)
-    expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeRequired)
+    expect(document.querySelector('.ci-claim')?.textContent).toContain('累计实付充值满 9.9 元')
     expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeGiftExcluded)
     const qr = document.querySelector<HTMLImageElement>('.ci-trial-qr img')!
     expect(qr.alt).toBe(zh.checkin.trialQR)

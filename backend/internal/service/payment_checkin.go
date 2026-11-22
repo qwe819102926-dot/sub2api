@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -96,15 +98,21 @@ func hasDailyCheckinRecharge(ctx context.Context, orders *dbent.PaymentOrderClie
 		paymentorder.UserIDEQ(userID),
 		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
 		paymentorder.StatusEQ(OrderStatusCompleted),
-		paymentorder.PayAmountGTE(dailyCheckinMinRechargeCNY),
+		paymentorder.PayAmountGT(0),
 		paymentorder.PaidAtGTE(now.Add(-dailyCheckinRechargeWindow)),
 		paymentorder.PaidAtLTE(now),
-	).Select(paymentorder.FieldProviderSnapshot).All(ctx)
+	).Select(paymentorder.FieldPayAmount, paymentorder.FieldProviderSnapshot).All(ctx)
 	if err != nil {
 		return false, err
 	}
+	total := decimal.Zero
+	minimum := decimal.NewFromFloat(dailyCheckinMinRechargeCNY)
 	for _, order := range matching {
-		if PaymentOrderCurrency(order) == payment.DefaultPaymentCurrency {
+		if PaymentOrderCurrency(order) != payment.DefaultPaymentCurrency || math.IsNaN(order.PayAmount) || math.IsInf(order.PayAmount, 0) {
+			continue
+		}
+		total = total.Add(decimal.NewFromFloat(order.PayAmount))
+		if total.GreaterThanOrEqual(minimum) {
 			return true, nil
 		}
 	}
@@ -257,7 +265,7 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 		return nil, fmt.Errorf("check recent recharge: %w", err)
 	}
 	if !hasRecharge {
-		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires a single completed balance recharge of at least CNY 9.90 paid in the last 30 days")
+		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires at least CNY 9.90 in completed balance recharges paid in the last 30 days")
 	}
 	reward := dailyCheckinReward(streak)
 	var recordID int64

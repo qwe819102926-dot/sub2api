@@ -50,7 +50,7 @@ export default {
     pending: 'Not yet checked in',
     noRecord: 'No check-in record',
     projectedNode: 'Projected streak day {day}',
-    rechargeRequired: 'Make a single balance recharge of at least ¥9.90 in the last 30 days to check in.',
+    rechargeRequired: 'Check in after paying a total of at least ¥9.90 in balance recharges over the last 30 days.',
     rechargeGiftExcluded: 'Bonus balance granted by an administrator does not count.',
     rechargeToUnlock: 'Recharge to unlock check-in',
     rechargeUnmet: 'Recharge required',
