@@ -308,7 +308,17 @@ func sanitizeGroupOpenAIFast(group *Group) {
 	}
 }
 
+func validateGroupUserConcurrencyLimit(limit int) error {
+	if limit < 0 || limit > 2147483647 {
+		return infraerrors.Newf(http.StatusBadRequest, "INVALID_USER_CONCURRENCY_LIMIT", "user_concurrency_limit must be an integer from 0 to 2147483647")
+	}
+	return nil
+}
+
 func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupInput) (*Group, error) {
+	if err := validateGroupUserConcurrencyLimit(input.UserConcurrencyLimit); err != nil {
+		return nil, err
+	}
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
@@ -539,6 +549,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		// 成员关系无从校验（前端创建对话框也不展示）。
 		CodexModelsManifestConfig:   normalizeCodexModelsManifestConfig(platform, input.CodexModelsManifestConfig),
 		RPMLimit:                    input.RPMLimit,
+		UserConcurrencyLimit:        input.UserConcurrencyLimit,
 		MaxReasoningEffort:          maxReasoningEffort,
 		MaxReasoningEffortOverLimit: maxReasoningEffortOverLimit,
 		ReasoningEffortMappings:     reasoningEffortMappings,
@@ -924,6 +935,12 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.CodexModelsManifestConfig != nil {
 		group.CodexModelsManifestConfig = *input.CodexModelsManifestConfig
+	}
+	if input.UserConcurrencyLimit != nil {
+		if err := validateGroupUserConcurrencyLimit(*input.UserConcurrencyLimit); err != nil {
+			return nil, err
+		}
+		group.UserConcurrencyLimit = *input.UserConcurrencyLimit
 	}
 	if input.RPMLimit != nil {
 		group.RPMLimit = *input.RPMLimit

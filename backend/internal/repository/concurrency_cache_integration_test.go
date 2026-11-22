@@ -113,6 +113,7 @@ func (s *ConcurrencyCacheSuite) TestLiveLease_CountsTowardRegularAccountAndUserL
 		apiKeyID,
 		"live-integration",
 		false,
+		service.LiveGroupConcurrency{},
 	)
 	require.NoError(s.T(), err)
 	require.True(s.T(), acquired)
@@ -124,10 +125,10 @@ func (s *ConcurrencyCacheSuite) TestLiveLease_CountsTowardRegularAccountAndUserL
 	require.NoError(s.T(), err)
 	require.False(s.T(), regularUser)
 
-	refreshed, err := liveCache.RefreshLiveLease(s.ctx, accountID, userID, apiKeyID, "live-integration")
+	refreshed, err := liveCache.RefreshLiveLease(s.ctx, accountID, userID, apiKeyID, 0, "live-integration")
 	require.NoError(s.T(), err)
 	require.True(s.T(), refreshed)
-	require.NoError(s.T(), liveCache.ReleaseLiveLease(s.ctx, accountID, userID, apiKeyID, "live-integration"))
+	require.NoError(s.T(), liveCache.ReleaseLiveLease(s.ctx, accountID, userID, apiKeyID, 0, "live-integration"))
 	regularAccount, err = s.cache.AcquireAccountSlot(s.ctx, accountID, 1, "regular-account")
 	require.NoError(s.T(), err)
 	require.True(s.T(), regularAccount)

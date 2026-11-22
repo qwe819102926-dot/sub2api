@@ -1101,6 +1101,27 @@ func (_u *GroupUpdate) SetNillableCodexModelsManifestConfig(v *domain.GroupCodex
 	return _u
 }
 
+// SetUserConcurrencyLimit sets the "user_concurrency_limit" field.
+func (_u *GroupUpdate) SetUserConcurrencyLimit(v int) *GroupUpdate {
+	_u.mutation.ResetUserConcurrencyLimit()
+	_u.mutation.SetUserConcurrencyLimit(v)
+	return _u
+}
+
+// SetNillableUserConcurrencyLimit sets the "user_concurrency_limit" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableUserConcurrencyLimit(v *int) *GroupUpdate {
+	if v != nil {
+		_u.SetUserConcurrencyLimit(*v)
+	}
+	return _u
+}
+
+// AddUserConcurrencyLimit adds value to the "user_concurrency_limit" field.
+func (_u *GroupUpdate) AddUserConcurrencyLimit(v int) *GroupUpdate {
+	_u.mutation.AddUserConcurrencyLimit(v)
+	return _u
+}
+
 // SetRpmLimit sets the "rpm_limit" field.
 func (_u *GroupUpdate) SetRpmLimit(v int) *GroupUpdate {
 	_u.mutation.ResetRpmLimit()
@@ -1538,6 +1559,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UserConcurrencyLimit(); ok {
+		if err := group.UserConcurrencyLimitValidator(v); err != nil {
+			return &ValidationError{Name: "user_concurrency_limit", err: fmt.Errorf(`ent: validator failed for field "Group.user_concurrency_limit": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MaxReasoningEffort(); ok {
 		if err := group.MaxReasoningEffortValidator(v); err != nil {
 			return &ValidationError{Name: "max_reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort": %w`, err)}
@@ -1881,6 +1907,12 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.CodexModelsManifestConfig(); ok {
 		_spec.SetField(group.FieldCodexModelsManifestConfig, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.UserConcurrencyLimit(); ok {
+		_spec.SetField(group.FieldUserConcurrencyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserConcurrencyLimit(); ok {
+		_spec.AddField(group.FieldUserConcurrencyLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RpmLimit(); ok {
 		_spec.SetField(group.FieldRpmLimit, field.TypeInt, value)
@@ -3295,6 +3327,27 @@ func (_u *GroupUpdateOne) SetNillableCodexModelsManifestConfig(v *domain.GroupCo
 	return _u
 }
 
+// SetUserConcurrencyLimit sets the "user_concurrency_limit" field.
+func (_u *GroupUpdateOne) SetUserConcurrencyLimit(v int) *GroupUpdateOne {
+	_u.mutation.ResetUserConcurrencyLimit()
+	_u.mutation.SetUserConcurrencyLimit(v)
+	return _u
+}
+
+// SetNillableUserConcurrencyLimit sets the "user_concurrency_limit" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableUserConcurrencyLimit(v *int) *GroupUpdateOne {
+	if v != nil {
+		_u.SetUserConcurrencyLimit(*v)
+	}
+	return _u
+}
+
+// AddUserConcurrencyLimit adds value to the "user_concurrency_limit" field.
+func (_u *GroupUpdateOne) AddUserConcurrencyLimit(v int) *GroupUpdateOne {
+	_u.mutation.AddUserConcurrencyLimit(v)
+	return _u
+}
+
 // SetRpmLimit sets the "rpm_limit" field.
 func (_u *GroupUpdateOne) SetRpmLimit(v int) *GroupUpdateOne {
 	_u.mutation.ResetRpmLimit()
@@ -3745,6 +3798,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "default_mapped_model", err: fmt.Errorf(`ent: validator failed for field "Group.default_mapped_model": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.UserConcurrencyLimit(); ok {
+		if err := group.UserConcurrencyLimitValidator(v); err != nil {
+			return &ValidationError{Name: "user_concurrency_limit", err: fmt.Errorf(`ent: validator failed for field "Group.user_concurrency_limit": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.MaxReasoningEffort(); ok {
 		if err := group.MaxReasoningEffortValidator(v); err != nil {
 			return &ValidationError{Name: "max_reasoning_effort", err: fmt.Errorf(`ent: validator failed for field "Group.max_reasoning_effort": %w`, err)}
@@ -4105,6 +4163,12 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.CodexModelsManifestConfig(); ok {
 		_spec.SetField(group.FieldCodexModelsManifestConfig, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.UserConcurrencyLimit(); ok {
+		_spec.SetField(group.FieldUserConcurrencyLimit, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedUserConcurrencyLimit(); ok {
+		_spec.AddField(group.FieldUserConcurrencyLimit, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.RpmLimit(); ok {
 		_spec.SetField(group.FieldRpmLimit, field.TypeInt, value)

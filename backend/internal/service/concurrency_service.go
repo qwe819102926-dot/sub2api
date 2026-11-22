@@ -55,6 +55,12 @@ type ConcurrencyCache interface {
 	CleanupStaleProcessSlots(ctx context.Context, activeRequestPrefix string) error
 }
 
+// GroupUserConcurrencyCache stores distributed slots shared by every key of a user in a group.
+type GroupUserConcurrencyCache interface {
+	AcquireGroupUserSlot(ctx context.Context, groupID, userID int64, limit int, requestID string) (bool, error)
+	ReleaseGroupUserSlot(ctx context.Context, groupID, userID int64, requestID string) error
+}
+
 type APIKeyConcurrencyCache interface {
 	TrackAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
 	ReleaseAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error
@@ -411,6 +417,36 @@ func (s *ConcurrencyService) AcquireUserSlot(ctx context.Context, userID int64, 
 	return &AcquireResult{
 		Acquired:    false,
 		ReleaseFunc: nil,
+	}, nil
+}
+
+// AcquireGroupUserSlot attempts to acquire one of the configured group slots.
+func (s *ConcurrencyService) AcquireGroupUserSlot(ctx context.Context, groupID, userID int64, limit int) (*AcquireResult, error) {
+	if s == nil {
+		return nil, errors.New("group concurrency service is unavailable")
+	}
+	cache, ok := s.cache.(GroupUserConcurrencyCache)
+	if !ok {
+		return nil, errors.New("group concurrency cache is unavailable")
+	}
+
+	requestID := generateRequestID()
+	acquired, err := cache.AcquireGroupUserSlot(ctx, groupID, userID, limit, requestID)
+	if err != nil {
+		return nil, err
+	}
+	if !acquired {
+		return &AcquireResult{}, nil
+	}
+	return &AcquireResult{
+		Acquired: true,
+		ReleaseFunc: func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := cache.ReleaseGroupUserSlot(bgCtx, groupID, userID, requestID); err != nil {
+				logger.LegacyPrintf("service.concurrency", "Warning: failed to release group %d user %d slot (req=%s): %v", groupID, userID, requestID, err)
+			}
+		},
 	}, nil
 }
 

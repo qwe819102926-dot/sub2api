@@ -26,7 +26,7 @@ func TestLiveLeaseReplacesRegularSlotsAndCountsTowardLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, userAcquired)
 
-	acquired, err := live.AcquireLiveLease(ctx, 10, 1, 20, 1, 30, "live-lease", true)
+	acquired, err := live.AcquireLiveLease(ctx, 10, 1, 20, 1, 30, "live-lease", true, service.LiveGroupConcurrency{})
 	require.NoError(t, err)
 	require.True(t, acquired)
 	require.NoError(t, regular.ReleaseAccountSlot(ctx, 10, "regular-account"))
@@ -42,10 +42,10 @@ func TestLiveLeaseReplacesRegularSlotsAndCountsTowardLimits(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, accountAcquired)
 
-	refreshed, err := live.RefreshLiveLease(ctx, 10, 20, 30, "live-lease")
+	refreshed, err := live.RefreshLiveLease(ctx, 10, 20, 30, 0, "live-lease")
 	require.NoError(t, err)
 	require.True(t, refreshed)
-	require.NoError(t, live.ReleaseLiveLease(ctx, 10, 20, 30, "live-lease"))
+	require.NoError(t, live.ReleaseLiveLease(ctx, 10, 20, 30, 0, "live-lease"))
 	accountAcquired, err = regular.AcquireAccountSlot(ctx, 10, 1, "ordinary-allowed")
 	require.NoError(t, err)
 	require.True(t, accountAcquired)
@@ -59,7 +59,7 @@ func TestLiveLeaseExpiresWithoutRefresh(t *testing.T) {
 	require.True(t, ok)
 	ctx := context.Background()
 
-	acquired, err := live.AcquireLiveLease(ctx, 10, 1, 20, 1, 30, "expired-live", false)
+	acquired, err := live.AcquireLiveLease(ctx, 10, 1, 20, 1, 30, "expired-live", false, service.LiveGroupConcurrency{})
 	require.NoError(t, err)
 	require.True(t, acquired)
 
@@ -67,7 +67,42 @@ func TestLiveLeaseExpiresWithoutRefresh(t *testing.T) {
 	acquired, err = regular.AcquireAccountSlot(ctx, 10, 1, "ordinary-after-expiry")
 	require.NoError(t, err)
 	require.True(t, acquired)
-	refreshed, err := live.RefreshLiveLease(ctx, 10, 20, 30, "expired-live")
+	refreshed, err := live.RefreshLiveLease(ctx, 10, 20, 30, 0, "expired-live")
 	require.NoError(t, err)
 	require.False(t, refreshed)
+}
+
+func TestGroupUserConcurrencySharedWithLiveLeases(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { _ = client.Close() })
+	cache := NewConcurrencyCache(client, 15, 900).(*concurrencyCache)
+	ctx := context.Background()
+	group := service.LiveGroupConcurrency{GroupID: 40, Limit: 1}
+
+	acquired, err := cache.AcquireGroupUserSlot(ctx, 40, 20, 1, "regular")
+	require.NoError(t, err)
+	require.True(t, acquired)
+	acquired, err = cache.AcquireLiveLease(ctx, 10, 0, 20, 0, 30, "live", true, group)
+	require.NoError(t, err)
+	require.False(t, acquired, "the live transition replaces global slots only")
+
+	require.NoError(t, cache.ReleaseGroupUserSlot(ctx, 40, 20, "regular"))
+	acquired, err = cache.AcquireLiveLease(ctx, 10, 0, 20, 0, 30, "live", true, group)
+	require.NoError(t, err)
+	require.True(t, acquired)
+
+	server.FastForward(45 * time.Second)
+	refreshed, err := cache.RefreshLiveLease(ctx, 10, 20, 30, group.GroupID, "live")
+	require.NoError(t, err)
+	require.True(t, refreshed)
+	server.FastForward(30 * time.Second)
+	acquired, err = cache.AcquireGroupUserSlot(ctx, 40, 20, 1, "regular")
+	require.NoError(t, err)
+	require.False(t, acquired)
+	require.NoError(t, cache.ReleaseLiveLease(ctx, 10, 20, 30, group.GroupID, "live"))
+
+	acquired, err = cache.AcquireGroupUserSlot(ctx, 40, 20, 1, "regular")
+	require.NoError(t, err)
+	require.True(t, acquired)
 }

@@ -207,12 +207,14 @@ func (c *liveTestConcurrencyCache) AcquireLiveLease(
 	int64,
 	string,
 	bool,
+	LiveGroupConcurrency,
 ) (bool, error) {
 	return true, nil
 }
 
 func (c *liveTestConcurrencyCache) RefreshLiveLease(
 	context.Context,
+	int64,
 	int64,
 	int64,
 	int64,
@@ -223,6 +225,7 @@ func (c *liveTestConcurrencyCache) RefreshLiveLease(
 
 func (c *liveTestConcurrencyCache) ReleaseLiveLease(
 	context.Context,
+	int64,
 	int64,
 	int64,
 	int64,

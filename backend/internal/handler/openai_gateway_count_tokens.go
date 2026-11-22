@@ -91,6 +91,15 @@ func (h *OpenAIGatewayHandler) ResponsesInputTokens(c *gin.Context) {
 		forwardBody = h.gatewayService.ReplaceModelInBody(body, routingModel)
 	}
 
+	releaseGroup, slotErr := h.concurrencyHelper.acquireGroupUserSlot(c, apiKey)
+	if slotErr != nil {
+		h.handleConcurrencyError(c, slotErr, groupUserConcurrencySlot, false)
+		return
+	}
+	if releaseGroup != nil {
+		defer releaseGroup()
+	}
+
 	// Token counting is not billed, so it must not be excluded by the profit gate.
 	c.Request = c.Request.WithContext(service.WithOpenAIProfitControlSuppressed(c.Request.Context()))
 	requestPlatform := openAICompatibleRequestPlatform(c.Request.Context(), apiKey)
@@ -257,6 +266,16 @@ func (h *OpenAIGatewayHandler) CountTokens(c *gin.Context) {
 		}
 		h.anthropicErrorResponse(c, status, code, message)
 		return
+	}
+
+	releaseGroup, slotErr := h.concurrencyHelper.acquireGroupUserSlot(c, apiKey)
+	if slotErr != nil {
+		status, errType, _, message := concurrencyErrorResponse(slotErr, groupUserConcurrencySlot)
+		h.anthropicErrorResponse(c, status, errType, message)
+		return
+	}
+	if releaseGroup != nil {
+		defer releaseGroup()
 	}
 
 	requestStart := time.Now()

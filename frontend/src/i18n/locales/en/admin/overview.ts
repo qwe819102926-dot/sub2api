@@ -900,6 +900,8 @@ export default {
         descriptionPlaceholder: 'Enter description (optional)',
         rateMultiplierLabel: 'Rate Multiplier',
         rateMultiplierHint: '1.0 = standard rate, 0.5 = half price, 2.0 = double',
+        userConcurrencyLimit: 'Concurrency per user',
+        userConcurrencyLimitHint: 'Each user shares this limit across all API keys in this group. 0 disables the group limit. The global user limit still applies.',
         rpmLimit: 'Requests Per Minute (RPM)',
         rpmLimitPlaceholder: '0 = unlimited',
         rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Once set, it takes over per-user rate limiting in this group (overrides the user-level rpm_limit fallback).',

@@ -113,6 +113,15 @@ func (h *GatewayHandler) WebSearch(c *gin.Context) {
 		return
 	}
 
+	releaseGroup, slotErr := h.concurrencyHelper.acquireGroupUserSlot(c, apiKey)
+	if slotErr != nil {
+		h.handleConcurrencyError(c, slotErr, groupUserConcurrencySlot, false)
+		return
+	}
+	if releaseGroup != nil {
+		defer releaseGroup()
+	}
+
 	// Use exactly the same scheduling as other requests (SelectAccountWithLoadAwareness handles load, rate limit, sticky, etc.)
 	groupID := apiKey.GroupID
 	if groupID == nil {

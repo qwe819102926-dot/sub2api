@@ -27,7 +27,9 @@ const (
 	// 格式: concurrency:account:{accountID}
 	accountSlotKeyPrefix = "concurrency:account:"
 	// 格式: concurrency:user:{userID}
-	userSlotKeyPrefix = "concurrency:user:"
+	userSlotKeyPrefix          = "concurrency:user:"
+	groupUserSlotKeyPrefix     = "concurrency:group_user:"
+	liveGroupUserSlotKeyPrefix = "concurrency:live:group_user:"
 	// 格式: concurrency:api_key:{apiKeyID}
 	apiKeySlotKeyPrefix      = "concurrency:api_key:"
 	liveAccountSlotKeyPrefix = "concurrency:live:account:"
@@ -154,6 +156,15 @@ var (
 		if replacing == 1 then allowance = 1 end
 		if accountMax > 0 and accountCount >= accountMax + allowance then return 0 end
 		if userMax > 0 and userCount >= userMax + allowance then return 0 end
+		if #KEYS == 7 then
+			local groupRegular, groupLive = KEYS[6], KEYS[7]
+			local groupLimit, regularTTL = tonumber(ARGV[6]), tonumber(ARGV[7])
+			redis.call('ZREMRANGEBYSCORE', groupRegular, '-inf', now - regularTTL)
+			redis.call('ZREMRANGEBYSCORE', groupLive, '-inf', liveExpireBefore)
+			if redis.call('ZCARD', groupRegular) + redis.call('ZCARD', groupLive) >= groupLimit then return 0 end
+			redis.call('ZADD', groupLive, now, leaseID)
+			redis.call('EXPIRE', groupLive, ttl)
+		end
 		redis.call('ZADD', accountLive, now, leaseID)
 		redis.call('ZADD', userLive, now, leaseID)
 		redis.call('ZADD', apiLive, now, leaseID)
@@ -380,6 +391,14 @@ func NewConcurrencyCache(rdb *redis.Client, slotTTLMinutes int, waitQueueTTLSeco
 // Helper functions for key generation
 func accountSlotKey(accountID int64) string {
 	return fmt.Sprintf("%s%d", accountSlotKeyPrefix, accountID)
+}
+
+func groupUserSlotKey(groupID, userID int64) string {
+	return fmt.Sprintf("%s%d:%d", groupUserSlotKeyPrefix, groupID, userID)
+}
+
+func liveGroupUserSlotKey(groupID, userID int64) string {
+	return fmt.Sprintf("%s%d:%d", liveGroupUserSlotKeyPrefix, groupID, userID)
 }
 
 func userSlotKey(userID int64) string {
@@ -739,6 +758,16 @@ func (c *concurrencyCache) GetUserConcurrency(ctx context.Context, userID int64)
 	return result, nil
 }
 
+func (c *concurrencyCache) AcquireGroupUserSlot(ctx context.Context, groupID, userID int64, limit int, requestID string) (bool, error) {
+	keys := []string{groupUserSlotKey(groupID, userID), liveGroupUserSlotKey(groupID, userID)}
+	result, _, err := runScriptInt64Pair(ctx, c.rdb, acquireScript, keys, limit, c.slotTTLSeconds, requestID)
+	return result == 1, err
+}
+
+func (c *concurrencyCache) ReleaseGroupUserSlot(ctx context.Context, groupID, userID int64, requestID string) error {
+	return c.rdb.ZRem(ctx, groupUserSlotKey(groupID, userID), requestID).Err()
+}
+
 func (c *concurrencyCache) TrackAPIKeySlot(ctx context.Context, apiKeyID int64, requestID string) error {
 	key := apiKeySlotKey(apiKeyID)
 	_, err := trackSlotScript.Run(ctx, c.rdb, []string{key}, c.slotTTLSeconds, requestID).Result()
@@ -801,6 +830,7 @@ func (c *concurrencyCache) AcquireLiveLease(
 	apiKeyID int64,
 	leaseID string,
 	replacingRegularSlots bool,
+	group service.LiveGroupConcurrency,
 ) (bool, error) {
 	if c == nil || c.rdb == nil || accountID <= 0 || userID <= 0 || apiKeyID <= 0 || leaseID == "" {
 		return false, nil
@@ -809,29 +839,37 @@ func (c *concurrencyCache) AcquireLiveLease(
 	if replacingRegularSlots {
 		replacing = 1
 	}
-	result, err := acquireLiveLeaseScript.Run(ctx, c.rdb, []string{
+	keys := []string{
 		accountSlotKey(accountID),
 		liveAccountSlotKey(accountID),
 		userSlotKey(userID),
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
-	}, accountMax, userMax, liveLeaseTTLSeconds, leaseID, replacing).Int()
+	}
+	if group.GroupID > 0 && group.Limit > 0 {
+		keys = append(keys, groupUserSlotKey(group.GroupID, userID), liveGroupUserSlotKey(group.GroupID, userID))
+	}
+	result, err := acquireLiveLeaseScript.Run(ctx, c.rdb, keys, accountMax, userMax, liveLeaseTTLSeconds, leaseID, replacing, group.Limit, c.slotTTLSeconds).Int()
 	return result == 1, err
 }
 
-func (c *concurrencyCache) RefreshLiveLease(ctx context.Context, accountID, userID, apiKeyID int64, leaseID string) (bool, error) {
+func (c *concurrencyCache) RefreshLiveLease(ctx context.Context, accountID, userID, apiKeyID, concurrencyGroupID int64, leaseID string) (bool, error) {
 	if c == nil || c.rdb == nil || leaseID == "" {
 		return false, nil
 	}
-	result, err := refreshLiveLeaseScript.Run(ctx, c.rdb, []string{
+	keys := []string{
 		liveAccountSlotKey(accountID),
 		liveUserSlotKey(userID),
 		liveAPIKeySlotKey(apiKeyID),
-	}, liveLeaseTTLSeconds, leaseID).Int()
+	}
+	if concurrencyGroupID > 0 {
+		keys = append(keys, liveGroupUserSlotKey(concurrencyGroupID, userID))
+	}
+	result, err := refreshLiveLeaseScript.Run(ctx, c.rdb, keys, liveLeaseTTLSeconds, leaseID).Int()
 	return result == 1, err
 }
 
-func (c *concurrencyCache) ReleaseLiveLease(ctx context.Context, accountID, userID, apiKeyID int64, leaseID string) error {
+func (c *concurrencyCache) ReleaseLiveLease(ctx context.Context, accountID, userID, apiKeyID, concurrencyGroupID int64, leaseID string) error {
 	if c == nil || c.rdb == nil || leaseID == "" {
 		return nil
 	}
@@ -839,6 +877,9 @@ func (c *concurrencyCache) ReleaseLiveLease(ctx context.Context, accountID, user
 	pipe.ZRem(ctx, liveAccountSlotKey(accountID), leaseID)
 	pipe.ZRem(ctx, liveUserSlotKey(userID), leaseID)
 	pipe.ZRem(ctx, liveAPIKeySlotKey(apiKeyID), leaseID)
+	if concurrencyGroupID > 0 {
+		pipe.ZRem(ctx, liveGroupUserSlotKey(concurrencyGroupID, userID), leaseID)
+	}
 	_, err := pipe.Exec(ctx)
 	return err
 }

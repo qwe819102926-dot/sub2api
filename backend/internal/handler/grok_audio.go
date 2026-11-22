@@ -44,6 +44,15 @@ func (h *OpenAIGatewayHandler) GrokRealtime(c *gin.Context) {
 		return
 	}
 
+	releaseGroup, slotErr := h.concurrencyHelper.acquireGroupUserSlot(c, apiKey)
+	if slotErr != nil {
+		h.handleConcurrencyError(c, slotErr, groupUserConcurrencySlot, false)
+		return
+	}
+	if releaseGroup != nil {
+		defer releaseGroup()
+	}
+
 	reqLog := requestLogger(c, "handler.openai_gateway.grok_realtime")
 	model := c.Query("model")
 	if strings.TrimSpace(model) == "" {
@@ -212,6 +221,15 @@ func (h *OpenAIGatewayHandler) GrokVoice(c *gin.Context, endpoint string) {
 			return
 		}
 	}
+	releaseGroup, slotErr := h.concurrencyHelper.acquireGroupUserSlot(c, apiKey)
+	if slotErr != nil {
+		h.handleConcurrencyError(c, slotErr, groupUserConcurrencySlot, false)
+		return
+	}
+	if releaseGroup != nil {
+		defer releaseGroup()
+	}
+
 	contentType := c.GetHeader("Content-Type")
 	if strings.TrimSpace(contentType) == "" {
 		contentType = "application/json"

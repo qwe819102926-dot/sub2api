@@ -625,6 +625,25 @@
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
+        <div>
+          <label for="create-group-user-concurrency-limit" class="input-label">
+            {{ t("admin.groups.form.userConcurrencyLimit") }}
+          </label>
+          <input
+            id="create-group-user-concurrency-limit"
+            v-model.number="createForm.user_concurrency_limit"
+            aria-describedby="create-group-user-concurrency-hint"
+            type="number"
+            min="0"
+            max="2147483647"
+            step="1"
+            class="input"
+            placeholder="0"
+          />
+          <p id="create-group-user-concurrency-hint" class="input-hint">
+            {{ t("admin.groups.form.userConcurrencyLimitHint") }}
+          </p>
+        </div>
         <ReasoningEffortPolicyFields
           v-if="supportsReasoningEffortPolicyPlatform(createForm.platform)"
           ref="createReasoningEffortPolicyRef"
@@ -2453,6 +2472,25 @@
             :placeholder="t('admin.groups.form.rpmLimitPlaceholder')"
           />
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
+        </div>
+        <div>
+          <label for="edit-group-user-concurrency-limit" class="input-label">
+            {{ t("admin.groups.form.userConcurrencyLimit") }}
+          </label>
+          <input
+            id="edit-group-user-concurrency-limit"
+            v-model.number="editForm.user_concurrency_limit"
+            aria-describedby="edit-group-user-concurrency-hint"
+            type="number"
+            min="0"
+            max="2147483647"
+            step="1"
+            class="input"
+            placeholder="0"
+          />
+          <p id="edit-group-user-concurrency-hint" class="input-hint">
+            {{ t("admin.groups.form.userConcurrencyLimitHint") }}
+          </p>
         </div>
         <ReasoningEffortPolicyFields
           v-if="supportsReasoningEffortPolicyPlatform(editForm.platform)"
@@ -5366,6 +5404,7 @@ const createForm = reactive({
   // 从分组复制账号
   copy_accounts_from_group_ids: [] as number[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
+  user_concurrency_limit: 0 as number | "",
   rpm_limit: 0 as number,
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
@@ -5731,6 +5770,7 @@ const editForm = reactive({
   // 从分组复制账号
   copy_accounts_from_group_ids: [] as number[],
   // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
+  user_concurrency_limit: 0 as number | "",
   rpm_limit: 0 as number,
   max_reasoning_effort: "",
   max_reasoning_effort_over_limit: reasoningEffortOverLimitDowngrade,
@@ -6174,6 +6214,7 @@ const closeCreateModal = () => {
   createForm.supported_model_scopes = ["claude", "gemini_text", "gemini_image"];
   createForm.mcp_xml_inject = true;
   createForm.copy_accounts_from_group_ids = [];
+  createForm.user_concurrency_limit = 0;
   createForm.rpm_limit = 0;
   createForm.max_reasoning_effort = "";
   createForm.max_reasoning_effort_over_limit = reasoningEffortOverLimitDowngrade;
@@ -6260,6 +6301,7 @@ const handleCreateGroup = async () => {
     // 构建请求数据，包含模型路由配置
     const requestData = {
       ...createGroupForm,
+      user_concurrency_limit: createGroupForm.user_concurrency_limit || 0,
       force_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.force_openai_fast,
@@ -6462,6 +6504,7 @@ const handleEdit = async (group: AdminGroup) => {
   ];
   editForm.mcp_xml_inject = group.mcp_xml_inject ?? true;
   editForm.copy_accounts_from_group_ids = []; // 复制账号字段每次编辑时重置为空
+  editForm.user_concurrency_limit = group.user_concurrency_limit ?? 0;
   editForm.rpm_limit = group.rpm_limit ?? 0;
   editForm.max_reasoning_effort = normalizeReasoningEffortForPlatform(
     group.platform,
@@ -6588,6 +6631,7 @@ const handleUpdateGroup = async () => {
     // 转换 fallback_group_id: null -> 0 (后端使用 0 表示清除)
     const payload = {
       ...editForm,
+      user_concurrency_limit: editForm.user_concurrency_limit || 0,
       force_openai_fast: normalizeGroupOpenAIFast(
         editForm.platform,
         editForm.force_openai_fast,

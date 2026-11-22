@@ -162,18 +162,23 @@ func liveCallIdentity(
 	subscription *service.UserSubscription,
 ) service.LiveCallIdentity {
 	var subscriptionID *int64
+	var groupConcurrencyLimit int
+	if apiKey.Group != nil {
+		groupConcurrencyLimit = apiKey.Group.UserConcurrencyLimit
+	}
 	if subscription != nil {
 		value := subscription.ID
 		subscriptionID = &value
 	}
 	return service.LiveCallIdentity{
-		APIKeyID:        apiKey.ID,
-		UserID:          userID,
-		GroupID:         apiKey.GroupID,
-		SubscriptionID:  subscriptionID,
-		UserAgent:       c.GetHeader("User-Agent"),
-		IPAddress:       ip.GetClientIP(c),
-		InboundEndpoint: GetInboundEndpoint(c),
+		APIKeyID:              apiKey.ID,
+		UserID:                userID,
+		GroupID:               apiKey.GroupID,
+		GroupConcurrencyLimit: groupConcurrencyLimit,
+		SubscriptionID:        subscriptionID,
+		UserAgent:             c.GetHeader("User-Agent"),
+		IPAddress:             ip.GetClientIP(c),
+		InboundEndpoint:       GetInboundEndpoint(c),
 	}
 }
 

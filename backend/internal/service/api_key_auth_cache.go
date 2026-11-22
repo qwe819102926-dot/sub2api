@@ -113,7 +113,8 @@ type APIKeyAuthGroupSnapshot struct {
 	CodexModelsManifestConfig GroupCodexModelsManifestConfig `json:"codex_models_manifest_config,omitempty"`
 
 	// RPMLimit 分组级每分钟请求数上限（0 = 不限制）；用于 billing_cache_service.checkRPM 级联判断。
-	RPMLimit int `json:"rpm_limit"`
+	RPMLimit             int `json:"rpm_limit"`
+	UserConcurrencyLimit int `json:"user_concurrency_limit,omitempty"`
 
 	// MaxReasoningEffort Anthropic/OpenAI 请求的推理强度上限，空字符串表示不限制。
 	MaxReasoningEffort string `json:"max_reasoning_effort,omitempty"`

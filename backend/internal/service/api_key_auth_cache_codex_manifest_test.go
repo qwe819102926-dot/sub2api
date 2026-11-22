@@ -17,7 +17,8 @@ func TestAPIKeyAuthSnapshotGroupCodexModelsManifestRoundtrip(t *testing.T) {
 		User: &User{ID: 46, Status: StatusActive},
 		Group: &Group{
 			ID: groupID, Name: "codex-manifest-roundtrip", Platform: PlatformOpenAI, Status: StatusActive,
-			Hydrated: true,
+			Hydrated:             true,
+			UserConcurrencyLimit: 3,
 			CodexModelsManifestConfig: GroupCodexModelsManifestConfig{
 				Enabled:             true,
 				AccountIDs:          []int64{7, 8},
@@ -36,6 +37,7 @@ func TestAPIKeyAuthSnapshotGroupCodexModelsManifestRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, used)
 	require.NotNil(t, materialized.Group)
+	require.Equal(t, 3, materialized.Group.UserConcurrencyLimit)
 	require.True(t, materialized.Group.CodexModelsManifestConfig.Enabled)
 	require.Equal(t, []int64{7, 8}, materialized.Group.CodexModelsManifestConfig.AccountIDs)
 	require.True(t, materialized.Group.CodexModelsManifestConfig.FallbackToScheduler)

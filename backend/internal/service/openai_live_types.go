@@ -47,6 +47,8 @@ type LiveCallIdentity struct {
 	UserAgent       string
 	IPAddress       string
 	InboundEndpoint string
+
+	GroupConcurrencyLimit int
 }
 
 type LiveCallRecord struct {
@@ -68,6 +70,9 @@ type LiveCallRecord struct {
 	InboundEndpoint string
 	// AttestationCiphertext 仅用于让同一会话的 Sideband 复用创建时的证明。
 	AttestationCiphertext string
+
+	// ConcurrencyGroupID is zero for records created without a group lease.
+	ConcurrencyGroupID int64
 }
 
 type LiveCallCreated struct {
@@ -87,6 +92,11 @@ type LiveCallStore interface {
 	MarkLiveCallClosed(ctx context.Context, callHash string, ttl time.Duration) (bool, error)
 }
 
+type LiveGroupConcurrency struct {
+	GroupID int64
+	Limit   int
+}
+
 type LiveConcurrencyCache interface {
 	AcquireLiveLease(
 		ctx context.Context,
@@ -97,7 +107,8 @@ type LiveConcurrencyCache interface {
 		apiKeyID int64,
 		leaseID string,
 		replacingRegularSlots bool,
+		group LiveGroupConcurrency,
 	) (bool, error)
-	RefreshLiveLease(ctx context.Context, accountID, userID, apiKeyID int64, leaseID string) (bool, error)
-	ReleaseLiveLease(ctx context.Context, accountID, userID, apiKeyID int64, leaseID string) error
+	RefreshLiveLease(ctx context.Context, accountID, userID, apiKeyID, concurrencyGroupID int64, leaseID string) (bool, error)
+	ReleaseLiveLease(ctx context.Context, accountID, userID, apiKeyID, concurrencyGroupID int64, leaseID string) error
 }

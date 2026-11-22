@@ -8,6 +8,7 @@ import GroupsView from '@/views/admin/GroupsView.vue'
 const {
   listGroups,
   duplicateGroup,
+  createGroup,
   updateGroup,
   getModelAllowlistCandidates,
   getUsageSummary,
@@ -18,6 +19,7 @@ const {
 } = vi.hoisted(() => ({
   listGroups: vi.fn(),
   duplicateGroup: vi.fn(),
+  createGroup: vi.fn(),
   updateGroup: vi.fn(),
   getModelAllowlistCandidates: vi.fn(),
   getUsageSummary: vi.fn(),
@@ -37,7 +39,7 @@ vi.mock('@/api/admin', () => ({
       getCapacitySummary,
       getLiveCapability,
       getAll: vi.fn(),
-      create: vi.fn(),
+      create: createGroup,
       update: updateGroup,
       delete: vi.fn(),
       updateSortOrder: vi.fn()
@@ -168,13 +170,14 @@ function mountView() {
   })
 }
 
-describe('GroupsView duplicate action', () => {
+describe('GroupsView form and actions', () => {
   beforeEach(() => {
     localStorage.clear()
     vi.spyOn(console, 'error').mockImplementation(() => {})
     for (const fn of [
       listGroups,
       duplicateGroup,
+      createGroup,
       updateGroup,
       getModelAllowlistCandidates,
       getUsageSummary,
@@ -278,6 +281,51 @@ describe('GroupsView duplicate action', () => {
     expect(showSuccess).toHaveBeenCalledWith('admin.groups.duplicateSuccess')
     expect(showError).toHaveBeenCalledWith('admin.groups.failedToLoad')
     expect(showError).not.toHaveBeenCalledWith('admin.groups.duplicateFailed')
+    wrapper.unmount()
+  })
+
+  it('creates a group with the configured concurrency limit', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const createButton = wrapper.findAll('button').find(button => button.text() === 'admin.groups.createGroup')
+    expect(createButton).toBeDefined()
+    await createButton!.trigger('click')
+    await wrapper.get('[data-tour="group-form-name"]').setValue('Concurrency test')
+    const input = wrapper.get('#create-group-user-concurrency-limit')
+    expect(input.element.parentElement?.previousElementSibling?.textContent).toContain('admin.groups.form.rpmLimit')
+    await input.setValue('2')
+    await wrapper.get('#create-group-form').trigger('submit')
+    await flushPromises()
+
+    expect(createGroup).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Concurrency test',
+      user_concurrency_limit: 2
+    }))
+    wrapper.unmount()
+  })
+
+  it('loads the saved limit and clears it when the input is empty', async () => {
+    listGroups.mockImplementationOnce(async () => ({
+      items: [{ ...sourceGroup, user_concurrency_limit: 4 }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+      pages: 1
+    }))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const editButton = wrapper.findAll('button').find(button => button.text() === 'common.edit')
+    expect(editButton).toBeDefined()
+    await editButton!.trigger('click')
+    const input = wrapper.get<HTMLInputElement>('#edit-group-user-concurrency-limit')
+    expect(input.element.value).toBe('4')
+    await input.setValue('')
+    await wrapper.get('#edit-group-form').trigger('submit')
+    await flushPromises()
+
+    expect(updateGroup).toHaveBeenCalledWith(42, expect.objectContaining({ user_concurrency_limit: 0 }))
     wrapper.unmount()
   })
 

@@ -147,6 +147,10 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	// Live 按通话时长计费，不属于 token 利润门的语义范围：显式豁免，避免
 	// 防御性装门按文本 D 过滤 Live 账号池且门与计费时刻不同源。
 	ctx = WithOpenAIProfitControlSuppressed(ctx)
+	groupConcurrency := LiveGroupConcurrency{Limit: identity.GroupConcurrencyLimit}
+	if groupConcurrency.Limit > 0 {
+		groupConcurrency.GroupID = liveGroupID(identity.GroupID)
+	}
 	var lastErr error
 	for attempt := 0; attempt <= 3; attempt++ {
 		selection, _, selectErr := s.SelectAccountWithSchedulerForCapability(
@@ -186,6 +190,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			identity.APIKeyID,
 			leaseID,
 			true,
+			groupConcurrency,
 		)
 		if acquireErr != nil || !acquired {
 			selection.ReleaseFunc()
@@ -198,7 +203,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		created, createErr := s.createUpstreamLiveCall(ctx, account, request, attestation)
 		selection.ReleaseFunc()
 		if createErr != nil {
-			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
+			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, groupConcurrency.GroupID, leaseID)
 			if !s.shouldFailoverLiveCreateError(createErr) {
 				return nil, createErr
 			}
@@ -219,6 +224,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 			APIKeyID:              identity.APIKeyID,
 			UserID:                identity.UserID,
 			GroupID:               liveGroupID(identity.GroupID),
+			ConcurrencyGroupID:    groupConcurrency.GroupID,
 			SubscriptionID:        liveGroupID(identity.SubscriptionID),
 			LeaseID:               leaseID,
 			Model:                 model,
@@ -232,7 +238,7 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 		}
 		mappingTTL := s.liveMaxSessionDuration() + 5*time.Minute
 		if saveErr := store.SaveLiveCall(ctx, record, mappingTTL); saveErr != nil {
-			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, leaseID)
+			s.releaseLiveLease(account.ID, identity.UserID, identity.APIKeyID, groupConcurrency.GroupID, leaseID)
 			return nil, fmt.Errorf("save live call mapping: %w", saveErr)
 		}
 		created.Account = account
@@ -780,18 +786,18 @@ func (s *OpenAIGatewayService) refreshLiveLease(record *LiveCallRecord) bool {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
 	defer cancel()
-	refreshed, err := cache.RefreshLiveLease(ctx, record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+	refreshed, err := cache.RefreshLiveLease(ctx, record.AccountID, record.UserID, record.APIKeyID, record.ConcurrencyGroupID, record.LeaseID)
 	return err == nil && refreshed
 }
 
-func (s *OpenAIGatewayService) releaseLiveLease(accountID, userID, apiKeyID int64, leaseID string) {
+func (s *OpenAIGatewayService) releaseLiveLease(accountID, userID, apiKeyID, concurrencyGroupID int64, leaseID string) {
 	cache, err := s.liveConcurrencyCache()
 	if err != nil {
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
 	defer cancel()
-	_ = cache.ReleaseLiveLease(ctx, accountID, userID, apiKeyID, leaseID)
+	_ = cache.ReleaseLiveLease(ctx, accountID, userID, apiKeyID, concurrencyGroupID, leaseID)
 }
 
 func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
@@ -808,7 +814,7 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 	if err != nil || !first {
 		return
 	}
-	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.ConcurrencyGroupID, record.LeaseID)
 	if s.usageLogRepo == nil {
 		return
 	}

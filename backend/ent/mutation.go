@@ -22166,6 +22166,8 @@ type GroupMutation struct {
 	messages_dispatch_model_config          *domain.OpenAIMessagesDispatchModelConfig
 	model_allowlist                         *domain.GroupModelAllowlist
 	codex_models_manifest_config            *domain.GroupCodexModelsManifestConfig
+	user_concurrency_limit                  *int
+	adduser_concurrency_limit               *int
 	rpm_limit                               *int
 	addrpm_limit                            *int
 	max_reasoning_effort                    *string
@@ -25236,6 +25238,62 @@ func (m *GroupMutation) ResetCodexModelsManifestConfig() {
 	m.codex_models_manifest_config = nil
 }
 
+// SetUserConcurrencyLimit sets the "user_concurrency_limit" field.
+func (m *GroupMutation) SetUserConcurrencyLimit(i int) {
+	m.user_concurrency_limit = &i
+	m.adduser_concurrency_limit = nil
+}
+
+// UserConcurrencyLimit returns the value of the "user_concurrency_limit" field in the mutation.
+func (m *GroupMutation) UserConcurrencyLimit() (r int, exists bool) {
+	v := m.user_concurrency_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserConcurrencyLimit returns the old "user_concurrency_limit" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldUserConcurrencyLimit(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserConcurrencyLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserConcurrencyLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserConcurrencyLimit: %w", err)
+	}
+	return oldValue.UserConcurrencyLimit, nil
+}
+
+// AddUserConcurrencyLimit adds i to the "user_concurrency_limit" field.
+func (m *GroupMutation) AddUserConcurrencyLimit(i int) {
+	if m.adduser_concurrency_limit != nil {
+		*m.adduser_concurrency_limit += i
+	} else {
+		m.adduser_concurrency_limit = &i
+	}
+}
+
+// AddedUserConcurrencyLimit returns the value that was added to the "user_concurrency_limit" field in this mutation.
+func (m *GroupMutation) AddedUserConcurrencyLimit() (r int, exists bool) {
+	v := m.adduser_concurrency_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserConcurrencyLimit resets all changes to the "user_concurrency_limit" field.
+func (m *GroupMutation) ResetUserConcurrencyLimit() {
+	m.user_concurrency_limit = nil
+	m.adduser_concurrency_limit = nil
+}
+
 // SetRpmLimit sets the "rpm_limit" field.
 func (m *GroupMutation) SetRpmLimit(i int) {
 	m.rpm_limit = &i
@@ -25921,7 +25979,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 66)
+	fields := make([]string, 0, 67)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -26099,6 +26157,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.codex_models_manifest_config != nil {
 		fields = append(fields, group.FieldCodexModelsManifestConfig)
 	}
+	if m.user_concurrency_limit != nil {
+		fields = append(fields, group.FieldUserConcurrencyLimit)
+	}
 	if m.rpm_limit != nil {
 		fields = append(fields, group.FieldRpmLimit)
 	}
@@ -26246,6 +26307,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelAllowlist()
 	case group.FieldCodexModelsManifestConfig:
 		return m.CodexModelsManifestConfig()
+	case group.FieldUserConcurrencyLimit:
+		return m.UserConcurrencyLimit()
 	case group.FieldRpmLimit:
 		return m.RpmLimit()
 	case group.FieldMaxReasoningEffort:
@@ -26387,6 +26450,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldModelAllowlist(ctx)
 	case group.FieldCodexModelsManifestConfig:
 		return m.OldCodexModelsManifestConfig(ctx)
+	case group.FieldUserConcurrencyLimit:
+		return m.OldUserConcurrencyLimit(ctx)
 	case group.FieldRpmLimit:
 		return m.OldRpmLimit(ctx)
 	case group.FieldMaxReasoningEffort:
@@ -26823,6 +26888,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCodexModelsManifestConfig(v)
 		return nil
+	case group.FieldUserConcurrencyLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserConcurrencyLimit(v)
+		return nil
 	case group.FieldRpmLimit:
 		v, ok := value.(int)
 		if !ok {
@@ -26952,6 +27024,9 @@ func (m *GroupMutation) AddedFields() []string {
 	if m.addsort_order != nil {
 		fields = append(fields, group.FieldSortOrder)
 	}
+	if m.adduser_concurrency_limit != nil {
+		fields = append(fields, group.FieldUserConcurrencyLimit)
+	}
 	if m.addrpm_limit != nil {
 		fields = append(fields, group.FieldRpmLimit)
 	}
@@ -27017,6 +27092,8 @@ func (m *GroupMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedFallbackGroupIDOnInvalidRequest()
 	case group.FieldSortOrder:
 		return m.AddedSortOrder()
+	case group.FieldUserConcurrencyLimit:
+		return m.AddedUserConcurrencyLimit()
 	case group.FieldRpmLimit:
 		return m.AddedRpmLimit()
 	case group.FieldProfitMinMargin:
@@ -27199,6 +27276,13 @@ func (m *GroupMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddSortOrder(v)
+		return nil
+	case group.FieldUserConcurrencyLimit:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserConcurrencyLimit(v)
 		return nil
 	case group.FieldRpmLimit:
 		v, ok := value.(int)
@@ -27559,6 +27643,9 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldCodexModelsManifestConfig:
 		m.ResetCodexModelsManifestConfig()
+		return nil
+	case group.FieldUserConcurrencyLimit:
+		m.ResetUserConcurrencyLimit()
 		return nil
 	case group.FieldRpmLimit:
 		m.ResetRpmLimit()

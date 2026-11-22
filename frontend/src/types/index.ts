@@ -641,6 +641,7 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  user_concurrency_limit?: number
   force_openai_fast: boolean
   free_openai_fast: boolean
   model_pricing: import('@/api/admin/channels').ChannelModelPricing[]
@@ -859,6 +860,7 @@ export interface CreateGroupRequest {
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null
   model_routing_enabled?: boolean
+  user_concurrency_limit?: number
   rpm_limit?: number
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: string
@@ -925,6 +927,7 @@ export interface UpdateGroupRequest {
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   model_routing?: Record<string, number[]> | null
   model_routing_enabled?: boolean
+  user_concurrency_limit?: number
   rpm_limit?: number
   max_reasoning_effort?: string
   max_reasoning_effort_over_limit?: string
