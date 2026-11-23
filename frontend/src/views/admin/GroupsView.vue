@@ -1561,8 +1561,16 @@
             </button>
           </div>
           <label class="mt-3 flex items-start gap-2">
-            <input v-model="createForm.long_context_pricing_enabled" type="checkbox" class="mt-0.5" />
-            <span><span class="block text-sm text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.longContext") }}</span><span class="block text-xs text-gray-500">{{ t("admin.groups.modelPricing.longContextHint") }}</span></span>
+            <input v-if="createForm.platform === 'openai'" type="checkbox" class="mt-0.5" checked disabled />
+            <input v-else v-model="createForm.long_context_pricing_enabled" type="checkbox" class="mt-0.5" />
+            <span>
+              <span class="block text-sm text-gray-700 dark:text-gray-300">{{ t("admin.groups.modelPricing.longContext") }}</span>
+              <span class="block text-xs text-gray-500">{{
+                createForm.platform === "openai"
+                  ? t("admin.groups.modelPricing.longContextOpenAICreateHint")
+                  : t("admin.groups.modelPricing.longContextHint")
+              }}</span>
+            </span>
           </label>
           <div class="mt-3 space-y-2">
             <PricingEntryCard v-for="(entry, index) in createForm.model_pricing" :key="index" :entry="entry" :platform="createForm.platform" hide-token-intervals @update="createForm.model_pricing[index] = $event" @remove="createForm.model_pricing.splice(index, 1)" />
@@ -6302,6 +6310,8 @@ const handleCreateGroup = async () => {
     const requestData = {
       ...createGroupForm,
       user_concurrency_limit: createGroupForm.user_concurrency_limit || 0,
+      long_context_pricing_enabled:
+        createForm.platform === "openai" || createForm.long_context_pricing_enabled,
       force_openai_fast: normalizeGroupOpenAIFast(
         createForm.platform,
         createForm.force_openai_fast,

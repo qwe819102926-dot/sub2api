@@ -66,6 +66,7 @@ func (s *GroupRepoSuite) TestCreate() {
 	got, err := s.repo.GetByID(s.ctx, group.ID)
 	s.Require().NoError(err, "GetByID")
 	s.Require().Equal("test-create", got.Name)
+	s.Require().False(got.LongContextPricingEnabled)
 }
 
 func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligibleAccounts() {
@@ -78,6 +79,14 @@ func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligib
 		RequireOAuthOnly: true,
 	}
 	s.Require().NoError(s.repo.Create(s.ctx, source))
+	s.Require().True(source.LongContextPricingEnabled)
+	storedSource, err := s.repo.GetByID(s.ctx, source.ID)
+	s.Require().NoError(err)
+	s.Require().True(storedSource.LongContextPricingEnabled)
+
+	// A duplicate must enable long-context pricing even if its source disabled it.
+	source.LongContextPricingEnabled = false
+	s.Require().NoError(s.repo.Update(s.ctx, source))
 
 	insertAccount := func(name, accountType string, deleted bool) int64 {
 		var id int64
@@ -121,6 +130,7 @@ func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligib
 		DuplicateOperationID: strings.Repeat("a", 64),
 	}
 	s.Require().NoError(s.repo.CreateFromSource(s.ctx, duplicate, source.ID))
+	s.Require().True(duplicate.LongContextPricingEnabled)
 	s.Require().EqualValues(1, duplicate.AccountCount)
 
 	rows, err := s.tx.QueryContext(
@@ -141,6 +151,7 @@ func (s *GroupRepoSuite) TestCreateFromSourcePreservesPriorityAndFiltersIneligib
 	recovered, err := s.repo.FindByDuplicateOperationID(s.ctx, duplicate.DuplicateOperationID)
 	s.Require().NoError(err)
 	s.Require().Equal(duplicate.ID, recovered.ID)
+	s.Require().True(recovered.LongContextPricingEnabled)
 
 	var outboxCount int
 	s.Require().NoError(scanSingleRow(

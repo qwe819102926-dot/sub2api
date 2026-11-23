@@ -1081,6 +1081,7 @@ export default {
         description: 'Overrides channel and built-in prices for matching models. Long-context tiers come from official presets — do not enter custom intervals. Use per-request tiers such as realtime, tts, and stt for audio.',
         longContext: 'Enable long-context tier pricing',
         longContextHint: 'When checked, channel intervals or official preset tiers apply. Otherwise the first tier is used unless the account explicitly enables long-context billing.',
+        longContextOpenAICreateHint: 'Enabled when creating an OpenAI group. Channel intervals or official preset tiers apply.',
         add: 'Add model price'
       },
       voicePricing: {
