@@ -100,10 +100,9 @@ func dailyCheckinReward(streakDay int) float64 {
 	return float64(dailyCheckinMinCents+rand.IntN(dailyCheckinMaxCents-dailyCheckinMinCents+1)) / 100
 }
 
-func dailyCheckinRechargeTotal(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (decimal.Decimal, error) {
+func dailyCheckinPaidTotal(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (decimal.Decimal, error) {
 	matching, err := orders.Query().Where(
 		paymentorder.UserIDEQ(userID),
-		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
 		paymentorder.StatusEQ(OrderStatusCompleted),
 		paymentorder.PayAmountGT(0),
 		paymentorder.PaidAtGTE(now.Add(-dailyCheckinRechargeWindow)),
@@ -221,14 +220,14 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 		status.CycleDay = (status.CurrentStreak % status.CycleLength) + 1
 		status.TodayReward = dailyCheckinRewardPreview(status.CurrentStreak + 1)
 	}
-	rechargeTotal, err := dailyCheckinRechargeTotal(ctx, s.entClient.PaymentOrder, userID, now)
+	paidTotal, err := dailyCheckinPaidTotal(ctx, s.entClient.PaymentOrder, userID, now)
 	if err != nil {
-		return nil, fmt.Errorf("check recent recharge: %w", err)
+		return nil, fmt.Errorf("check recent payments: %w", err)
 	}
-	remaining := decimal.Max(decimal.Zero, dailyCheckinMinRechargeCNY.Sub(rechargeTotal))
+	remaining := decimal.Max(decimal.Zero, dailyCheckinMinRechargeCNY.Sub(paidTotal))
 	status.HasRecentRecharge = remaining.IsZero()
 	status.RechargeProgress = DailyCheckinRechargeProgress{
-		Total:     rechargeTotal.InexactFloat64(),
+		Total:     paidTotal.InexactFloat64(),
 		Target:    dailyCheckinMinRechargeCNY.InexactFloat64(),
 		Remaining: remaining.InexactFloat64(),
 	}
@@ -270,12 +269,12 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 			streak = previousStreak + 1
 		}
 	}
-	rechargeTotal, err := dailyCheckinRechargeTotal(ctx, tx.PaymentOrder, userID, now)
+	paidTotal, err := dailyCheckinPaidTotal(ctx, tx.PaymentOrder, userID, now)
 	if err != nil {
-		return nil, fmt.Errorf("check recent recharge: %w", err)
+		return nil, fmt.Errorf("check recent payments: %w", err)
 	}
-	if rechargeTotal.LessThan(dailyCheckinMinRechargeCNY) {
-		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires at least CNY 9.90 in completed balance recharges paid in the last 30 days")
+	if paidTotal.LessThan(dailyCheckinMinRechargeCNY) {
+		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires at least CNY 9.90 paid across completed orders in the last 30 days")
 	}
 	reward := dailyCheckinReward(streak)
 	var recordID int64

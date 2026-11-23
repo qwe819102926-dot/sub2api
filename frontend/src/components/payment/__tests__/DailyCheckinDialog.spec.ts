@@ -69,7 +69,7 @@ describe('daily check-in header and calendar', () => {
     const button = document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')!
     expect(button.disabled).toBe(true)
     expect(button.textContent?.trim()).toBe(zh.checkin.rechargeUnmet)
-    expect(document.querySelector('.ci-claim')?.textContent).toContain('累计实付充值满 9.9 元')
+    expect(document.querySelector('.ci-claim')?.textContent).toContain('订单累计实付满 9.9 元')
     expect(document.querySelector('.ci-claim')?.textContent).toContain(zh.checkin.rechargeGiftExcluded)
     const qr = document.querySelector<HTMLImageElement>('.ci-trial-qr img')!
     expect(qr.alt).toBe(zh.checkin.trialQR)
@@ -97,7 +97,8 @@ describe('daily check-in header and calendar', () => {
     await render(); await open()
     expect(document.querySelector('.ci-callout h3')?.textContent).toBe(zh.checkin.checkedToday)
     const progress = document.querySelector<HTMLElement>('.ci-recharge')!
-    expect(progress.textContent).toContain('近 30 天实付充值')
+    expect(progress.textContent).toContain('近 30 天人民币实付')
+    expect(progress.textContent).toContain('购买订阅均按实付金额计入')
     expect(progress.querySelector('dd')?.textContent).toContain('6.8')
     expect(progress.querySelector('.ci-recharge-gap')?.textContent).toMatch(/还差.*3\.1/)
     expect(progress.querySelector('progress')?.value).toBe(6.8)

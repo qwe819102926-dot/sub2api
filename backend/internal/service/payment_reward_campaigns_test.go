@@ -83,7 +83,7 @@ func TestDailyCheckinBusinessDateAtShanghaiMidnight(t *testing.T) {
 	require.Equal(t, "2026-11-01", dailyCheckinDate(before.Add(time.Second)).Format("2006-01-02"))
 }
 
-func TestDailyCheckinRechargeTotal(t *testing.T) {
+func TestDailyCheckinPaidTotal(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
 	_, err := client.ExecContext(ctx, `ALTER TABLE users ADD COLUMN bonus_balance DECIMAL(20,8) NOT NULL DEFAULT 0`)
@@ -97,9 +97,35 @@ func TestDailyCheckinRechargeTotal(t *testing.T) {
 	now := time.Date(2026, 11, 22, 12, 0, 0, 0, dailyCheckinLocation)
 	cutoff := now.Add(-30 * 24 * time.Hour)
 
-	total, err := dailyCheckinRechargeTotal(ctx, client.PaymentOrder, user.ID, now)
+	total, err := dailyCheckinPaidTotal(ctx, client.PaymentOrder, user.ID, now)
 	require.NoError(t, err)
-	require.True(t, total.IsZero(), "bonus balance is excluded from the recharge total")
+	require.True(t, total.IsZero(), "bonus balance is excluded from the paid total")
+
+	addOrder := func(t *testing.T, userID int64, kind, status string, amount float64, paidAt time.Time, currency string) {
+		t.Helper()
+		create := client.PaymentOrder.Create().SetUserID(userID).SetUserEmail(user.Email).SetUserName("checkin").
+			SetAmount(15).SetPayAmount(amount).SetRechargeCode("checkin").SetPaymentType(payment.TypeAlipay).
+			SetPaymentTradeNo("checkin").SetOrderType(kind).SetStatus(status).
+			SetClientIP("127.0.0.1").SetSrcHost("example.com").SetExpiresAt(now.Add(time.Hour))
+		if !paidAt.IsZero() {
+			create.SetPaidAt(paidAt)
+		}
+		if currency != "" {
+			create.SetProviderSnapshot(map[string]any{"currency": currency})
+		}
+		order, err := create.Save(ctx)
+		require.NoError(t, err)
+		t.Cleanup(func() { require.NoError(t, client.PaymentOrder.DeleteOneID(order.ID).Exec(ctx)) })
+	}
+
+	t.Run("recharge and subscription payments combine", func(t *testing.T) {
+		addOrder(t, user.ID, payment.OrderTypeBalance, OrderStatusCompleted, 4.00, now, "CNY")
+		addOrder(t, user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, 5.90, now, "CNY")
+		addOrder(t, user.ID, payment.OrderTypeSubscription, OrderStatusPending, 5.90, time.Time{}, "CNY")
+		total, err := dailyCheckinPaidTotal(ctx, client.PaymentOrder, user.ID, now)
+		require.NoError(t, err)
+		require.Equal(t, 9.90, total.InexactFloat64())
+	})
 
 	for _, tc := range []struct {
 		name     string
@@ -119,7 +145,7 @@ func TestDailyCheckinRechargeTotal(t *testing.T) {
 		{"before cutoff", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, []float64{12}, cutoff.Add(-time.Second), "", 0},
 		{"future payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, []float64{12}, now.Add(time.Second), "", 0},
 		{"no payment time", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, []float64{12}, time.Time{}, "", 0},
-		{"subscription", user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, []float64{12}, now, "", 0},
+		{"subscription", user.ID, payment.OrderTypeSubscription, OrderStatusCompleted, []float64{12}, now, "", 12},
 		{"unfulfilled order", user.ID, payment.OrderTypeBalance, OrderStatusPaid, []float64{12}, now, "", 0},
 		{"refunded order", user.ID, payment.OrderTypeBalance, OrderStatusRefunded, []float64{12}, now, "", 0},
 		{"zero payment", user.ID, payment.OrderTypeBalance, OrderStatusCompleted, []float64{0}, now, "", 0},
@@ -127,22 +153,10 @@ func TestDailyCheckinRechargeTotal(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, amount := range tc.amounts {
-				create := client.PaymentOrder.Create().SetUserID(tc.userID).SetUserEmail(user.Email).SetUserName("checkin").
-					SetAmount(15).SetPayAmount(amount).SetRechargeCode("checkin").SetPaymentType(payment.TypeAlipay).
-					SetPaymentTradeNo("checkin").SetOrderType(tc.kind).SetStatus(tc.status).
-					SetClientIP("127.0.0.1").SetSrcHost("example.com").SetExpiresAt(now.Add(time.Hour))
-				if !tc.paidAt.IsZero() {
-					create.SetPaidAt(tc.paidAt)
-				}
-				if tc.currency != "" {
-					create.SetProviderSnapshot(map[string]any{"currency": tc.currency})
-				}
-				order, err := create.Save(ctx)
-				require.NoError(t, err)
-				t.Cleanup(func() { require.NoError(t, client.PaymentOrder.DeleteOneID(order.ID).Exec(ctx)) })
+				addOrder(t, tc.userID, tc.kind, tc.status, amount, tc.paidAt, tc.currency)
 			}
 
-			total, err := dailyCheckinRechargeTotal(ctx, client.PaymentOrder, user.ID, now)
+			total, err := dailyCheckinPaidTotal(ctx, client.PaymentOrder, user.ID, now)
 			require.NoError(t, err)
 			require.Equal(t, tc.total, total.InexactFloat64())
 		})
@@ -155,7 +169,7 @@ func expectDailyCheckinRecharge(mock sqlmock.Sqlmock, amounts ...float64) {
 		rows.AddRow(index+1, amount, nil)
 	}
 	mock.ExpectQuery(`SELECT .* FROM "payment_orders" WHERE .*`).
-		WithArgs(int64(42), payment.OrderTypeBalance, OrderStatusCompleted, float64(0), sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(int64(42), OrderStatusCompleted, float64(0), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnRows(rows)
 }
 
