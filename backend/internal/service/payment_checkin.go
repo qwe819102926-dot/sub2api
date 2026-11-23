@@ -20,10 +20,10 @@ const (
 	dailyCheckinMinCents       = 20
 	dailyCheckinMaxCents       = 30
 	dailyCheckinRechargeWindow = 30 * 24 * time.Hour
-	dailyCheckinMinRechargeCNY = 9.90
 )
 
 var dailyCheckinLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
+var dailyCheckinMinRechargeCNY = decimal.New(990, -2)
 
 type DailyCheckinMilestone struct {
 	Day    int     `json:"day"`
@@ -51,6 +51,12 @@ type DailyCheckinRecord struct {
 	CreatedAt string  `json:"created_at"`
 }
 
+type DailyCheckinRechargeProgress struct {
+	Total     float64 `json:"total"`
+	Target    float64 `json:"target"`
+	Remaining float64 `json:"remaining"`
+}
+
 type DailyCheckinStatus struct {
 	CheckedInToday  bool                    `json:"checked_in_today"`
 	CurrentStreak   int                     `json:"current_streak"`
@@ -67,7 +73,8 @@ type DailyCheckinStatus struct {
 	OrdinaryRewards []float64               `json:"ordinary_rewards"` // Inclusive [minimum, maximum] range.
 	Milestones      []DailyCheckinMilestone `json:"milestones"`
 
-	HasRecentRecharge bool `json:"has_recent_recharge"`
+	HasRecentRecharge bool                         `json:"has_recent_recharge"`
+	RechargeProgress  DailyCheckinRechargeProgress `json:"recharge_progress"`
 }
 
 // Store the business calendar date as UTC midnight so PostgreSQL DATE values
@@ -93,7 +100,7 @@ func dailyCheckinReward(streakDay int) float64 {
 	return float64(dailyCheckinMinCents+rand.IntN(dailyCheckinMaxCents-dailyCheckinMinCents+1)) / 100
 }
 
-func hasDailyCheckinRecharge(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (bool, error) {
+func dailyCheckinRechargeTotal(ctx context.Context, orders *dbent.PaymentOrderClient, userID int64, now time.Time) (decimal.Decimal, error) {
 	matching, err := orders.Query().Where(
 		paymentorder.UserIDEQ(userID),
 		paymentorder.OrderTypeEQ(payment.OrderTypeBalance),
@@ -103,20 +110,16 @@ func hasDailyCheckinRecharge(ctx context.Context, orders *dbent.PaymentOrderClie
 		paymentorder.PaidAtLTE(now),
 	).Select(paymentorder.FieldPayAmount, paymentorder.FieldProviderSnapshot).All(ctx)
 	if err != nil {
-		return false, err
+		return decimal.Zero, err
 	}
 	total := decimal.Zero
-	minimum := decimal.NewFromFloat(dailyCheckinMinRechargeCNY)
 	for _, order := range matching {
 		if PaymentOrderCurrency(order) != payment.DefaultPaymentCurrency || math.IsNaN(order.PayAmount) || math.IsInf(order.PayAmount, 0) {
 			continue
 		}
 		total = total.Add(decimal.NewFromFloat(order.PayAmount))
-		if total.GreaterThanOrEqual(minimum) {
-			return true, nil
-		}
 	}
-	return false, nil
+	return total, nil
 }
 
 func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64, month string) (*DailyCheckinStatus, error) {
@@ -218,9 +221,16 @@ func (s *PaymentService) GetDailyCheckinStatus(ctx context.Context, userID int64
 		status.CycleDay = (status.CurrentStreak % status.CycleLength) + 1
 		status.TodayReward = dailyCheckinRewardPreview(status.CurrentStreak + 1)
 	}
-	status.HasRecentRecharge, err = hasDailyCheckinRecharge(ctx, s.entClient.PaymentOrder, userID, now)
+	rechargeTotal, err := dailyCheckinRechargeTotal(ctx, s.entClient.PaymentOrder, userID, now)
 	if err != nil {
 		return nil, fmt.Errorf("check recent recharge: %w", err)
+	}
+	remaining := decimal.Max(decimal.Zero, dailyCheckinMinRechargeCNY.Sub(rechargeTotal))
+	status.HasRecentRecharge = remaining.IsZero()
+	status.RechargeProgress = DailyCheckinRechargeProgress{
+		Total:     rechargeTotal.InexactFloat64(),
+		Target:    dailyCheckinMinRechargeCNY.InexactFloat64(),
+		Remaining: remaining.InexactFloat64(),
 	}
 	return status, nil
 }
@@ -260,11 +270,11 @@ func (s *PaymentService) ClaimDailyCheckin(ctx context.Context, userID int64) (*
 			streak = previousStreak + 1
 		}
 	}
-	hasRecharge, err := hasDailyCheckinRecharge(ctx, tx.PaymentOrder, userID, now)
+	rechargeTotal, err := dailyCheckinRechargeTotal(ctx, tx.PaymentOrder, userID, now)
 	if err != nil {
 		return nil, fmt.Errorf("check recent recharge: %w", err)
 	}
-	if !hasRecharge {
+	if rechargeTotal.LessThan(dailyCheckinMinRechargeCNY) {
 		return nil, infraerrors.Forbidden("CHECKIN_RECHARGE_REQUIRED", "Check-in requires at least CNY 9.90 in completed balance recharges paid in the last 30 days")
 	}
 	reward := dailyCheckinReward(streak)

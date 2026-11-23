@@ -99,6 +99,7 @@ export interface DailyCheckinRecord {
 export interface DailyCheckinStatus {
   checked_in_today: boolean
   has_recent_recharge: boolean
+  recharge_progress?: { total: number; target: number; remaining: number }
   current_streak: number
   total_days: number
   total_reward: number

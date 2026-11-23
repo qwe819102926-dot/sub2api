@@ -92,6 +92,26 @@ describe('daily check-in header and calendar', () => {
     expect(mocks.error).toHaveBeenCalledWith(zh.checkin.rechargeRequired)
     expect(document.querySelector<HTMLButtonElement>('.ci-claim .ci-action')?.disabled).toBe(true)
   })
+  it('shows the 30-day total and remaining recharge even after today’s check-in', async () => {
+    server = { ...claimedStatus(), has_recent_recharge: false, recharge_progress: { total: 6.8, target: 9.9, remaining: 3.1 } }
+    await render(); await open()
+    expect(document.querySelector('.ci-callout h3')?.textContent).toBe(zh.checkin.checkedToday)
+    const progress = document.querySelector<HTMLElement>('.ci-recharge')!
+    expect(progress.textContent).toContain('近 30 天实付充值')
+    expect(progress.querySelector('dd')?.textContent).toContain('6.8')
+    expect(progress.querySelector('.ci-recharge-gap')?.textContent).toMatch(/还差.*3\.1/)
+    expect(progress.querySelector('progress')?.value).toBe(6.8)
+    expect(progress.querySelector('progress')?.max).toBe(9.9)
+  })
+  it('fills the progress bar and hides the gap once the target is reached', async () => {
+    server = { ...server, recharge_progress: { total: 14.3, target: 9.9, remaining: 0 } }
+    await render(); await open()
+    const progress = document.querySelector<HTMLElement>('.ci-recharge')!
+    expect(progress.querySelector('.ci-recharge-badge')?.textContent).toContain(zh.checkin.rechargeMet)
+    expect(progress.querySelector('dd')?.textContent).toContain('14.3')
+    expect(progress.querySelector('progress')?.value).toBe(9.9)
+    expect(progress.querySelector('.ci-recharge-gap')).toBeNull()
+  })
   it('opens a centered dialog and marks milestones by streak dates, including across months', async () => {
     await render()
     expect(document.querySelector('[role="dialog"]')).toBeNull()

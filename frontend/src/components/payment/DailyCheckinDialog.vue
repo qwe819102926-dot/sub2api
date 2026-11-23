@@ -17,7 +17,7 @@
           </div>
           <template v-else>
             <section class="ci-claim" aria-live="polite">
-              <div v-if="!status.checked_in_today && !status.has_recent_recharge" class="ci-callout locked">
+              <div v-if="!status.checked_in_today && !status.has_recent_recharge && !status.recharge_progress" class="ci-callout locked">
                 <span class="ci-callout-icon"><Icon name="lock" size="md" /></span>
                 <div>
                   <h3>{{ t('checkin.rechargeToUnlock') }}</h3>
@@ -25,7 +25,7 @@
                   <p class="ci-muted">{{ t('checkin.rechargeGiftExcluded') }}</p>
                 </div>
               </div>
-              <div v-else class="ci-callout">
+              <div v-else-if="status.checked_in_today || status.has_recent_recharge" class="ci-callout">
                 <span class="ci-callout-icon"><Icon :name="status.checked_in_today ? 'checkCircle' : 'gift'" size="md" /></span>
                 <div>
                   <h3>{{ t(status.checked_in_today ? 'checkin.checkedToday' : 'checkin.available') }}</h3>
@@ -36,6 +36,28 @@
                 <div><dt>{{ t('checkin.totalDays') }}</dt><dd>{{ status.total_days }}<small>{{ t('checkin.times') }}</small></dd></div>
                 <div><dt>{{ t('checkin.totalReward') }}</dt><dd>{{ format(status.total_reward) }}<small>{{ t('checkin.bonusUnit') }}</small></dd></div>
               </dl>
+              <section v-if="status.recharge_progress" class="ci-recharge" :aria-labelledby="`${titleId}-recharge`">
+                <header class="ci-recharge-heading">
+                  <h3 :id="`${titleId}-recharge`"><Icon name="chartBar" size="sm" />{{ t('checkin.rechargeProgress') }}</h3>
+                  <span class="ci-recharge-badge" :class="{ met: status.has_recent_recharge }">
+                    {{ t(status.has_recent_recharge ? 'checkin.rechargeMet' : 'checkin.rechargeUnmet') }}
+                  </span>
+                </header>
+                <dl class="ci-recharge-amounts">
+                  <div><dt>{{ t('checkin.rechargePaid') }}</dt><dd>{{ formatRecharge(status.recharge_progress.total) }}</dd></div>
+                  <div><dt>{{ t('checkin.rechargeTarget') }}</dt><dd>{{ formatRecharge(status.recharge_progress.target) }}</dd></div>
+                </dl>
+                <progress
+                  class="ci-recharge-meter"
+                  :aria-labelledby="`${titleId}-recharge`"
+                  :value="Math.min(status.recharge_progress.total, status.recharge_progress.target)"
+                  :max="status.recharge_progress.target"
+                />
+                <p v-if="status.recharge_progress.remaining > 0" class="ci-recharge-gap">
+                  {{ t('checkin.rechargeGap') }} <strong>{{ formatRecharge(status.recharge_progress.remaining) }}</strong>
+                </p>
+                <p class="ci-recharge-note">{{ t('checkin.rechargeGiftExcluded') }}</p>
+              </section>
               <button type="button" class="ci-action" :disabled="loading || submitting || status.checked_in_today || !status.has_recent_recharge" @click="claim">
                 {{ t(status.checked_in_today ? 'checkin.checkedEntry' : submitting ? 'common.processing' : status.has_recent_recharge ? 'checkin.checkinNow' : 'checkin.rechargeUnmet') }}
               </button>
@@ -122,6 +144,10 @@ const format = (value: number) => {
   const amount = Number(value || 0)
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(2)
 }
+const rechargeFormatter = computed(() => new Intl.NumberFormat(locale.value, {
+  style: 'currency', currency: 'CNY', minimumFractionDigits: 0, maximumFractionDigits: 2
+}))
+const formatRecharge = (value: number) => rechargeFormatter.value.format(value)
 const weekdays = computed(() => String(t('checkin.weekdays')).split(','))
 const records = computed(() => Object.fromEntries((status.value?.records ?? []).map(record => [record.date, record])))
 const recentRecords = computed(() => [...(status.value?.records ?? [])].reverse().slice(0, allRecords.value ? undefined : 3))
@@ -211,7 +237,10 @@ async function claim() {
   } catch (error) {
     if (active && request === revision && auth.user?.id === owner) {
       const rechargeRequired = typeof error === 'object' && error !== null && 'reason' in error && error.reason === 'CHECKIN_RECHARGE_REQUIRED'
-      if (rechargeRequired && status.value) status.value.has_recent_recharge = false
+      if (rechargeRequired && status.value) {
+        status.value.has_recent_recharge = false
+        status.value.recharge_progress = undefined
+      }
       app.showError(t(rechargeRequired ? 'checkin.rechargeRequired' : 'checkin.failed'))
     }
   }
@@ -280,6 +309,23 @@ onBeforeUnmount(() => { active = false; revision++; clearTimeout(resetTimer); wi
 .ci-stats > div + div { border-inline-start: 1px solid var(--ci-line); }
 .ci-stats dt { color: var(--ci-muted); font-size: 13px; }
 .ci-stats dd { margin: 4px 0 0; color: var(--ci-green); font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ci-recharge { margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--ci-trial-border); border-radius: 14px; background: var(--ci-soft); }
+.ci-recharge-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ci-recharge-heading h3 { display: flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; }
+.ci-recharge-heading h3 svg { flex: none; color: var(--ci-green); }
+.ci-recharge-badge { flex: none; padding: 4px 9px; border-radius: 999px; background: var(--ci-warm); color: var(--ci-amber); font-size: 12px; font-weight: 600; }
+.ci-recharge-badge.met { background: var(--ci-paper); color: var(--ci-green); }
+.ci-recharge-amounts { display: flex; justify-content: space-between; gap: 14px; margin: 12px 0 9px; }
+.ci-recharge-amounts > div:last-child { text-align: end; }
+.ci-recharge-amounts dt { color: var(--ci-muted); font-size: 12px; }
+.ci-recharge-amounts dd { color: var(--ci-green); font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ci-recharge-meter { appearance: none; display: block; width: 100%; height: 10px; overflow: hidden; border: 0; border-radius: 999px; background: var(--ci-line); }
+.ci-recharge-meter::-webkit-progress-bar { border-radius: 999px; background: var(--ci-line); }
+.ci-recharge-meter::-webkit-progress-value { border-radius: 999px; background: linear-gradient(90deg, #2eaa79, #147554); }
+.ci-recharge-meter::-moz-progress-bar { border-radius: 999px; background: linear-gradient(90deg, #2eaa79, #147554); }
+.ci-recharge-gap { margin-top: 10px; color: var(--ci-green); font-size: 14px; }
+.ci-recharge-gap strong { margin-inline-start: 3px; font-size: 21px; font-variant-numeric: tabular-nums; }
+.ci-recharge-note { margin-top: 8px; color: var(--ci-muted); font-size: 12px; }
 .ci-action { display: block; width: 100%; min-height: 44px; padding: 10px; border-radius: 10px; background: #166750; color: #fff; font-size: 15px; font-weight: 650; text-align: center; }
 .ci-action:disabled { background: var(--ci-line); color: var(--ci-muted); cursor: default; }
 .ci-note { margin: 10px 0 16px; color: var(--ci-muted); font-size: 12px; text-align: center; }
@@ -305,6 +351,8 @@ onBeforeUnmount(() => { active = false; revision++; clearTimeout(resetTimer); wi
   .ci-callout { align-items: flex-start; gap: 10px; padding: 12px; }
   .ci-callout-icon { width: 32px; height: 32px; }
   .ci-callout p { font-size: 13px; }
+  .ci-recharge { padding: 13px 12px; }
+  .ci-recharge-heading h3 { font-size: 16px; }
   .ci-trial { grid-template-columns: minmax(0, 1fr) auto; padding: 10px 12px; }
   .ci-trial-icon { display: none; }
   .ci-trial-qr img { width: 144px; }
