@@ -2455,6 +2455,9 @@ func extractQuotaResetSeconds(err error) int {
 }
 
 func billingErrorDetails(err error) (status int, code, message string, retryAfter int) {
+	if message := service.SubscriptionQuotaExceededMessage(err); message != "" {
+		return http.StatusTooManyRequests, "subscription_error", message, 0
+	}
 	if errors.Is(err, service.ErrBillingServiceUnavailable) {
 		msg := pkgerrors.Message(err)
 		if msg == "" {

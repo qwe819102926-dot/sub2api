@@ -3,10 +3,12 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,6 +40,32 @@ func TestBillingErrorDetails_APIKeyRateLimitStillMaps(t *testing.T) {
 		status, code, _, _ := billingErrorDetails(err)
 		require.Equal(t, http.StatusTooManyRequests, status, "status for %v", err)
 		require.Equal(t, "rate_limit_exceeded", code)
+	}
+}
+
+func TestBillingErrorDetails_MapsSubscriptionQuotaToOpenAIInsufficientQuota(t *testing.T) {
+	for _, test := range []struct {
+		err     error
+		message string
+	}{
+		{service.ErrDailyLimitExceeded, "订阅额度不足：日额度已用完"},
+		{service.ErrWeeklyLimitExceeded, "订阅额度不足：周额度已用完"},
+		{service.ErrMonthlyLimitExceeded, "订阅额度不足：月额度已用完"},
+	} {
+		t.Run(test.message, func(t *testing.T) {
+			status, errType, message, retryAfter := billingErrorDetails(test.err)
+			require.Equal(t, http.StatusTooManyRequests, status)
+			require.Equal(t, "subscription_error", errType)
+			require.Equal(t, test.message, message)
+			require.Zero(t, retryAfter)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			(&OpenAIGatewayHandler{}).handleStreamingAwareError(c, status, errType, message, false)
+			require.Equal(t, http.StatusTooManyRequests, w.Code)
+			require.JSONEq(t, `{"error":{"type":"insufficient_quota","code":"insufficient_quota","message":"`+test.message+`"}}`, w.Body.String())
+			normalizedType := normalizeOpsErrorType("insufficient_quota", "insufficient_quota")
+			require.Equal(t, "request", classifyOpsPhase(normalizedType, message, "insufficient_quota"))
+		})
 	}
 }
 

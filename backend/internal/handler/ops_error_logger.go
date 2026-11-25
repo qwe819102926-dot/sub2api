@@ -2325,6 +2325,7 @@ func isOpsLocalBusinessLimitError(code string, msg string) bool {
 		strings.Contains(msg, "api key 5小时限额已用完") ||
 		strings.Contains(msg, "api key 日限额已用完") ||
 		strings.Contains(msg, "api key 7天限额已用完") ||
+		strings.HasPrefix(msg, service.SubscriptionQuotaExceededMessagePrefix) ||
 		strings.Contains(msg, "daily usage limit exceeded") ||
 		strings.Contains(msg, "weekly usage limit exceeded") ||
 		strings.Contains(msg, "monthly usage limit exceeded") ||

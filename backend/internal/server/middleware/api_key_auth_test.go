@@ -266,7 +266,16 @@ func TestSimpleModeBypassesQuotaCheck(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusTooManyRequests, w.Code)
-		require.Contains(t, w.Body.String(), "USAGE_LIMIT_EXCEEDED")
+		requireAPIKeyAuthError(t, w, "USAGE_LIMIT_EXCEEDED", "订阅额度不足：日额度已用完")
+
+		for _, path := range []string{"/v1/responses", "/v1/chat/completions"} {
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, path, nil)
+			req.Header.Set("x-api-key", apiKey.Key)
+			router.ServeHTTP(w, req)
+			require.Equal(t, http.StatusTooManyRequests, w.Code)
+			require.JSONEq(t, `{"error":{"type":"insufficient_quota","code":"insufficient_quota","message":"订阅额度不足：日额度已用完","param":null}}`, w.Body.String())
+		}
 	})
 }
 
@@ -1507,6 +1516,7 @@ func newAuthTestRouter(apiKeyService *service.APIKeyService, subscriptionService
 	}
 	router.GET("/t", ok)
 	router.POST("/v1/responses", ok)
+	router.POST("/v1/chat/completions", ok)
 	router.POST("/v1/messages", ok)
 	router.GET("/v1/usage", ok)
 	router.GET("/v1/sub2api/billing", ok)

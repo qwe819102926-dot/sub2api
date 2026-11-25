@@ -247,15 +247,15 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 					_, validateErr = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 				}
 				if validateErr != nil {
-					code := "SUBSCRIPTION_INVALID"
-					status := 403
-					if errors.Is(validateErr, service.ErrDailyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrWeeklyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrMonthlyLimitExceeded) {
-						code = "USAGE_LIMIT_EXCEEDED"
-						status = 429
+					if message := service.SubscriptionQuotaExceededMessage(validateErr); message != "" {
+						if isOpenAICompatibleSubscriptionRequest(c) {
+							abortWithOpenAIQuotaError(c, http.StatusTooManyRequests, message)
+						} else {
+							AbortWithError(c, http.StatusTooManyRequests, "USAGE_LIMIT_EXCEEDED", message)
+						}
+						return
 					}
-					AbortWithError(c, status, code, validateErr.Error())
+					AbortWithError(c, http.StatusForbidden, "SUBSCRIPTION_INVALID", validateErr.Error())
 					return
 				}
 			} else {
@@ -335,6 +335,17 @@ func isOpenAICompatibleAPIKeyRequest(c *gin.Context) bool {
 		}
 	}
 	return false
+}
+
+func isOpenAICompatibleSubscriptionRequest(c *gin.Context) bool {
+	if isOpenAICompatibleAPIKeyRequest(c) {
+		return true
+	}
+	path := strings.TrimRight(c.Request.URL.Path, "/")
+	return strings.HasSuffix(path, "/chat/completions") ||
+		strings.HasSuffix(path, "/embeddings") ||
+		strings.HasSuffix(path, "/images/generations") ||
+		strings.HasSuffix(path, "/images/edits")
 }
 
 func isAsyncImageTaskRead(method, path string) bool {

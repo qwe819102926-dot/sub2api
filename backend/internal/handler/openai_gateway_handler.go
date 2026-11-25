@@ -3477,6 +3477,10 @@ func (h *OpenAIGatewayHandler) mapUpstreamError(statusCode int) (int, string, st
 
 // handleStreamingAwareError handles errors that may occur after streaming has started
 func (h *OpenAIGatewayHandler) handleStreamingAwareError(c *gin.Context, status int, errType, message string, streamStarted bool) {
+	if errType == "subscription_error" {
+		h.handleStreamingAwareErrorWithCode(c, status, "insufficient_quota", "insufficient_quota", message, streamStarted, false)
+		return
+	}
 	h.handleStreamingAwareErrorWithCode(c, status, errType, "", message, streamStarted, false)
 }
 
@@ -3668,6 +3672,10 @@ func openAIFirstOutputFailoverExhausted(failoverErr *service.UpstreamFailoverErr
 
 // errorResponse returns OpenAI API format error response
 func (h *OpenAIGatewayHandler) errorResponse(c *gin.Context, status int, errType, message string) {
+	if errType == "subscription_error" {
+		h.handleStreamingAwareError(c, status, errType, message, false)
+		return
+	}
 	// body-signal compact 心跳可能已把响应头提交为 200：JSON 错误体会与已
 	// 提交的 SSE 流交错，必须降级为 response.failed 终止事件（#3887）。
 	if service.StopOpenAICompactSSEKeepaliveCommitted(c) {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -188,13 +189,11 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				_, err = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 			}
 			if err != nil {
-				status := 403
-				if errors.Is(err, service.ErrDailyLimitExceeded) ||
-					errors.Is(err, service.ErrWeeklyLimitExceeded) ||
-					errors.Is(err, service.ErrMonthlyLimitExceeded) {
-					status = 429
+				if message := service.SubscriptionQuotaExceededMessage(err); message != "" {
+					abortWithGoogleError(c, http.StatusTooManyRequests, message)
+					return
 				}
-				abortWithGoogleError(c, status, err.Error())
+				abortWithGoogleError(c, http.StatusForbidden, err.Error())
 				return
 			}
 

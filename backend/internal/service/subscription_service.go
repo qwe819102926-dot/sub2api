@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -41,6 +42,22 @@ var (
 	ErrSubscriptionNilInput        = infraerrors.BadRequest("SUBSCRIPTION_NIL_INPUT", "subscription input cannot be nil")
 	ErrAdjustWouldExpire           = infraerrors.BadRequest("ADJUST_WOULD_EXPIRE", "adjustment would result in expired subscription (remaining days must be > 0)")
 )
+
+const SubscriptionQuotaExceededMessagePrefix = "订阅额度不足"
+
+// SubscriptionQuotaExceededMessage is present only for an exhausted subscription window.
+func SubscriptionQuotaExceededMessage(err error) string {
+	switch {
+	case errors.Is(err, ErrDailyLimitExceeded):
+		return SubscriptionQuotaExceededMessagePrefix + "：日额度已用完"
+	case errors.Is(err, ErrWeeklyLimitExceeded):
+		return SubscriptionQuotaExceededMessagePrefix + "：周额度已用完"
+	case errors.Is(err, ErrMonthlyLimitExceeded):
+		return SubscriptionQuotaExceededMessagePrefix + "：月额度已用完"
+	default:
+		return ""
+	}
+}
 
 // SubscriptionService 订阅服务
 type SubscriptionService struct {
