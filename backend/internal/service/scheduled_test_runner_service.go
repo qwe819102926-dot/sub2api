@@ -20,9 +20,11 @@ type ScheduledTestRunnerService struct {
 	rateLimitSvc   *RateLimitService
 	cfg            *config.Config
 
-	cron      *cron.Cron
-	startOnce sync.Once
-	stopOnce  sync.Once
+	stopRecovery context.CancelFunc
+	recoveryDone chan struct{}
+	cron         *cron.Cron
+	startOnce    sync.Once
+	stopOnce     sync.Once
 }
 
 // NewScheduledTestRunnerService creates a new runner.
@@ -63,6 +65,15 @@ func (s *ScheduledTestRunnerService) Start() {
 		}
 		s.cron = c
 		s.cron.Start()
+		if s.accountTestSvc != nil {
+			ctx, cancel := context.WithCancel(context.Background())
+			s.stopRecovery = cancel
+			s.recoveryDone = make(chan struct{})
+			go func() {
+				defer close(s.recoveryDone)
+				s.accountTestSvc.runUpstreamRecoveryProbes(ctx)
+			}()
+		}
 		logger.LegacyPrintf("service.scheduled_test_runner", "[ScheduledTestRunner] started (tick=every minute)")
 	})
 }
@@ -73,6 +84,17 @@ func (s *ScheduledTestRunnerService) Stop() {
 		return
 	}
 	s.stopOnce.Do(func() {
+		if s.stopRecovery != nil {
+			s.stopRecovery()
+		}
+		defer func() {
+			if s.recoveryDone != nil {
+				select {
+				case <-s.recoveryDone:
+				case <-time.After(3 * time.Second):
+				}
+			}
+		}()
 		if s.cron != nil {
 			ctx := s.cron.Stop()
 			select {

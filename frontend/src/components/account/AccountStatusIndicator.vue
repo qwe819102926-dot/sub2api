@@ -1,7 +1,10 @@
 <template>
   <div class="flex items-center gap-2">
+    <span v-if="awaitingUpstreamRecovery" class="badge text-xs badge-warning">
+      {{ t('admin.accounts.upstreamRecovery.awaitingProbe') }}
+    </span>
     <!-- Rate Limit Display (429) - Two-line layout -->
-    <div v-if="isRateLimited" class="flex flex-col items-center gap-1">
+    <div v-else-if="isRateLimited" class="flex flex-col items-center gap-1">
       <span class="badge text-xs badge-warning">{{ t('admin.accounts.status.rateLimited') }}</span>
       <span class="text-[11px] text-gray-400 dark:text-gray-500">{{ rateLimitResumeText }}</span>
     </div>
@@ -313,6 +316,13 @@ const tempUnschedRecoveryText = computed(() => {
     time: formatDateTime(props.account.temp_unschedulable_until)
   })
 })
+
+const awaitingUpstreamRecovery = computed(() =>
+  props.account.status === 'active' &&
+  props.account.schedulable &&
+  props.account.credentials?.upstream_failure_recovery_enabled === true &&
+  props.account.extra?.upstream_failure_recovery != null
+)
 
 // Computed: status badge class
 const statusClass = computed(() => {

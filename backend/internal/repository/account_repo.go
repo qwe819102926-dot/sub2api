@@ -143,7 +143,7 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 		SetPlatform(account.Platform).
 		SetType(account.Type).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
-		SetExtra(normalizeJSONMap(account.Extra)).
+		SetExtra(normalizeJSONMap(withoutUpstreamRecoveryState(account.Extra))).
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
 		SetStatus(account.Status).
@@ -641,7 +641,8 @@ func lockAndMergeAccountProbeExtra(
 			extra -> 'upstream_billing_probe',
 			extra -> 'ollama_cloud_usage_session',
 			extra -> 'ollama_cloud_usage_auto_refresh',
-			extra -> 'ollama_cloud_usage_snapshot'
+			extra -> 'ollama_cloud_usage_snapshot',
+			extra -> 'upstream_failure_recovery'
 		FROM accounts
 		WHERE id = $1 AND deleted_at IS NULL
 		FOR NO KEY UPDATE
@@ -667,6 +668,7 @@ func lockAndMergeAccountProbeExtra(
 		currentOllamaSession         []byte
 		currentOllamaAutoRefresh     []byte
 		currentOllamaSnapshot        []byte
+		currentUpstreamRecovery      []byte
 	)
 	if err := rows.Scan(
 		&identityUnchanged,
@@ -678,6 +680,7 @@ func lockAndMergeAccountProbeExtra(
 		&currentOllamaSession,
 		&currentOllamaAutoRefresh,
 		&currentOllamaSnapshot,
+		&currentUpstreamRecovery,
 	); err != nil {
 		return nil, err
 	}
@@ -695,6 +698,16 @@ func lockAndMergeAccountProbeExtra(
 		service.OllamaCloudUsageSnapshotExtraKey,
 	} {
 		delete(extra, key)
+	}
+	delete(extra, service.UpstreamRecoveryStateExtra)
+	if account.UpstreamRecoveryEnabled() {
+		recovery, ok, err := decodeAccountExtraJSON(currentUpstreamRecovery)
+		if err != nil {
+			return nil, err
+		}
+		if ok {
+			extra[service.UpstreamRecoveryStateExtra] = recovery
+		}
 	}
 	probeAccount := service.IsUpstreamBillingProbeIdentity(account.Platform, account.Type)
 	probeEnabled := false
@@ -1963,6 +1976,7 @@ func (r *accountRepository) ListSchedulableCapacityByGroupIDs(ctx context.Contex
 			AND a.status = $2
 			AND a.schedulable = TRUE
 			AND (a.temp_unschedulable_until IS NULL OR a.temp_unschedulable_until <= $3)
+			AND NOT (a.credentials @> '{"upstream_failure_recovery_enabled":true}'::jsonb AND a.extra->'upstream_failure_recovery' IS NOT NULL)
 			AND (a.expires_at IS NULL OR a.expires_at > $3 OR a.auto_pause_on_expired = FALSE)
 			AND (a.overload_until IS NULL OR a.overload_until <= $3)
 			AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= $3)
@@ -2553,7 +2567,7 @@ func (r *accountRepository) AutoPauseExpiredAccounts(ctx context.Context, now ti
 }
 
 func (r *accountRepository) UpdateExtra(ctx context.Context, id int64, updates map[string]any) error {
-	updates = stripCodexFingerprintSeedFromExtraUpdate(updates)
+	updates = withoutUpstreamRecoveryState(stripCodexFingerprintSeedFromExtraUpdate(updates))
 	if len(updates) == 0 {
 		return nil
 	}
@@ -2830,7 +2844,7 @@ func (r *accountRepository) BulkUpdate(ctx context.Context, ids []int64, updates
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	updates.Extra = stripCodexFingerprintSeedFromExtraUpdate(updates.Extra)
+	updates.Extra = withoutUpstreamRecoveryState(stripCodexFingerprintSeedFromExtraUpdate(updates.Extra))
 
 	setClauses := make([]string, 0, 8)
 	args := make([]any, 0, 8)
@@ -3182,6 +3196,7 @@ func tempUnschedulablePredicate() dbpredicate.Account {
 			entsql.IsNull(col),
 			entsql.LTE(col, entsql.Expr("NOW()")),
 		))
+		s.Where(upstreamRecoverySchedulablePredicate())
 	})
 }
 

@@ -2474,6 +2474,19 @@
         </template>
       </div>
 
+      <label
+        v-if="canConfigureUpstreamRecovery"
+        class="flex cursor-pointer items-start gap-3 border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <input v-model="upstreamRecoveryEnabled" type="checkbox" class="mt-1 rounded text-primary-600" />
+        <span>
+          <span class="input-label mb-0">{{ t('admin.accounts.upstreamRecovery.title') }}</span>
+          <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.upstreamRecovery.hint') }}
+          </span>
+        </span>
+      </label>
+
       <!-- Temp Unschedulable Rules -->
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3 flex items-center justify-between">
@@ -4477,6 +4490,10 @@ watch(vertexAuthMode, () => {
 })
 const tempUnschedEnabled = ref(false)
 const tempUnschedRules = ref<TempUnschedRuleForm[]>([])
+const upstreamRecoveryEnabled = ref(false)
+const canConfigureUpstreamRecovery = computed(
+  () => accountCategory.value === 'apikey' && (form.platform === 'openai' || isCNPlatform.value)
+)
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-model-mapping')
 const getOpenAICompactModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-openai-compact-model-mapping')
 const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('create-antigravity-model-mapping')
@@ -5274,6 +5291,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 // Methods
 const resetForm = () => {
   step.value = 1
+  upstreamRecoveryEnabled.value = false
   form.name = ''
   form.notes = ''
   form.platform = 'anthropic'
@@ -5782,6 +5800,9 @@ const handleSubmit = async () => {
   const credentials: Record<string, unknown> = {
     base_url: apiKeyBaseUrl.value.trim() || defaultBaseUrl,
     api_key: apiKeyValue.value.trim()
+  }
+  if (canConfigureUpstreamRecovery.value && upstreamRecoveryEnabled.value) {
+    credentials.upstream_failure_recovery_enabled = true
   }
   if (form.platform === 'gemini' && isOfficialGeminiBaseUrl(apiKeyBaseUrl.value)) {
     credentials.tier_id = geminiTierAIStudio.value

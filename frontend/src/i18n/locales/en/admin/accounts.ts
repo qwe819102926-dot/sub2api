@@ -360,6 +360,11 @@ export default {
           normal: 'Quota normal'
         },
       },
+      upstreamRecovery: {
+        title: 'Switch accounts on upstream failure',
+        hint: 'For upstream text requests, switch accounts after a failure, pause this account for two minutes, and resume after a successful probe.',
+        awaitingProbe: 'Paused for recovery probe'
+      },
       tempUnschedulable: {
         title: 'Temp Unschedulable',
         statusTitle: 'Temp Unschedulable Status',

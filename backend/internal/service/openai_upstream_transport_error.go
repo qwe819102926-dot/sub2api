@@ -118,6 +118,10 @@ func (s *OpenAIGatewayService) handleOpenAIUpstreamTransportError(ctx context.Co
 	if isClientCanceledTransportError(ctx, err) {
 		return err
 	}
+	var failover *UpstreamFailoverError
+	if account.UpstreamRecoveryEnabled() && errors.As(err, &failover) {
+		return failover
+	}
 	safeErr := sanitizeUpstreamErrorMessage(err.Error())
 	setOpsUpstreamError(c, 0, safeErr, "")
 	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{

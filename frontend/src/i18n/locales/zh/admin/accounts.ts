@@ -408,6 +408,11 @@ export default {
         viewTempUnschedDetails: '查看临时不可调度详情',
         tempUnschedulableUntil: '预计 {time} 恢复'
       },
+      upstreamRecovery: {
+        title: '上游失败自动切换',
+        hint: '上游文本请求失败后切换账号，暂停本账号调度 2 分钟。后台探测成功后恢复调度。',
+        awaitingProbe: '暂停调度 · 等待探测'
+      },
       tempUnschedulable: {
         title: '临时不可调度',
         statusTitle: '临时不可调度状态',

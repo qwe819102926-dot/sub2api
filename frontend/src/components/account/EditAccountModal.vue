@@ -1385,6 +1385,19 @@
         </div>
       </div>
 
+      <label
+        v-if="canConfigureUpstreamRecovery"
+        class="flex cursor-pointer items-start gap-3 border-t border-gray-200 pt-4 dark:border-dark-600"
+      >
+        <input v-model="upstreamRecoveryEnabled" type="checkbox" class="mt-1 rounded text-primary-600" />
+        <span>
+          <span class="input-label mb-0">{{ t('admin.accounts.upstreamRecovery.title') }}</span>
+          <span class="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+            {{ t('admin.accounts.upstreamRecovery.hint') }}
+          </span>
+        </span>
+      </label>
+
       <!-- Temp Unschedulable Rules -->
       <div class="border-t border-gray-200 pt-4 dark:border-dark-600 space-y-4">
         <div class="mb-3 flex items-center justify-between">
@@ -3342,6 +3355,10 @@ const supportsAccountSchedulingThresholdOverride = computed(() =>
   supportsAccountSchedulingThresholdOverridePlatform(props.account?.platform)
 )
 const tempUnschedRules = ref<TempUnschedRuleForm[]>([])
+const upstreamRecoveryEnabled = ref(false)
+const canConfigureUpstreamRecovery = computed(
+  () => (props.account?.type === 'apikey' && props.account.platform === 'openai') || isCNApiKeyAccount.value
+)
 const getModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-model-mapping')
 const getOpenAICompactModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-openai-compact-model-mapping')
 const getAntigravityModelMappingKey = createStableObjectKeyResolver<ModelMapping>('edit-antigravity-model-mapping')
@@ -4027,6 +4044,7 @@ const syncFormFromAccount = (newAccount: Account | null) => {
   loadQuotaControlSettings(newAccount)
 
   loadTempUnschedRules(credentials)
+  upstreamRecoveryEnabled.value = credentials?.upstream_failure_recovery_enabled === true
   loadAccountSchedulingThresholdOverride(newAccount.platform, credentials)
 
   // Load header override state for eligible account platforms/types
@@ -4935,6 +4953,14 @@ const handleSubmit = async () => {
       // Add intercept warmup requests setting
       applyInterceptWarmup(newCredentials, interceptWarmupRequests.value, 'edit')
       applyAccountSchedulingThresholdOverridePatch(newCredentials, currentCredentials)
+      if (canConfigureUpstreamRecovery.value) {
+        if (upstreamRecoveryEnabled.value) {
+          newCredentials.upstream_failure_recovery_enabled = true
+        } else if (currentCredentials.upstream_failure_recovery_enabled === true) {
+          newCredentials.upstream_failure_recovery_enabled = false
+        }
+      }
+
       if (!applyTempUnschedConfig(newCredentials)) {
         return
       }
