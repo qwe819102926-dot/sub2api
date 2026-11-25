@@ -262,13 +262,13 @@ func inspectUpstreamRecoveryResponse(resp *http.Response, state UpstreamRecovery
 	}
 
 	stream := &upstreamRecoveryStream{reader: reader, protocol: state.Protocol}
-	var prelude bytes.Buffer
-	for prelude.Len() < upstreamRecoveryBodyLimit {
+	var prelude []byte
+	for len(prelude) < upstreamRecoveryBodyLimit {
 		line, readErr := stream.next()
 		if stream.failed {
 			return body, fmt.Errorf("upstream stream failed before output")
 		}
-		prelude.Write(line)
+		prelude = append(prelude, line...)
 		if stream.output {
 			break
 		}
@@ -280,7 +280,7 @@ func inspectUpstreamRecoveryResponse(resp *http.Response, state UpstreamRecovery
 		}
 	}
 	stream.onFailure = onFailure
-	return &recoveryReadCloser{Reader: io.MultiReader(bytes.NewReader(prelude.Bytes()), stream), Closer: body}, nil
+	return &recoveryReadCloser{Reader: io.MultiReader(bytes.NewReader(prelude), stream), Closer: body}, nil
 }
 
 func upstreamRecoveryValidJSON(body []byte, protocol string) bool {
@@ -384,7 +384,7 @@ func upstreamRecoveryFrameFailed(frame gjson.Result) bool {
 
 func upstreamRecoveryHasError(value gjson.Result) bool {
 	return value.Exists() && value.Type != gjson.Null && value.Type != gjson.False &&
-		value.Raw != `""` && !(value.IsObject() && len(value.Map()) == 0)
+		value.Raw != `""` && (!value.IsObject() || len(value.Map()) != 0)
 }
 
 func upstreamRecoveryFrameOutput(frame gjson.Result, protocol string) bool {
