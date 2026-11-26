@@ -806,7 +806,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 
 	multiplier, imageMultiplier, pricingAt := s.recordUsageMultipliers(ctx, apiKey, user, input.PricingAt)
-	billingModel := s.recordUsageBillingModel(ctx, apiKey, result, input.ChannelUsageFields)
+	billingModel, requestedPricing := s.recordUsageBillingModel(ctx, apiKey, result, input.ChannelUsageFields)
 	cacheStorageCost := s.cacheStorageCost(result, billingModel)
 
 	// 确定 RequestedModel（渠道映射前的原始模型）
@@ -827,7 +827,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		result.UpstreamResponseModel,
 		result.UpstreamResponseModelConflict,
 		result.ImageCount > 0 || result.AudioUsage != nil || result.SearchCount > 0 || result.CacheStorageTokenHours > 0,
-	); responseModel != "" && !strings.EqualFold(responseModel, strings.TrimSpace(billingModel)) {
+	); !requestedPricing && responseModel != "" && !strings.EqualFold(responseModel, strings.TrimSpace(billingModel)) {
 		if identified, responseChannelPriced := s.hasIdentifiedResponseModelPricing(ctx, responseModel, apiKey); identified {
 			responseCost := s.calculateRecordUsageCost(ctx, result, apiKey, responseModel, multiplier, imageMultiplier, pricingAt)
 			baselineChannelPriced := s.resolveChannelPricing(ctx, billingModel, apiKey) != nil
@@ -940,8 +940,13 @@ func (s *GatewayService) recordUsageMultipliers(ctx context.Context, apiKey *API
 	return multiplier, imageMultiplier, pricingAt
 }
 
-// recordUsageBillingModel 按计费模型来源、composite 规则与无价兜底确定计费模型。
-func (s *GatewayService) recordUsageBillingModel(ctx context.Context, apiKey *APIKey, result *ForwardResult, fields ChannelUsageFields) string {
+// recordUsageBillingModel resolves the billing model and reports whether a
+// configured price for the requested DeepSeek model takes precedence.
+func (s *GatewayService) recordUsageBillingModel(ctx context.Context, apiKey *APIKey, result *ForwardResult, fields ChannelUsageFields) (string, bool) {
+	requestedModel := firstNonEmpty(fields.OriginalModel, result.Model)
+	if s.resolver.hasDeepSeekRequestedPricing(ctx, apiKey, requestedModel) {
+		return requestedModel, true
+	}
 	concreteBillingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
 	billingModel := concreteBillingModel
 	if fields.BillingModelSource == BillingModelSourceChannelMapped && fields.ChannelMappedModel != "" {
@@ -959,7 +964,7 @@ func (s *GatewayService) recordUsageBillingModel(ctx context.Context, apiKey *AP
 	}
 	// 通用兜底（与 OpenAI 路径的 usageBillingModelCandidates 语义对齐）：
 	// 选定模型查不到任何价格时回退到实际转发的具体模型。已定价流量不受影响。
-	return s.billableModelWithFallback(ctx, apiKey, billingModel, result.UpstreamModel, result.Model)
+	return s.billableModelWithFallback(ctx, apiKey, billingModel, result.UpstreamModel, result.Model), false
 }
 
 // cacheStoragePrice 返回计费模型的显式缓存存储单价；计费模型未配置时依次回退到实际转发模型与请求模型。
@@ -996,7 +1001,7 @@ func isCacheStorageOnlyResult(result *ForwardResult) bool {
 
 // CacheStoragePriced 判断 RecordUsage 对 input.Result 采用的计费模型（含回退候选）是否配置了显式缓存存储单价。
 func (s *GatewayService) CacheStoragePriced(ctx context.Context, input *RecordUsageInput) bool {
-	billingModel := s.recordUsageBillingModel(ctx, input.APIKey, input.Result, input.ChannelUsageFields)
+	billingModel, _ := s.recordUsageBillingModel(ctx, input.APIKey, input.Result, input.ChannelUsageFields)
 	return s.cacheStoragePrice(input.Result, billingModel) > 0
 }
 
@@ -1007,7 +1012,7 @@ func (s *GatewayService) QuoteUsageCost(ctx context.Context, input *RecordUsageI
 		user = input.APIKey.User
 	}
 	multiplier, imageMultiplier, pricingAt := s.recordUsageMultipliers(ctx, input.APIKey, user, input.PricingAt)
-	billingModel := s.recordUsageBillingModel(ctx, input.APIKey, input.Result, input.ChannelUsageFields)
+	billingModel, _ := s.recordUsageBillingModel(ctx, input.APIKey, input.Result, input.ChannelUsageFields)
 	cost := s.calculateRecordUsageCost(ctx, input.Result, input.APIKey, billingModel, multiplier, imageMultiplier, pricingAt)
 	if cost == nil {
 		return 0

@@ -65,6 +65,16 @@ type PricingInput struct {
 	Group   *Group
 }
 
+// hasDeepSeekRequestedPricing reports whether a customer-facing DeepSeek model
+// has a configured price that takes precedence over forwarding mappings.
+func (r *ModelPricingResolver) hasDeepSeekRequestedPricing(ctx context.Context, apiKey *APIKey, model string) bool {
+	if r == nil || apiKey == nil || apiKey.Group == nil || !isDeepSeekModel(model) {
+		return false
+	}
+	return matchGroupModelPricing(apiKey.Group, model) != nil ||
+		r.lookupChannelPricingNormalized(ctx, apiKey.Group.ID, model) != nil
+}
+
 // Resolve 解析模型定价。
 // 1. 获取基础定价（LiteLLM → Fallback）
 // 2. 如果指定了 GroupID，查找渠道定价并覆盖

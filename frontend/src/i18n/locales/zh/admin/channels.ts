@@ -181,7 +181,7 @@ export default {
         billingModelSourceRequested: '以请求模型计费',
         billingModelSourceUpstream: '以最终模型计费',
         billingModelSourceResponse: '按上游响应模型计费',
-        billingModelSourceHint: '控制使用哪个模型名称进行定价查找',
+        billingModelSourceHint: '控制使用哪个模型名称查价。DeepSeek 请求模型有分组或渠道自定义价时，优先使用该价格。',
         selectedCount: '已选 {count} 个',
         searchGroups: '搜索分组...',
         noGroupsMatch: '没有匹配的分组',

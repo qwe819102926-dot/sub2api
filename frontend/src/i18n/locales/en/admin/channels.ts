@@ -181,7 +181,7 @@ export default {
         billingModelSourceRequested: 'Bill by requested model',
         billingModelSourceUpstream: 'Bill by final upstream model',
         billingModelSourceResponse: 'Bill by upstream response model',
-        billingModelSourceHint: 'Controls which model name is used for pricing lookup',
+        billingModelSourceHint: 'Selects the model name used for pricing. Custom group or channel prices for the requested DeepSeek model take priority.',
         selectedCount: '{count} selected',
         searchGroups: 'Search groups...',
         noGroupsMatch: 'No groups match your search',
