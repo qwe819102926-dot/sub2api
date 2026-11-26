@@ -222,7 +222,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		billingModel = input.OriginalModel
 	}
 	requestedModelForPricing := firstNonEmpty(input.OriginalModel, result.Model)
-	requestedPricing := s.resolver.hasDeepSeekRequestedPricing(ctx, apiKey, requestedModelForPricing)
+	requestedPricing := s.resolver.hasRequestedModelPricing(ctx, apiKey, requestedModelForPricing)
 	if requestedPricing {
 		billingModel = requestedModelForPricing
 	}

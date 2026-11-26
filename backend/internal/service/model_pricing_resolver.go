@@ -65,10 +65,10 @@ type PricingInput struct {
 	Group   *Group
 }
 
-// hasDeepSeekRequestedPricing reports whether a customer-facing DeepSeek model
-// has a configured price that takes precedence over forwarding mappings.
-func (r *ModelPricingResolver) hasDeepSeekRequestedPricing(ctx context.Context, apiKey *APIKey, model string) bool {
-	if r == nil || apiKey == nil || apiKey.Group == nil || !isDeepSeekModel(model) {
+// hasRequestedModelPricing reports whether the requested model has a group or
+// channel price that takes precedence over forwarding mappings.
+func (r *ModelPricingResolver) hasRequestedModelPricing(ctx context.Context, apiKey *APIKey, model string) bool {
+	if r == nil || apiKey == nil || apiKey.Group == nil || strings.TrimSpace(model) == "" {
 		return false
 	}
 	return matchGroupModelPricing(apiKey.Group, model) != nil ||

@@ -648,6 +648,9 @@ func (d inflightEstimateDeps) estimate(ctx context.Context, apiKey *APIKey, req 
 		// 免费分组：不计费，也无需预留。
 		return 0, true
 	}
+	if req.Kind == InflightEstimateToken && d.resolver.hasRequestedModelPricing(ctx, apiKey, req.Model) {
+		return d.estimateOne(ctx, apiKey, req.Model, req, textRate, imageRate), true
+	}
 	primary, fallbacks, upstreamInput := inflightBillingModelCandidates(ctx, d, apiKey, req.Model)
 	bestOf := func(models []string) float64 {
 		best := 0.0

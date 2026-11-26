@@ -14,6 +14,137 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRecordUsageRequestedPricingSurvivesMapping(t *testing.T) {
+	const groupID int64 = 26
+	tests := []struct {
+		name            string
+		platform        string
+		requested       string
+		mapped          string
+		source          string
+		priceInGroup    bool
+		requestedPriced bool
+		mappedPriced    bool
+	}{
+		{
+			name: "DeepSeek group price with account mapping", platform: PlatformDeepseek,
+			requested: "deepseek-v4.1-flash", mapped: "deepseek-v4.1-flash-1017",
+			priceInGroup: true, requestedPriced: true,
+		},
+		{
+			name: "Kimi channel price with channel mapping", platform: PlatformKimi,
+			requested: "kimi-k3", mapped: "kimi-k3-1", source: BillingModelSourceChannelMapped,
+			requestedPriced: true, mappedPriced: true,
+		},
+		{
+			name: "Claude group price with upstream billing source", platform: PlatformAnthropic,
+			requested: "claude-sonnet-4", mapped: "claude-haiku-4-5", source: BillingModelSourceUpstream,
+			priceInGroup: true, requestedPriced: true, mappedPriced: true,
+		},
+		{
+			name: "OpenAI group price with cheaper upstream response", platform: PlatformOpenAI,
+			requested: "gpt-5.6-sol", mapped: "gpt-5.6-luna", source: BillingModelSourceResponse,
+			priceInGroup: true, requestedPriced: true, mappedPriced: true,
+		},
+		{
+			name: "mapped price when requested price is absent", platform: PlatformKimi,
+			requested: "kimi-k3", mapped: "kimi-k3-1", source: BillingModelSourceChannelMapped,
+			mappedPriced: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			requestedPricing := ChannelModelPricing{
+				Models: []string{tt.requested}, Platform: tt.platform, BillingMode: BillingModeToken,
+				InputPrice: float64Ptr(2e-6), OutputPrice: float64Ptr(8e-6), CacheReadPrice: float64Ptr(0.1e-6),
+			}
+			mappedPricing := ChannelModelPricing{
+				Models: []string{tt.mapped}, Platform: tt.platform, BillingMode: BillingModeToken,
+				InputPrice: float64Ptr(0.44e-6), OutputPrice: float64Ptr(1.32e-6), CacheReadPrice: float64Ptr(0.014e-6),
+			}
+			if tt.platform == PlatformKimi {
+				mappedPricing.InputPrice = float64Ptr(20e-6)
+				mappedPricing.OutputPrice = float64Ptr(80e-6)
+			}
+			var prices []ChannelModelPricing
+			want := mappedPricing
+			if tt.requestedPriced {
+				prices = append(prices, requestedPricing)
+				want = requestedPricing
+			}
+			if tt.mappedPriced {
+				prices = append(prices, mappedPricing)
+			}
+			user := &User{ID: 20}
+			group := &Group{ID: groupID, Platform: tt.platform, RateMultiplier: 0.11}
+			key := &APIKey{ID: 10, GroupID: &group.ID, Group: group, User: user}
+			account := &Account{ID: 30, Platform: tt.platform}
+			fields := ChannelUsageFields{OriginalModel: tt.requested, BillingModelSource: tt.source}
+			channel := Channel{ID: 9, Status: StatusActive, GroupIDs: []int64{groupID}, BillingModelSource: tt.source}
+			if tt.source == BillingModelSourceChannelMapped {
+				fields.ChannelMappedModel = tt.mapped
+				channel.ModelMapping = map[string]map[string]string{tt.platform: {tt.requested: tt.mapped}}
+			}
+			if tt.priceInGroup {
+				group.ModelPricing = prices
+			} else {
+				channel.ModelPricing = prices
+			}
+			channelService := &ChannelService{}
+			channelService.cache.Store(populateChannelCache([]Channel{channel}, map[int64]string{groupID: tt.platform}))
+			ctx := context.Background()
+			check := func(t *testing.T, log *UsageLog, charged float64) {
+				t.Helper()
+				require.NotNil(t, log)
+				require.Equal(t, tt.requested, log.RequestedModel)
+				require.NotNil(t, log.UpstreamModel)
+				require.Equal(t, tt.mapped, *log.UpstreamModel)
+				require.InDelta(t, 100*(*want.InputPrice), log.InputCost, 1e-12)
+				require.InDelta(t, 40*(*want.OutputPrice), log.OutputCost, 1e-12)
+				require.InDelta(t, 200*(*want.CacheReadPrice), log.CacheReadCost, 1e-12)
+				require.InDelta(t, (log.InputCost+log.OutputCost+log.CacheReadCost)*0.11, charged, 1e-12)
+			}
+			t.Run("shared gateway", func(t *testing.T) {
+				usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+				userRepo := &openAIRecordUsageUserRepoStub{}
+				svc := newGatewayRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{})
+				svc.resolver = NewModelPricingResolver(channelService, svc.billingService)
+				svc.channelService = channelService
+				input := &RecordUsageInput{
+					Result: &ForwardResult{
+						RequestID: "requested-pricing-shared", Model: tt.requested, UpstreamModel: tt.mapped, UpstreamResponseModel: tt.mapped,
+						Usage: ClaudeUsage{InputTokens: 100, OutputTokens: 40, CacheReadInputTokens: 200},
+					},
+					APIKey: key, User: user, Account: account, ChannelUsageFields: fields,
+				}
+				quoted := svc.QuoteUsageCost(ctx, input)
+				require.NoError(t, svc.RecordUsage(ctx, input))
+				check(t, usageRepo.lastLog, userRepo.lastAmount)
+				require.InDelta(t, userRepo.lastAmount, quoted, 1e-12)
+				reserved, priced := svc.EstimateInflightReservation(ctx, key, InflightEstimateRequest{
+					Model: tt.requested, BodyBytes: 400, MaxTokens: 40,
+				})
+				require.True(t, priced)
+				require.InDelta(t, (100*(*want.InputPrice)+40*(*want.OutputPrice))*0.11, reserved, 1e-12)
+			})
+			t.Run("OpenAI gateway", func(t *testing.T) {
+				usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+				userRepo := &openAIRecordUsageUserRepoStub{}
+				svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, &openAIRecordUsageSubRepoStub{}, nil)
+				svc.resolver = NewModelPricingResolver(channelService, svc.billingService)
+				require.NoError(t, svc.RecordUsage(ctx, &OpenAIRecordUsageInput{
+					Result: &OpenAIForwardResult{
+						RequestID: "requested-pricing-openai", Model: tt.requested, UpstreamModel: tt.mapped, UpstreamResponseModel: tt.mapped,
+						Usage: OpenAIUsage{InputTokens: 300, OutputTokens: 40, CacheReadInputTokens: 200},
+					},
+					APIKey: key, User: user, Account: account, ChannelUsageFields: fields,
+				}))
+				check(t, usageRepo.lastLog, userRepo.lastAmount)
+			})
+		})
+	}
+}
+
 func newGatewayRecordUsageServiceForTest(usageRepo UsageLogRepository, userRepo UserRepository, subRepo UserSubscriptionRepository) *GatewayService {
 	cfg := &config.Config{}
 	cfg.Default.RateMultiplier = 1.1

@@ -941,10 +941,10 @@ func (s *GatewayService) recordUsageMultipliers(ctx context.Context, apiKey *API
 }
 
 // recordUsageBillingModel resolves the billing model and reports whether a
-// configured price for the requested DeepSeek model takes precedence.
+// configured price for the requested model takes precedence.
 func (s *GatewayService) recordUsageBillingModel(ctx context.Context, apiKey *APIKey, result *ForwardResult, fields ChannelUsageFields) (string, bool) {
 	requestedModel := firstNonEmpty(fields.OriginalModel, result.Model)
-	if s.resolver.hasDeepSeekRequestedPricing(ctx, apiKey, requestedModel) {
+	if s.resolver.hasRequestedModelPricing(ctx, apiKey, requestedModel) {
 		return requestedModel, true
 	}
 	concreteBillingModel := forwardResultBillingModel(result.Model, result.UpstreamModel)
