@@ -25,6 +25,7 @@ func TestRecordUsageRequestedPricingSurvivesMapping(t *testing.T) {
 		priceInGroup    bool
 		requestedPriced bool
 		mappedPriced    bool
+		freeRequested   bool
 	}{
 		{
 			name: "DeepSeek group price with account mapping", platform: PlatformDeepseek,
@@ -47,9 +48,14 @@ func TestRecordUsageRequestedPricingSurvivesMapping(t *testing.T) {
 			priceInGroup: true, requestedPriced: true, mappedPriced: true,
 		},
 		{
-			name: "mapped price when requested price is absent", platform: PlatformKimi,
+			name: "mapped price when requested price entry is empty", platform: PlatformKimi,
 			requested: "kimi-k3", mapped: "kimi-k3-1", source: BillingModelSourceChannelMapped,
 			mappedPriced: true,
+		},
+		{
+			name: "explicit zero requested price still takes priority", platform: PlatformKimi,
+			requested: "kimi-k3", mapped: "kimi-k3-1", source: BillingModelSourceChannelMapped,
+			requestedPriced: true, mappedPriced: true, freeRequested: true,
 		},
 	}
 	for _, tt := range tests {
@@ -66,11 +72,18 @@ func TestRecordUsageRequestedPricingSurvivesMapping(t *testing.T) {
 				mappedPricing.InputPrice = float64Ptr(20e-6)
 				mappedPricing.OutputPrice = float64Ptr(80e-6)
 			}
+			if tt.freeRequested {
+				requestedPricing.InputPrice = float64Ptr(0)
+				requestedPricing.OutputPrice = float64Ptr(0)
+				requestedPricing.CacheReadPrice = float64Ptr(0)
+			}
 			var prices []ChannelModelPricing
 			want := mappedPricing
 			if tt.requestedPriced {
 				prices = append(prices, requestedPricing)
 				want = requestedPricing
+			} else {
+				prices = append(prices, ChannelModelPricing{Models: []string{tt.requested}, Platform: tt.platform, BillingMode: BillingModeToken})
 			}
 			if tt.mappedPriced {
 				prices = append(prices, mappedPricing)

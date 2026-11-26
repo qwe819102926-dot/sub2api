@@ -71,8 +71,27 @@ func (r *ModelPricingResolver) hasRequestedModelPricing(ctx context.Context, api
 	if r == nil || apiKey == nil || apiKey.Group == nil || strings.TrimSpace(model) == "" {
 		return false
 	}
-	return matchGroupModelPricing(apiKey.Group, model) != nil ||
-		r.lookupChannelPricingNormalized(ctx, apiKey.Group.ID, model) != nil
+	if groupPrice := matchGroupModelPricing(apiKey.Group, model); groupPrice != nil {
+		return hasModelPriceOverrides(groupPrice, false)
+	}
+	return hasModelPriceOverrides(r.lookupChannelPricingNormalized(ctx, apiKey.Group.ID, model), true)
+}
+
+func hasModelPriceOverrides(price *ChannelModelPricing, channel bool) bool {
+	if price == nil {
+		return false
+	}
+	switch price.BillingMode {
+	case BillingModePerRequest, BillingModeImage, BillingModeVideo:
+		return price.PerRequestPrice != nil || len(filterValidIntervals(price.Intervals)) > 0
+	default:
+		// Group token pricing ignores custom intervals and time pricing.
+		return price.InputPrice != nil || price.OutputPrice != nil || price.CacheReadPrice != nil ||
+			price.CacheWritePrice != nil || price.CacheWrite1hPrice != nil || price.ImageInputPrice != nil ||
+			price.ImageOutputPrice != nil || price.FastMultiplier != nil || price.FlexMultiplier != nil ||
+			price.MaxReasoningEffortMultiplier != nil || (channel && (len(filterValidIntervals(price.Intervals)) > 0 ||
+			price.TimePricing != nil && len(price.TimePricing.Periods) > 0))
+	}
 }
 
 // Resolve 解析模型定价。
