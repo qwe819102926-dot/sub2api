@@ -1170,6 +1170,37 @@ func TestBuildGroupConfiguredCodexModelsManifestUsesAdministratorConfiguration(t
 	require.Equal(t, manifest.ETag, notModified.ETag)
 }
 
+func TestBuildGroupConfiguredCodexModelsManifestAdvertisesGPT62ImageInput(t *testing.T) {
+	t.Parallel()
+
+	const groupID int64 = 78
+	svc := &OpenAIGatewayService{accountRepo: codexModelsVisibilityAccountRepo{
+		byGroup: map[int64][]Account{
+			groupID: {{
+				Platform: PlatformOpenAI,
+				Type:     AccountTypeAPIKey,
+				Credentials: map[string]any{
+					"base_url": "https://openai-compatible.example.test/v1",
+					"model_mapping": map[string]any{
+						"gpt-6.2-sol":   "gpt-6.2-sol",
+						"gpt-6.2-astra": "gpt-6.2-astra",
+					},
+				},
+			}},
+		},
+	}}
+	manifest, configured, err := svc.BuildGroupConfiguredCodexModelsManifest(
+		context.Background(), &Group{ID: groupID, Platform: PlatformOpenAI}, "",
+	)
+	require.NoError(t, err)
+	require.True(t, configured)
+	models := decodeCodexManifestModels(t, manifest.Body)
+	require.Len(t, models, 2)
+	for _, model := range models {
+		require.Equal(t, []any{"text", "image"}, model["input_modalities"], model["slug"])
+	}
+}
+
 // Scenario: OpenAI 通配映射展开组内精确选择，但不发布通配符 slug。
 func TestBuildGroupConfiguredCodexModelsManifestExpandsSelectedModelCoveredByWildcardMapping(t *testing.T) {
 	t.Parallel()
@@ -2226,6 +2257,19 @@ func TestCompleteAPIKeyCodexModelsManifestForClientMarksOnlyOfficialVisionGPTIma
 		require.Equal(t, false, bySlug[slug]["supports_image_detail_original"])
 	}
 	require.Equal(t, codexModelsManifestBodyETag(manifest.Body), manifest.ETag)
+}
+
+func TestCompleteAPIKeyCodexModelsManifestForClientPreservesGPT62Audio(t *testing.T) {
+	t.Parallel()
+
+	svc := &OpenAIGatewayService{}
+	manifest := &CodexModelsManifest{Body: []byte(`{"models":[{"slug":"gpt-6.2-sol","input_modalities":["text","image","audio"]}]}`)}
+	account := newCodexModelsAPIKeyTestAccount("")
+
+	require.NoError(t, svc.CompleteAPIKeyCodexModelsManifestForClient(manifest, account))
+	models := decodeCodexManifestModels(t, manifest.Body)
+	require.Len(t, models, 1)
+	require.Equal(t, []any{"text", "image", "audio"}, models[0]["input_modalities"])
 }
 
 func TestCompleteAPIKeyCodexModelsManifestForClientFiltersOfficialNonAgentModels(t *testing.T) {

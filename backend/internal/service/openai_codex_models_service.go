@@ -1236,18 +1236,14 @@ func accountCodexModelSupportsImageInput(account *Account, upstreamModel string)
 				return stringSliceContains(modalities, "image")
 			}
 		}
-		if !isOpenAICodexImageInputModel(upstreamModel) {
+		if !account.IsOpenAIOAuth() && !account.IsOpenAIApiKey() {
 			return false
 		}
-		if account.IsOpenAIOAuth() {
-			return true
-		}
-		if !account.IsOpenAIApiKey() {
-			return false
-		}
-		// Compatible model lists often omit modalities. Preserve the known GPT
-		// fallback unless a synced snapshot above explicitly narrows it.
-		return true
+		// Use known capabilities when a model list omits modalities. Keep the
+		// GPT-6.2 fallback separate from native manifest capability rewriting.
+		modelID := canonicalizeOpenAIModelAliasSpelling(upstreamModel)
+		return modelID == "gpt-6.2-sol" || modelID == "gpt-6.2-astra" ||
+			isOpenAICodexImageInputModel(modelID)
 	case PlatformGrok:
 		if !isOfficialGrokCodexBaseURL(account.GetGrokBaseURL()) {
 			return false
